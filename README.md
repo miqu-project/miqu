@@ -56,7 +56,9 @@ To build locally into development build directories without installing to `/usr`
 
 ---
 
-## 📦 Ecosystem Architecture
+## 📦 Repository Structure
+
+The Miqu ecosystem codebase is structured across the following repositories:
 
 | Repository | Role | Technology | Description |
 | :--- | :--- | :---: | :--- |
