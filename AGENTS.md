@@ -334,6 +334,7 @@ Downstream applications follow an identical, minimal structure:
 ## Workflow & Collaboration Protocols
 
 - **Git Staging, Commits & Push**: Always explicitly ask the user before staging, committing, or pushing git changes.
+- **Documentation & README Synchronization**: Before committing or pushing changes to Git, always ensure that all relevant `README.md` files (root umbrella, repository, or application-specific) are fully updated to accurately reflect any new features, altered CLI commands, configuration options, or architectural changes.
 - **Visual Feedback Verification**: Visual output (colors, margins, padding, animations) cannot always be reliably verified programmatically. Ask the user directly for verification (e.g., *"Is the background showing red as expected?"*).
 - **Configuration File Synchronization**: Whenever editing `/assets/*.conf`, ask the user whether to sync changes to `~/.config/` and vice versa.
 - **Human Readability & Audit Pass**: For all vibecoded features and non-trivial patches, perform a dedicated cleanup pass to ensure the code is immediately human-readable, cleanly commented, free of cryptic boilerplate, and easily maintainable by human developers before submitting for review.
