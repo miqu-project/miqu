@@ -15,6 +15,10 @@
   <a href="https://github.com/miqu-project/miqu-android"><img src="https://img.shields.io/badge/Mobile-miqu--android-orange?style=flat-square" alt="miqu-android" /></a>
 </p>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc1.png" alt="Miqu Desktop" width="100%" />
+</p>
+
 ---
 
 ## 🏛️ Overview
@@ -96,6 +100,20 @@ git add miquland
 git commit -m "chore(deps): update miquland submodule pointer"
 git push origin main
 ```
+
+---
+
+## 📸 Screenshots
+
+![Screenshot 1](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc1.png)
+
+![Screenshot 2](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc2.png)
+
+![Screenshot 3](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc3.png)
+
+![Screenshot 4](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc4.png)
+
+![Screenshot 5](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc5.png)
 
 ---
 
