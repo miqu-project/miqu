@@ -1,0 +1,12 @@
+# Credentials and private tokens
+git_token_password
+*.token
+*.key
+
+# Temporary files and backups
+*.bak
+*.tmp
+*~
+
+# Build artifacts
+build/

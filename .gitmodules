@@ -1,0 +1,18 @@
+[submodule "miquland"]
+	path = miquland
+	url = https://github.com/miqu-project/miquland.git
+[submodule "miqutoolkit"]
+	path = miqutoolkit
+	url = https://github.com/miqu-project/miqutoolkit.git
+[submodule "miqu-linux-apps"]
+	path = miqu-linux-apps
+	url = https://github.com/miqu-project/miqu-linux-apps.git
+[submodule "miqu-android"]
+	path = miqu-android
+	url = https://github.com/miqu-project/miqu-android.git
+[submodule "miqu-project.github.io"]
+	path = miqu-project.github.io
+	url = https://github.com/miqu-project/miqu-project.github.io.git
+[submodule ".github"]
+	path = .github
+	url = https://github.com/miqu-project/.github.git
