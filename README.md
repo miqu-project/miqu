@@ -67,7 +67,7 @@ The Miqu ecosystem codebase is structured across the following repositories:
 | [**`miqu-linux-apps`**](https://github.com/miqu-project/miqu-linux-apps) | **Native Desktop Suite** | C++20 / miqutoolkit | Cohesive first-party desktop applications (`miqudesk`, `miqubar`, `miqusecure`, `miqumusic`, `miqulauncher`, `miqunotify`, `miqugallery`, `miqudm`, `miqubg`, `miqulock`, `miquidle`, `miqupolkit`, etc.). |
 | [**`miqu-android`**](https://github.com/miqu-project/miqu-android) | **Mobile Applications** | Kotlin / Jetpack Compose | Native Android apps and mobile companions designed to complement the Miqu environment. |
 | [**`miqu-project.github.io`**](https://github.com/miqu-project/miqu-project.github.io) | **Documentation & Web** | HTML / CSS / JS | Official landing website and documentation portal. |
-| [**`.github`**](https://github.com/miqu-project/.github) | **Organization & Standards** | Markdown / Assets | Organization profile README, branding assets, and ecosystem standards ([`AGENTS.md`](AGENTS.md)). |
+| [**`.github`**](https://github.com/miqu-project/.github) | **Organization Profile & Assets** | Markdown / Assets | GitHub organization profile landing page (`profile/README.md`) and ecosystem assets. |
 
 ---
 

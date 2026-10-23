@@ -12,10 +12,6 @@ if [ ! -f "$ROOT_DIR/miquland/CMakeLists.txt" ] || \
     git -C "$ROOT_DIR" submodule update --init --recursive
 fi
 
-# Ensure AGENTS.md symlink exists
-if [ ! -e "$ROOT_DIR/AGENTS.md" ] && [ -f "$ROOT_DIR/.github/AGENTS.md" ]; then
-    ln -sf .github/AGENTS.md "$ROOT_DIR/AGENTS.md"
-fi
 
 if [ "${EUID}" -ne 0 ]; then
     echo "==> Warning: Running without root/sudo privileges."

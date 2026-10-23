@@ -13,6 +13,3 @@
 [submodule "miqu-project.github.io"]
 	path = miqu-project.github.io
 	url = https://github.com/miqu-project/miqu-project.github.io.git
-[submodule ".github"]
-	path = .github
-	url = https://github.com/miqu-project/.github.git
