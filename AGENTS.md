@@ -115,7 +115,7 @@ Config::get()->setup_config_watcher();
 
 ## Active & Future Roadmap (TODO List)
 
-1. **`miquctl` Comprehensive Compositor IPC Utility**: First-party CLI controller communicating with `miquland` over Unix domain socket (workspace switching/querying, window dispatching, monitor configuration, config reload, dynamic plugin management, and runtime diagnostics).
+1. **`miquctl` Comprehensive Compositor IPC Utility** *(Core Implemented)*: First-party CLI controller communicating with `miquland` over Unix domain socket (workspace/client/monitor state querying, window dispatching, config reload, graceful session shutdown orchestrator `miquctl shutdown`, event streaming `subscribe`, and runtime diagnostics).
 2. **Plugin System v2.0 (After `miquctl`)**:
    - Window & Workspace Event Bus (`on_workspace_switch`, `on_view_map`, `on_view_unmap`, `on_view_focus`, `on_monitor_change`).
    - Touchpad & Touchscreen Multi-Finger Gesture Hooks (3/4-finger swipe begin/update/end, pinch).

@@ -25,7 +25,7 @@
 
 **Miqu** is an ambitious, unified desktop environment engineered from the ground up for Wayland on Linux. It eliminates desktop fragmentation by providing a dedicated wlroots-based compositor, a custom C++ UI toolkit with instant theme propagation, a cohesive first-party native desktop application suite, and companion mobile applications.
 
-This repository serves as the **meta-repository / umbrella distribution** for the entire Miqu ecosystem, synchronizing all primary subsystems via Git submodules.
+This repository serves as the **meta-repository / umbrella distribution** for the entire Miqu ecosystem, synchronizing all primary subsystems via Git submodules. Full documentation, architectural guides, and IPC references are available on the [**Miqu Project Documentation Portal**](https://miqu-project.github.io/#docs).
 
 ---
 
