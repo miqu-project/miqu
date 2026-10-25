@@ -176,8 +176,12 @@ Config::get()->setup_config_watcher();
 - If a logic pattern, event dispatch loop, or geometry calculation repeats more than once, immediately extract it into a parameterized helper function.
 - Never duplicate 30–50 line blocks across files with only trivial variable substitutions.
 
-### 6. Reuse Existing Code First (Search Before Authoring)
+### 6. Reuse Existing Code & Convention-First Architecture
 - **Never reinvent the wheel**: Before authoring a helper, math calculation, geometry converter, or string utility, inspect the existing codebase.
+- **Reuse Existing Classes & Modules**: Check for existing domain classes, managers, or data structures across our source code before authoring parallel abstractions.
+- **Refactor While Reusing**: If an existing class or helper to be reused violates craftsmanship standards, contains legacy anti-patterns, or has narrow unmodular interfaces, refactor it to meet the standard rather than duplicating it or building on top of technical debt.
+- **Respect Proven Platform Conventions**: Default strictly to industry-standard platform contracts, protocols, and proven ergonomics unless explicitly designing a novel innovation.
+- **Mathematical & Structural Rigor**: Ground systems in established structural, mathematical, and behavioral conventions to prevent idiosyncratic, bespoke maintenance traps.
 - **Generalize existing helpers**: If an existing function provides 90% of what is needed, extend or generalize it cleanly rather than writing duplicate private variants.
 
 ### 7. Accurate Naming & Renaming Hygiene
@@ -189,27 +193,37 @@ Config::get()->setup_config_watcher();
 
 ### 9. Ripple-Effect & Blast-Radius Awareness (Zero Myopic Fixes)
 - **System-Wide Impact Tracing**: Before modifying any shared structure, hook, or method signature, proactively trace its potential ripple effects across the entire ecosystem.
+- **Proactive Ecosystem Impact Tracing**: Ensure localized enhancements never compromise cross-layer stability, contracts, or dependent components.
 - **Zero Band-Aid Edits**: Never make isolated edits that solve an immediate symptom while breaking distant subsystems or introducing regressions.
 - **Verify All Invariants & Call Sites**: Inspect all dependent call sites and downstream components to guarantee end-to-end architectural integrity.
 
-### 10. Radical Candor & Intellectual Honesty (Zero Faking or Sycophancy)
+### 10. Radical Candor, Technical Feasibility & System Primitives
 - **Learn to Say "I Could Not Find", "Cannot Do", or "Sorry"**: Never fabricate non-existent APIs, hallucinate symbols, or invent broken workarounds.
-- **Upfront Renderer & Protocol Reality Checks**: State hard protocol or low-level limitations upfront (e.g. stock wlroots surface clipping limitations without custom fragment shaders or scenefx).
+- **Respect Technical Feasibility**: Respect what is technically feasible within the authoritative cost models and physical boundaries of the underlying platform stack.
+- **Grounding in System Primitives**: Never attempt to circumvent hardware or protocol realities with pseudo-solutions; isolate global pipeline costs from local entity parameters.
+- **Upfront Protocol Reality Checks**: State hard protocol or low-level limitations upfront (e.g. stock wlroots surface clipping limitations without custom fragment shaders or scenefx).
 - **Zero Pseudo-Solutions**: If a requirement is unfeasible or risks stability, state the limitations honestly and propose genuine architectural prerequisites.
 
-### 11. Full-Stack Ecosystem Sovereignty & Zero Defensive Fallbacks
+### 11. Autonomous End-to-End Ownership (Anti-Half-Ass Implementation)
+- **No Superficial Patches or Partial MVPs**: Never stop at a superficial patch or partial MVP; autonomously audit the full lifecycle, failure modes, and edge cases.
+- **Complete Engineering Contracts**: Deliver complete, professional solutions with verified resting states, eliminating the need for piecemeal user prompting or supervisory hand-holding.
+
+### 12. Full-Stack Ecosystem Sovereignty & Zero Defensive Fallbacks
 - **End-to-End Stack Control**: We design, build, and maintain the entire Miqu ecosystem (`miquland`, `miqutoolkit`, and all native apps).
 - **No Speculative Fallbacks**: Never introduce defensive fallback branches, heuristic guesswork, or redundant fallback mechanisms for behaviors that we natively control and guarantee across our own stack.
 - **Single Authoritative Pipeline**: Design one clean, protocol-driven contract across layers. Implement missing capabilities cleanly at their authoritative source layer.
 
-### 12. Interface-First Design (Contract Precedes Implementation)
-- Always design and validate public class interfaces, method signatures, data structures, and lifecycle contracts before writing implementation logic.
+### 13. Interface-First Design, Symmetry & Cognitive Ergonomics
+- **Contract Precedes Implementation**: Always design and validate public class interfaces, method signatures, data structures, and lifecycle contracts before writing implementation logic.
+- **Architectural Symmetry & Parity**: Maintain strict feature parity, structural symmetry, and predictable mental models across parallel subsystems and configuration domains.
+- **Cognitive Ergonomics & Zero Hidden Magic**: Design clean, intuitive, and self-documenting interfaces with zero hidden background magic, undocumented assumptions, or arbitrary quirks.
 
-### 13. Opportunistic Refactoring
+### 14. Opportunistic Refactoring
 - If non-conforming or unmodular code is spotted during analysis of an unrelated task, offer to refactor that part.
 
-### 14. Zero Idle CPU Usage & Frame Loop Hygiene (Strict Event-Driven Inactivity)
+### 15. Zero Idle CPU Usage & Frame Loop Hygiene (Strict Event-Driven Inactivity)
 - **Absolute 0% Idle CPU in `miquland` & Ecosystem**: The compositor (`miquland`) and all desktop applications must sleep completely in the Wayland event loop when there are no active input events, damaged scene buffers, or running animations. At steady-state idle, CPU utilization must be strictly 0.0%.
+- **Strict Event-Driven Dormancy**: Enforce absolute event-driven dormancy at steady-state idle—never permit continuous polling, unthrottled ticks, or redundant surface commits.
 - **Zero Polling & Tick Loops**: Never use continuous timers, tick loops, periodic wakeups, or unthrottled frame callbacks when the UI is static. Frame scheduling must be strictly damage-driven (`wlr_output_schedule_frame` invoked only when actual damage occurs).
 - **Instant Animation Timer Teardown**: Any frame callbacks, animators, and timer event sources must be immediately disarmed and destroyed the exact moment an animation completes; they must never remain active or spin in the event loop.
 - **Buffer Commit Discipline**: Never trigger output frame repaints or damage tracking on redundant client surface commits if buffer contents, subsurface states, or view positions have not changed.
