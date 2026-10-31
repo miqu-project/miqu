@@ -143,6 +143,8 @@ Config::get()->setup_config_watcher();
 19. **Special / Scratchpad Workspace Support in `miquland`**: Implement special workspace (scratchpad) functionality in `miquland` (toggleable overlay workspace, dispatching windows to/from special workspace, keybindings, and IPC controls).
 20. **Tiling Geometry Suite (COMPLETED)**: Implemented full 8-layout suite (`dwindle`, `stack`, `bstack`, `centeredmaster`, `spiral`, `columns`, `grid`, `monocle`) with tree-based focus-splitting, live IPC control, and seamless config integration.
 21. **Fix Idle Inhibitor Not Being Responded**: Fix the idle inhibitor not being responded to when set to "keep awake" from apps like Antigravity (ensure idle inhibitor protocol requests and surface/portal inhibition properly prevent idle transitions and screen sleep in `miquland` and `miquidle`).
+22. **Cursor Busy State Reset on Layer Surface Launch**: Layer surface launches do not signal completion to clear the cursor busy state. While top-level tiled window launches accurately reset the cursor busy state upon surface mapping/committing, layer-shell applications (such as `miqulauncher`, `miqutest`, etc.) currently do not do so, leaving the cursor in a busy state. Ensure layer surface creations or startup notifications appropriately terminate the cursor busy state.
+23. **Fix Misplaced Window Border on `blueman-manager`**: Investigate and fix misplaced/misaligned window borders on client surfaces like `blueman-manager` (resolving geometry, decoration offset, or CSD/SSD bounding issues).
 ---
 
 ## Core Coding Craftsmanship Standards
