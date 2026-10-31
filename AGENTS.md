@@ -101,6 +101,7 @@ Config::get()->setup_config_watcher();
 - **`miqulauncher`**: Fast application launcher, fuzzy dmenu alternative, workspace navigator, and active window switcher.
 - **`miquoverview`**: GPU-accelerated live workspace expose and overview plugin/utility for window management in `miquland`.
 - **`miqunotify`**: Native desktop notification daemon and slide-out notification history center.
+- **`miqupower`**: Desktop Environment power and session management dialog with running application detection, graceful teardown visual feedback, and systemd-logind / miquland IPC integration.
 - **`miqutheme`**: Visual theme and appearance manager for selecting color schemes, wallpapers, fonts, and global design tokens.
 - **`miqugallery`**: High-performance image viewer and media gallery application.
 - **`miquinfo`**: Hardware monitoring, system telemetry, and diagnostic resource utility.
@@ -123,7 +124,7 @@ Config::get()->setup_config_watcher();
    - `miqusunset` (gamma/blue light control)
    - `miqusettings` (centralized system settings)
    - Package manager front-end
-   - `miqupower` (power management / session dialog)
+   - `miqupower` (COMPLETED - Native power and session management dialog with running application warnings and graceful miquland teardown visual feedback)
 3. **Configuration Parser & Legacy Alias Deprecation**: Deprecate redundant backward-compatibility wrappers and duplicate syntax in config parser.
 4. **Privacy & Security Center (`miqusecure`) Extensions**: OpenSnitch frontend, 1-click Tor enabler, browser privacy advisor, security auditor, LUKS advice, firewall (ufw/nftables) selection, system restore points (Timeshift/Snapper OS snapshots).
 7. **Touch Screen Gestures**: Multi-touch gesture recognition (swipes, pinch-to-zoom, edge gestures) for touchscreen devices.
