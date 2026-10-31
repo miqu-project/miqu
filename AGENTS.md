@@ -141,6 +141,7 @@ Config::get()->setup_config_watcher();
 18. **`miqunotify` Toast Layout & Shadow Fix**: Refine `miqunotify` notification toast rendering and layout—evaluate disabling drop shadows and guarantee notification body/action content stays strictly confined within the toast bounds without overflow or clipping.
 19. **Special / Scratchpad Workspace Support in `miquland`**: Implement special workspace (scratchpad) functionality in `miquland` (toggleable overlay workspace, dispatching windows to/from special workspace, keybindings, and IPC controls).
 20. **Tiling Geometry Suite (COMPLETED)**: Implemented full 8-layout suite (`dwindle`, `stack`, `bstack`, `centeredmaster`, `spiral`, `columns`, `grid`, `monocle`) with tree-based focus-splitting, live IPC control, and seamless config integration.
+21. **Fix Idle Inhibitor Not Being Responded**: Fix the idle inhibitor not being responded to when set to "keep awake" from apps like Antigravity (ensure idle inhibitor protocol requests and surface/portal inhibition properly prevent idle transitions and screen sleep in `miquland` and `miquidle`).
 ---
 
 ## Core Coding Craftsmanship Standards
