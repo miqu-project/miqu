@@ -110,6 +110,7 @@ Config::get()->setup_config_watcher();
 - **`miqulock`**: Session locking utility implementing the Wayland `ext-session-lock-v1` protocol.
 - **`miquidle`**: Idle management daemon monitoring user activity and power events via the Wayland `ext-idle-notify-v1` protocol.
 - **`miqupolkit`**: Native graphical Polkit authentication agent handling privilege escalation prompts.
+- **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
 - **`miqutest`**: Component testing sandbox and interactive widget showcase for developing and verifying `miqutoolkit` controls.
 
 ---
