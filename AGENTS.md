@@ -125,7 +125,7 @@ Config::get()->setup_config_watcher();
    - `miqusunset` (gamma/blue light control)
    - `miqusettings` (centralized system settings)
    - Package manager front-end
-   - `miqupower` (COMPLETED - Native power and session management dialog with running application warnings and graceful miquland teardown visual feedback)
+   
 3. **Configuration Parser & Legacy Alias Deprecation**: Deprecate redundant backward-compatibility wrappers and duplicate syntax in config parser.
 4. **Privacy & Security Center (`miqusecure`) Extensions**: OpenSnitch frontend, 1-click Tor enabler, browser privacy advisor, security auditor, LUKS advice, firewall (ufw/nftables) selection, system restore points (Timeshift/Snapper OS snapshots).
 7. **Touch Screen Gestures**: Multi-touch gesture recognition (swipes, pinch-to-zoom, edge gestures) for touchscreen devices.
