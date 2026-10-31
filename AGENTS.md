@@ -144,7 +144,7 @@ Config::get()->setup_config_watcher();
 20. **Tiling Geometry Suite (COMPLETED)**: Implemented full 8-layout suite (`dwindle`, `stack`, `bstack`, `centeredmaster`, `spiral`, `columns`, `grid`, `monocle`) with tree-based focus-splitting, live IPC control, and seamless config integration.
 21. **Fix Idle Inhibitor Not Being Responded**: Fix the idle inhibitor not being responded to when set to "keep awake" from apps like Antigravity (ensure idle inhibitor protocol requests and surface/portal inhibition properly prevent idle transitions and screen sleep in `miquland` and `miquidle`).
 
-22. **Fix Misplaced Window Border on `blueman-manager` & CSD Surfaces (COMPLETED)**: Implemented canonical XDG window geometry offset (`geometry.x`, `geometry.y`) compensation across `View` scene hierarchy, synchronized frame damage dispatch, root popup placement, and retired artificial floating rule for `blueman-manager`.
+22. **Fix Misplaced Window Border on `blueman-manager` & CSD Surfaces (COMPLETED)**: Verified canonical wlroots scene contract (`wlr_scene_xdg_surface_create` anchors origin to window geometry), aligned surface scene tree and root popup placement strictly with border width, ensured frame scheduling on floating configure dispatch, and retired artificial floating rule for `blueman-manager` to tile naturally.
 ---
 
 ## Core Coding Craftsmanship Standards
