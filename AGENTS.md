@@ -139,10 +139,10 @@ Config::get()->setup_config_watcher();
 15. **Add separate `miqupluginmanager`**: Dedicated manager and utility to discover, install, update, enable/disable, and configure `miquland` plugins and extensions.
 16. **`miqutheme` Auto-Seeding & Asset Layering Study**: `miqutheme` currently copies default schemes, wallpapers, and matugen templates into `~/.config/miqutheme/` on its very first launch (`ensure_directories_and_seed()`). Study and address potential loopholes (e.g. user directory pollution on startup, stale local copies when system schemes update upstream) and evaluate transitioning `miqutheme` to load system assets directly from `/usr/share/miqutheme/` while reserving `~/.config/miqutheme/` strictly for user-created custom wallpapers and palettes.
 17. **Gamma Control in `miqubar`**: Implement gamma / blue light control module and flyout slider in `miqubar` (integrating with gamma control protocol / `miqusunset`).
-18. **`miqunotify` Toast Layout & Shadow Fix**: Refine `miqunotify` notification toast rendering and layout—evaluate disabling drop shadows and guarantee notification body/action content stays strictly confined within the toast bounds without overflow or clipping.
-19. **Special / Scratchpad Workspace Support in `miquland`**: Implement special workspace (scratchpad) functionality in `miquland` (toggleable overlay workspace, dispatching windows to/from special workspace, keybindings, and IPC controls).
-20. **Tiling Geometry Suite (COMPLETED)**: Implemented full 8-layout suite (`dwindle`, `stack`, `bstack`, `centeredmaster`, `spiral`, `columns`, `grid`, `monocle`) with tree-based focus-splitting, live IPC control, and seamless config integration.
-21. **Fix Idle Inhibitor Not Being Responded**: Fix the idle inhibitor not being responded to when set to "keep awake" from apps like Antigravity (ensure idle inhibitor protocol requests and surface/portal inhibition properly prevent idle transitions and screen sleep in `miquland` and `miquidle`).
+
+18. **Special / Scratchpad Workspace Support in `miquland`**: Implement special workspace (scratchpad) functionality in `miquland` (toggleable overlay workspace, dispatching windows to/from special workspace, keybindings, and IPC controls).
+
+19. **Fix Idle Inhibitor Not Being Responded**: Fix the idle inhibitor not being responded to when set to "keep awake" from apps like Antigravity (ensure idle inhibitor protocol requests and surface/portal inhibition properly prevent idle transitions and screen sleep in `miquland` and `miquidle`).
 
 
 
