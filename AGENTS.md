@@ -171,6 +171,8 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 
 19. **Fix Idle Inhibitor Not Being Responded**: Fix the idle inhibitor not being responded to when set to "keep awake" from apps like Antigravity (ensure idle inhibitor protocol requests and surface/portal inhibition properly prevent idle transitions and screen sleep in `miquland` and `miquidle`).
 
+20. **Fix Kitty Artifact on Launch with CSD**: Fix kitty artifact on launch which goes away on interaction when CSD is turned on (investigate initial configure geometry, frame sizing, or buffer commit synchronization when negotiating client-side decorations in `miquland`).
+
 
 
 ## Core Coding Craftsmanship Standards
