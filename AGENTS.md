@@ -80,6 +80,34 @@ Config::get()->setup_config_watcher();
 
 ---
 
+### Inotify & Dynamic Live Reload Architectural Doctrine
+
+All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolkit`, and standalone utilities like `miquidle` and `miquoverview`) must strictly adhere to the five golden rules of inotify hygiene:
+
+1. **`IN_IGNORED` is Strictly an Acknowledgment Event, Never a Content Change**:
+   - `IN_IGNORED` is emitted by the Linux kernel when a watch is removed (`inotify_rm_watch`) or a monitored entity is unmounted.
+   - Event handlers must explicitly intercept `event->mask & IN_IGNORED` to invalidate internal descriptors (`wd = -1`) and `continue` immediately.
+   - **Never** mark `should_reload = true` or trigger a reload on `IN_IGNORED`. Treating watch teardowns as file modifications creates infinite reload feedback loops.
+
+2. **Strict Write-Mask Filtering & Directory-Self Protection**:
+   - Live reloads must only respond to genuine write and creation events: `IN_MODIFY`, `IN_CLOSE_WRITE`, `IN_MOVED_TO`, and `IN_CREATE`.
+   - In directory watchers, events targeting the directory itself (`event->len == 0`, such as metadata adjustments or watch invalidations) must **never** trigger reloads. File reloads require `event->len > 0` matching the target filename or `.conf` extension.
+
+3. **Single Inode Watch Authority (No Overlapping Watches)**:
+   - Linux inotify deduplicates watches per inode within an inotify instance (returning the existing `wd`).
+   - The primary application configuration (`<app>.conf`) must be watched strictly through its dedicated primary watch descriptor, while dynamically included files (`source = ...`) are watched via the sourced files collection.
+   - Never add the primary configuration file into the sourced files watch list; doing so creates shared watch descriptors that invalidate primary tracking when sourced watches are updated.
+
+4. **Zero Watch Descriptor Churn (Idempotent Watch Syncing)**:
+   - On dynamic reload, components must diff the list of active sourced files against previous registrations (`new_sourced == m_watched_sourced_files`).
+   - If the list of loaded sourced files has not changed, retain active kernel watches as-is. Avoid destroying and re-adding identical inotify watches on every reload cycle.
+
+5. **Debounce Discipline & Synchronous IPC Coordination**:
+   - Asynchronous filesystem modifications must be debounced (150–250ms) via a one-shot event-loop timer to coalesce rapid multi-chunk writes and atomic editor renames (`.tmp` -> `rename`).
+   - Explicit IPC reload commands (such as `miquctl reload` or Unix domain socket signals) must immediately disarm any pending debounce timer (`wl_event_source_timer_update(timer, 0)`) to ensure instant, single-pass, synchronous execution without redundant delayed secondaries.
+
+---
+
 ### Zero Source-Code Appearance Defaults
 - Shared appearance tokens (colors, fonts, metrics, `icon_theme`) must **NEVER** have fallback magic literals in C++ struct initializers.
 - All downstream applications must implement a `sync_defaults_from_toolkit()` pattern that queries `Config::get()`.
@@ -225,6 +253,7 @@ Config::get()->setup_config_watcher();
 - **Zero Polling & Tick Loops**: Never use continuous timers, tick loops, periodic wakeups, or unthrottled frame callbacks when the UI is static. Frame scheduling must be strictly damage-driven (`wlr_output_schedule_frame` invoked only when actual damage occurs).
 - **Instant Animation Timer Teardown**: Any frame callbacks, animators, and timer event sources must be immediately disarmed and destroyed the exact moment an animation completes; they must never remain active or spin in the event loop.
 - **Buffer Commit Discipline**: Never trigger output frame repaints or damage tracking on redundant client surface commits if buffer contents, subsurface states, or view positions have not changed.
+- **Inotify & Watcher Dormancy**: Inotify event loops and config watchers must settle completely into dormancy after a single debounced reload. Never allow descriptor invalidation events (`IN_IGNORED`) or teardown routines to re-arm debounce timers or spin the event loop in background reload loops.
 
 ---
 
