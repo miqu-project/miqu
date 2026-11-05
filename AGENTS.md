@@ -139,6 +139,7 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miquidle`**: Idle management daemon monitoring user activity and power events via the Wayland `ext-idle-notify-v1` protocol.
 - **`miqupolkit`**: Native graphical Polkit authentication agent handling privilege escalation prompts.
 - **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
+- **`miqusettings`**: Modern Miller-columns centralized system settings and desktop configuration manager.
 - **`miqutest`**: Component testing sandbox and interactive widget showcase for developing and verifying `miqutoolkit` controls.
 
 ---
