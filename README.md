@@ -52,6 +52,18 @@ To build locally into a development build directory without installing to `/usr`
 ./install.sh
 ```
 
+### 3. Uninstall Everything
+To completely remove all installed binaries, libraries, desktop entries, icons, and system configurations:
+
+```bash
+sudo ./uninstall.sh
+```
+
+To also purge user configurations (`~/.config/miqu*`) and caches:
+```bash
+sudo ./uninstall.sh --purge-user-data
+```
+
 ---
 
 ## 📦 Monorepo Directory Structure
@@ -60,6 +72,7 @@ To build locally into a development build directory without installing to `/usr`
 miqu/
 ├── CMakeLists.txt              # Root CMake orchestrator (in-tree linking)
 ├── install.sh                  # Master build & install script
+├── uninstall.sh                # Master uninstaller & purge script
 ├── README.md                   # Ecosystem documentation
 ├── AGENTS.md                   # Architectural contracts & guidelines
 │
