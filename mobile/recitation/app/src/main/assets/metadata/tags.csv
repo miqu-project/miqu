@@ -1,0 +1,46 @@
+Tag,Arabic Name,Description
+N,اسم,Noun
+PN,اسم علم,Proper noun
+ADJ,صفة,Adjective
+IMPN,اسم فعل أمر,Imperative verbal noun
+PRON,ضمير,Personal pronoun
+DEM,اسم اشارة,Demonstrative pronoun
+REL,اسم موصول,Relative pronoun
+T,ظرف زمان,Time adverb
+LOC,ظرف مكان,Location adverb
+V,فعل,Verb
+P,حرف جر,Preposition
+EMPH,لام التوكيد,Emphatic lām prefix
+IMPV,لام الامر,Imperative lām prefix
+PRP,لام التعليل,Purpose lām prefix
+CONJ,حرف عطف,Coordinating conjunction
+SUB,حرف مصدري,Subordinating conjunction
+ACC,حرف نصب,Accusative particle
+AMD,حرف استدراك,Amendment particle
+ANS,حرف جواب,Answer particle
+AVR,حرف ردع,Aversion particle
+CAUS,حرف سببية,Particle of cause
+CERT,حرف تحقيق,Particle of certainty
+CIRC,حرف حال,Circumstantial particle
+COM,واو المعية,Comitative particle
+COND,حرف شرط,Conditional particle
+EQ,حرف تسوية,Equalization particle
+EXH,حرف تحضيض,Exhortation particle
+EXL,حرف تفصيل,Explanation particle
+EXP,أداة استثناء,Exceptive particle
+FUT,حرف استقبال,Future particle
+INC,حرف ابتداء,Inceptive particle
+INT,حرف تفسير,Particle of interpretation
+INTG,حرف استفهام,Interrogative particle
+NEG,حرف نفي,Negative particle
+PREV,حرف كاف,Preventive particle
+PRO,حرف نهي,Prohibition particle
+REM,حرف استئنافية,Resumption particle
+RES,أداة حصر,Restriction particle
+RET,حرف اضراب,Retraction particle
+RSLT,حرف واقع في جواب الشرط,Result particle
+SUP,حرف زائد,Supplemental particle
+SUR,حرف فجاءة,Surprise particle
+VOC,حرف نداء,Vocative particle
+INL,حروف مقطعة,Quranic initials
+DET,أداة تعريف,Definite article "ال" (Al) as a prefix

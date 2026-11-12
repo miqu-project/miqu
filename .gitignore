@@ -12,3 +12,26 @@ git_token_password
 build/
 build*/
 .old*
+
+# Android & Gradle
+.gradle/
+*/.gradle/
+*/*/*/build/
+.kotlin/
+*/.kotlin/
+.idea/
+*/.idea/
+*.iml
+*/*.iml
+local.properties
+*/local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Recitation pipeline data and heavy outputs
+mobile/recitation/tools/quran-wbw-pipeline/data/
+**/tools/quran-wbw-pipeline/data/
+**/tools/quran-wbw-pipeline/**/*.pdf
+mobile/recitation/tools/quran-wbw-pipeline/studio/pages/
+mobile/recitation/tools/quran-wbw-pipeline/studio/modified/

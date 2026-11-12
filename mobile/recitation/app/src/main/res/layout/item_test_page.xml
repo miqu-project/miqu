@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/pageContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardPageFrame"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:cardCornerRadius="0dp"
+        app:cardElevation="0dp"
+        app:strokeColor="?attr/colorOutline"
+        app:strokeWidth="2dp">
+
+        <LinearLayout
+            android:id="@+id/layoutLinesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- Line 1 -->
+            <ImageView
+                android:id="@+id/imageLine01"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 1"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider01"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 2 -->
+            <ImageView
+                android:id="@+id/imageLine02"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 2"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider02"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 3 -->
+            <ImageView
+                android:id="@+id/imageLine03"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 3"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider03"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 4 -->
+            <ImageView
+                android:id="@+id/imageLine04"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 4"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider04"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 5 -->
+            <ImageView
+                android:id="@+id/imageLine05"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 5"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider05"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 6 -->
+            <ImageView
+                android:id="@+id/imageLine06"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 6"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider06"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 7 -->
+            <ImageView
+                android:id="@+id/imageLine07"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 7"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider07"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 8 -->
+            <ImageView
+                android:id="@+id/imageLine08"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 8"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider08"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 9 -->
+            <ImageView
+                android:id="@+id/imageLine09"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 9"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider09"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 10 -->
+            <ImageView
+                android:id="@+id/imageLine10"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 10"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider10"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 11 -->
+            <ImageView
+                android:id="@+id/imageLine11"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 11"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider11"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 12 -->
+            <ImageView
+                android:id="@+id/imageLine12"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 12"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider12"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 13 -->
+            <ImageView
+                android:id="@+id/imageLine13"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 13"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider13"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 14 -->
+            <ImageView
+                android:id="@+id/imageLine14"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 14"
+                android:scaleType="fitXY" />
+
+            <View
+                android:id="@+id/divider14"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?attr/colorOutlineVariant" />
+
+            <!-- Line 15 -->
+            <ImageView
+                android:id="@+id/imageLine15"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:contentDescription="Quran Line 15"
+                android:scaleType="fitXY" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

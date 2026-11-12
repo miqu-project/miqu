@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/nav_calculators">
+
+    <fragment
+        android:id="@+id/nav_calculators"
+        android:name="com.miqu.android.doctor.ui.hub.CalculatorHubFragment"
+        android:label="Tools"
+        tools:layout="@layout/fragment_calculator_hub">
+        <action
+            android:id="@+id/action_hub_to_pregnancy"
+            app:destination="@id/nav_pregnancy" />
+        <action
+            android:id="@+id/action_hub_to_rabies"
+            app:destination="@id/nav_rabies" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_pregnancy"
+        android:name="com.miqu.android.doctor.ui.pregnancy.PregnancyFragment"
+        android:label="Pregnancy Calculator"
+        tools:layout="@layout/fragment_pregnancy" />
+
+    <fragment
+        android:id="@+id/nav_rabies"
+        android:name="com.miqu.android.doctor.ui.rabies.RabiesFragment"
+        android:label="Rabies IM/ID Calculator"
+        tools:layout="@layout/fragment_rabies" />
+
+    <fragment
+        android:id="@+id/nav_notes"
+        android:name="com.miqu.android.doctor.ui.notes.NotesListFragment"
+        android:label="Clinical Notes"
+        tools:layout="@layout/fragment_notes_list">
+        <action
+            android:id="@+id/action_hub_to_notebook_notes"
+            app:destination="@id/nav_notebook_notes" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_notebook_notes"
+        android:name="com.miqu.android.doctor.ui.notes.NotebookNotesFragment"
+        android:label="Notes"
+        tools:layout="@layout/fragment_notebook_notes" />
+
+</navigation>

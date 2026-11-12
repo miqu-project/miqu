@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_surahs"
+        android:icon="@drawable/ic_quran"
+        android:title="@string/nav_surahs" />
+    <item
+        android:id="@+id/nav_learn"
+        android:icon="@drawable/ic_school"
+        android:title="@string/nav_learn" />
+    <item
+        android:id="@+id/nav_more"
+        android:icon="@drawable/ic_more_horiz"
+        android:title="@string/nav_more" />
+</menu>

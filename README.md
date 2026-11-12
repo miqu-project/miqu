@@ -92,13 +92,17 @@ miqu/
 │   ├── miquidle/               # Idle daemon (ext-idle-notify-v1)
 │   └── miqupolkit/             # Native Polkit privilege escalation agent
 │
-└── apps/                       # Standalone First-Party Applications (6 apps)
-    ├── miqucontrolpanel/       # Centralized settings, WireGuard VPN, DNS & privacy
-    ├── miqufiles/              # Modern Yazi-style Miller columns file manager
-    ├── miqumusic/              # Fast, lightweight native MPD audio player
-    ├── miqugallery/            # Hardware-accelerated image & media viewer
-    ├── miqutheme/              # Visual appearance & dynamic wallpaper theme manager
-    └── miquinfo/               # Real-time hardware telemetry & resource monitor
+├── apps/                       # Standalone First-Party Applications (6 apps)
+│   ├── miqucontrolpanel/       # Centralized settings, WireGuard VPN, DNS & privacy
+│   ├── miqufiles/              # Modern Yazi-style Miller columns file manager
+│   ├── miqumusic/              # Fast, lightweight native MPD audio player
+│   ├── miqugallery/            # Hardware-accelerated image & media viewer
+│   ├── miqutheme/              # Visual appearance & dynamic wallpaper theme manager
+│   └── miquinfo/               # Real-time hardware telemetry & resource monitor
+│
+└── mobile/                     # Android Companion & Standalone Applications (2 apps)
+    ├── doctor/                 # Healthcare & medical management companion app
+    └── recitation/             # Quran audio recitation, study & media app
 ```
 
 ---
@@ -111,6 +115,7 @@ miqu/
 | **UI Toolkit** | [`miqutoolkit`](miqutoolkit/) | C++20 / Cairo / Pango | Unified Wayland UI library with declarative widgets, fluid animations, and live inotify theme reload. |
 | **Desktop Shell** | [`shell/`](shell/) | C++20 / miqutoolkit | Core layer-shell UI components and system daemons (`miqubar`, `miqudesk`, `miqulauncher`, `miquoverview`, `miqunotify`, `miqupower`, `miqudm`, `miqubg`, `miqulock`, `miquidle`, `miqupolkit`). |
 | **Desktop Apps** | [`apps/`](apps/) | C++20 / miqutoolkit | Standalone client applications (`miqucontrolpanel`, `miqufiles`, `miqumusic`, `miqugallery`, `miqutheme`, `miquinfo`). |
+| **Mobile Apps** | [`mobile/`](mobile/) | Kotlin / Jetpack Compose | Native Android companion and standalone applications (`doctor`, `recitation`). |
 
 ---
 

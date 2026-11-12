@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_play_surah"
+        android:icon="@drawable/ic_play_arrow"
+        android:title="Play Surah"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_appearance"
+        android:icon="@drawable/ic_text_format"
+        android:title="Appearance"
+        app:showAsAction="always" />
+</menu>

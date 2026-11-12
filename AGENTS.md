@@ -142,6 +142,10 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miqutheme`**: Visual theme and appearance manager for selecting color schemes, wallpapers, fonts, and global design tokens.
 - **`miquinfo`**: Hardware monitoring, system telemetry, and diagnostic resource utility.
 
+### Mobile Applications (`mobile/`)
+- **`doctor`**: Healthcare & medical diagnostic companion application (Android / Jetpack Compose).
+- **`recitation`**: Audio recitation, study, and media companion application (Android / Jetpack Compose).
+
 ---
 
 ## Active & Future Roadmap (TODO List)
