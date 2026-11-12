@@ -333,15 +333,12 @@ Downstream applications follow an identical, minimal structure:
    # Scaled PNG icons installed with RENAME <app_name>.png
    ```
 
-### 3. Hierarchical Orchestration (`install_all.sh`)
-- **Root `install_all.sh`**: Strictly enforces the topological dependency order:
-  1. `miquland` (Compositor core & plugin development headers)
-  2. `miqutoolkit` (Shared UI library, headers, pkg-config, templates, and `ldconfig`)
-  3. `miqu-linux-apps` (Invokes the app suite installer)
-- **Apps `miqu-linux-apps/install_all.sh`**:
-  - Iterates over all 16 applications in ordered sequence.
-  - Automatically detects stale `CMakeCache.txt` when directory locations change and resets the build directory.
-  - Forwards CLI parameters (`"$@"`) to every individual `make.sh`.
+### 3. Unified Monorepo Orchestration (`install.sh`)
+- **Root `install.sh`**: Single-command CMake/Ninja orchestrator that builds and installs the entire ecosystem in topological order:
+  1. `miqutoolkit` (Shared UI library, headers, in-tree target)
+  2. `miquland` (Compositor core, scenefx, and miquctl IPC)
+  3. `shell/` (All 11 desktop shell components and daemons)
+  4. `apps/` (All 6 standalone desktop applications)
 
 ---
 
