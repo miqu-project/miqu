@@ -124,7 +124,7 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 ### Linux Applications (`miqu-linux-apps`)
 - **`miqubar`**: Wayland status bar and taskbar, featuring workspace indicators, window lists, system tray, battery/network telemetry modules, and interactive flyout menus.
 - **`miqudesk`**: Interactive desktop canvas and widget layer that brings familiar desktop ergonomics (desktop icons, shortcuts, widgets) to a modern tiling Wayland environment.
-- **`miqusecure`**: Privacy, firewall, and security command center, providing native management for Tor, OpenSnitch application firewall rules, LUKS encryption status, and privacy auditing.
+- **`miqucontrolpanel`**: Modern Miller-columns centralized desktop control panel, network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
 - **`miqumusic`**: Fast, lightweight native MPD (Music Player Daemon) client and audio playback interface.
 - **`miqulauncher`**: Fast application launcher, fuzzy dmenu alternative, workspace navigator, and active window switcher.
 - **`miquoverview`**: GPU-accelerated live workspace expose and overview plugin/utility for window management in `miquland`.
@@ -139,8 +139,6 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miquidle`**: Idle management daemon monitoring user activity and power events via the Wayland `ext-idle-notify-v1` protocol.
 - **`miqupolkit`**: Native graphical Polkit authentication agent handling privilege escalation prompts.
 - **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
-- **`miqusettings`**: Modern Miller-columns centralized system settings and desktop configuration manager.
-- **`miqutest`**: Component testing sandbox and interactive widget showcase for developing and verifying `miqutoolkit` controls.
 
 ---
 
@@ -152,10 +150,10 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 2. **Next Utilities & Applications**:
    - `miqushot` (screenshot utility)
    - `miqusunset` (gamma/blue light control)
-   - `miqusettings` (centralized system settings)
+   - `miqucontrolpanel` (completed: modern Miller-columns centralized desktop control panel and settings manager)
    - Package manager front-end
    
-4. **Privacy & Security Center (`miqusecure`) Extensions**: OpenSnitch frontend, 1-click Tor enabler, browser privacy advisor, security auditor, LUKS advice, firewall (ufw/nftables) selection, system restore points (Timeshift/Snapper OS snapshots).
+4. **Privacy & Security Extensions in `miqucontrolpanel`**: OpenSnitch frontend, 1-click Tor enabler, browser privacy advisor, security auditor, LUKS advice, firewall (ufw/nftables) selection, system restore points (Timeshift/Snapper OS snapshots).
 7. **Touch Screen Gestures**: Multi-touch gesture recognition (swipes, pinch-to-zoom, edge gestures) for touchscreen devices.
 8. **Virtual Machine Front-End**: Front-end utility to try out Linux distributions.
 9. **Firefox Live Preview Fix in `miquoverview`**: Resolve subsurfaces / popup preview bounding in overview cards.
