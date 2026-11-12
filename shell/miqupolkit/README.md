@@ -1,47 +1,41 @@
-# MiquPolkit 🛡️
+# miqupolkit
 
-A lightweight, native Wayland graphical Polkit authentication agent built with **`miqutoolkit`** for the Miqu desktop environment.
+> **Native Graphical Polkit Authentication Agent for Wayland**
 
-MiquPolkit provides secure privilege escalation dialogs for administrative tasks, adhering strictly to Wayland layer-shell protocols and the Miqu design doctrine.
+`miqupolkit` is a lightweight Wayland authentication agent built with `miqutoolkit` and `polkit-gobject-1`, handling privilege escalation prompts with layer-shell modal dialogs.
 
----
-
-## ✨ Features
-
-- 🔐 **Polkit D-Bus Integration**: Implements the `org.freedesktop.PolicyKit1.AuthenticationAgent` interface.
-- 🎨 **Miqu Design Tokens**: Uses `miqutoolkit` typography, corner radii, and color palette tokens.
-- 🪟 **Wayland Layer Shell**: Centered modal overlay on the active Wayland compositor with keyboard grabbing.
-- ⚡ **Lightweight & Fast**: Direct C++20 implementation with zero heavy desktop dependencies.
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
 ---
 
-## 🛠️ Build & Installation
+## 🔍 What is What
 
-### Prerequisites
-- C++20 compiler (`gcc` or `clang`)
-- CMake 3.20+
-- `miqutoolkit`
-- `polkit-gobject-1`
-
-### Local Build
-```bash
-./make.sh
-```
-
-### System Installation
-To build and install system-wide to `/usr`:
-```bash
-sudo ./make.sh
-```
+- **PolicyKit Integration**: Implements the `org.freedesktop.PolicyKit1.AuthenticationAgent` D-Bus interface.
+- **Layer Shell Modal Dialog**: Centered modal dialog with keyboard focus grab using `wlr-layer-shell` on the active compositor.
+- **Unified Design Tokens**: Uses `miqutoolkit` styling tokens, typography, and corner radiuses.
+- **Lightweight C++20 Core**: Zero GTK or Qt desktop dependencies.
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Usage & Configuration
 
-MiquPolkit follows the uniform Miqu two-tier configuration architecture:
-- Baseline configuration: `/usr/share/miqupolkit/miqupolkit.conf`
-- Generate user configuration:
 ```bash
+# Start agent (usually launched automatically in desktop autostart):
+miqupolkit
+
+# Generate user config:
 miqupolkit --init-config
 ```
-This safely creates or archives your user configuration at `~/.config/miqupolkit/miqupolkit.conf`.
+Config location: `~/.config/miqupolkit/miqupolkit.conf`.
+
+---
+
+## 🔨 Build & Run
+
+```bash
+# In monorepo root:
+cmake --build build --target miqupolkit
+
+# Standalone:
+./make.sh
+```

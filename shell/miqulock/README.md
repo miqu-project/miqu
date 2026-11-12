@@ -1,59 +1,41 @@
 # miqulock
 
-A modern Wayland session lock utility designed for the **Miquland** desktop ecosystem.
+> **Protocol-Compliant Wayland Session Locker**
 
-## Features
-- **Ext Session Lock Protocol**: Uses the standard Wayland `ext-session-lock-v1` protocol to securely shield all outputs.
-- **Dynamic Display Hotplugging**: Dynamically handles display connect/disconnect events while locked, immediately shielding newly attached monitors.
-- **Live Inotify Reloading**: Automatically reloads colors, typography, and clock formats when `~/.config/miqulock/miqulock.conf` is edited.
-- **Real-Time Clock & Smooth Animations**: Timer-driven rendering guarantees the clock updates every second without requiring user interaction, while authentication failure shake animations play smoothly at 60fps.
-- **Caps Lock Detection**: Displays a clean visual badge when Caps Lock is active.
-- **Secure PAM Authentication**: Non-blocking PAM validation with memory zeroing (`explicit_bzero`) for sensitive password buffers.
-- **First-Launch Auto-Config**: Automatically copies default configuration to `~/.config/miqulock/miqulock.conf` on first launch.
+`miqulock` is a secure session lock utility implementing the Wayland `ext-session-lock-v1` protocol, featuring asynchronous PAM authentication, live theme reload, and real-time clock rendering.
 
-## Installation
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
-### Local Build
-```bash
-./make.sh
-```
+---
 
-### System-wide Install
-```bash
-sudo ./make.sh
-```
+## 🔍 What is What
 
-## Configuration
+- **Ext Session Lock Protocol**: Strictly shields all attached displays via `ext-session-lock-v1`; newly hotplugged monitors are locked immediately.
+- **Secure PAM Validation**: Non-blocking authentication worker with memory zeroing (`explicit_bzero`) for sensitive password buffers.
+- **Real-Time Clock & Feedback**: Second-accurate clock display, Caps Lock indicator badge, and 60fps authentication failure shake animations.
+- **Dynamic Theming**: Automatically reloads colors and typography when `~/.config/miqulock/miqulock.conf` or `miqutheme` changes.
 
-The configuration file is located at `~/.config/miqulock/miqulock.conf` (created automatically on first launch from system defaults).
+---
 
-Example configuration:
-```ini
-[general]
-font = Sans
-time_format = %H:%M
-date_format = %A, %B %d
-corner_radius = 24
-
-primary = #0066ff
-on_primary = #ffffff
-primary_container = #cce5ff
-background = #0b0f19
-surface = #161f30
-on_surface = #f8fafc
-outline = #3b82f6
-error = #ef4444
-```
-
-## Usage
+## ⚙️ Usage & Configuration
 
 ```bash
-# Lock the session
+# Lock the screen:
 miqulock
 
-# Show help
-miqulock --help
+# Generate user config:
+miqulock --init-config
+```
+Config location: `~/.config/miqulock/miqulock.conf`.
 
-# Use custom config
-miqulock --config /path/to/custom.conf
+---
+
+## 🔨 Build & Run
+
+```bash
+# In monorepo root:
+cmake --build build --target miqulock
+
+# Standalone:
+./make.sh
 ```

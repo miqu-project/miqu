@@ -1,48 +1,36 @@
-<p align="center">
-  <img src="assets/miqutheme.png" alt="MiquTheme Logo" width="140" />
-</p>
+# miqutheme
 
-# MiquTheme 🎨
+> **Visual Appearance, Palette Extraction & Wallpaper Theme Manager**
 
-Visual theme, appearance, and wallpaper manager for the Miqu desktop ecosystem, built natively with **`miqutoolkit`**.
+`miqutheme` is the appearance manager for the Miqu desktop ecosystem, generating dynamic Material You color schemes from wallpapers and propagating design tokens to running applications in real time.
 
-MiquTheme allows users to browse, generate, and select dynamic Material You color schemes, manage system wallpapers, and propagate global design tokens across all running Miqu applications in real time.
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
 ---
 
-## ✨ Features
+## 🔍 What is What
 
-- 🌈 **Material Design 3 Palette Generation**: Uses `matugen` to extract harmonious color schemes directly from wallpapers.
-- 🖼️ **Wallpaper Management**: Visual gallery to browse, preview, and apply wallpapers with instant desktop updates via `miqubg`.
-- 🔄 **Real-Time Token Propagation**: Instantly exports active tokens to `~/.config/miqutheme/current/` triggering live inotify reloads across `miqubar`, `miqulauncher`, `miqudesk`, and all other ecosystem applications.
-- 🌓 **Light & Dark Mode Support**: Dynamic switching between light and dark palettes.
+- **Material You Palette Generation**: Uses `matugen` to extract harmonious color schemes directly from wallpapers.
+- **Wallpaper Gallery**: Visual browser to preview, select, and apply desktop wallpapers via `miqubg`.
+- **Live Token Propagation**: Exports active design tokens to `~/.config/miqutheme/current/`, triggering instant inotify reloads across `miqubar`, `miqulauncher`, `miqudesk`, and all other client apps.
+- **Light & Dark Modes**: Instant switching between light and dark Material Design 3 palettes.
 
 ---
 
-## 🛠️ Build & Installation
+## ⚙️ Configuration & Paths
 
-### Prerequisites
-- C++20 compiler (`gcc` or `clang`)
-- CMake 3.20+
-- `miqutoolkit`
-- `matugen` (runtime dependency for dynamic color generation)
+- System assets & palettes: `/usr/share/miqutheme/`
+- User wallpapers & themes: `~/.config/miqutheme/`
+- Active exported tokens: `~/.config/miqutheme/current/miqutoolkit.conf`
 
-### Local Build
+---
+
+## 🔨 Build & Run
+
 ```bash
+# In monorepo root:
+cmake --build build --target miqutheme
+
+# Standalone:
 ./make.sh
 ```
-
-### System Installation
-To build and install system-wide to `/usr`:
-```bash
-sudo ./make.sh
-```
-
----
-
-## ⚙️ Configuration
-
-MiquTheme stores its active runtime exports and configurations under:
-- System assets & defaults: `/usr/share/miqutheme/`
-- User schemes & wallpapers: `~/.config/miqutheme/`
-- Current exported tokens: `~/.config/miqutheme/current/`

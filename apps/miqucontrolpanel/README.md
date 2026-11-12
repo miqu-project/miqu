@@ -1,32 +1,40 @@
-# MiquControlPanel 🎛️
+# miqucontrolpanel
 
-Modern Miller-columns centralized desktop control panel and system configuration manager built natively with **`miqutoolkit`** for the Miqu desktop ecosystem.
+> **Centralized Desktop Settings, Network Security & Privacy Manager**
 
----
+`miqucontrolpanel` is a modern Miller-columns settings manager for the Miqu desktop environment, built with `miqutoolkit`. It consolidates hardware telemetry, network security, and appearance customization into an intuitive, multi-column interface.
 
-## ✨ Features
-
-- 🌐 **Network & Connectivity**: Native Wi-Fi management, Bluetooth agent, WireGuard VPN tunnel integration, RFC 7858 Private DNS (DoT), OpenSnitch per-app rules, and firewall management.
-- 🖥️ **Monitors & Displays**: Live multi-monitor discovery, resolution, scaling, and orientation control.
-- 🎨 **Appearance & Themes**: Live token inspections, wallpaper synchronization, and custom styling.
-- 📦 **Applications & Defaults**: System application launcher and package exploration.
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
 ---
 
-## 🛠️ Build & Installation
+## 🔍 What is What
 
-### Prerequisites
-- C++20 compiler (`gcc` or `clang`)
-- CMake 3.20+
-- `miqutoolkit`
+- **Network & Connectivity**: Manage Wi-Fi connections, Ethernet, Airplane Mode, and Bluetooth pairings.
+- **WireGuard VPN**: Manage, inspect, and toggle WireGuard tunnels with live telemetry and endpoint handshake stats.
+- **Private DNS (DoT)**: RFC 7858 DNS over TLS encryption with one-click presets (Cloudflare, Quad9, AdGuard, Mullvad) or custom DoT hostnames.
+- **System Firewall**: Manage UFW/nftables packet filtering policies, port profiles (Home, Work, Public), and application exceptions.
+- **Display & Monitors**: Multi-monitor layout, resolution, refresh rate, and scaling controls.
+- **Theme & Appearance**: Real-time palette previews, wallpaper management, and design token inspection.
 
-### Local Build
+---
+
+## ⚙️ Configuration
+
+Generate user configuration:
 ```bash
-./make.sh
+miqucontrolpanel --init-config
 ```
+Config location: `~/.config/miqucontrolpanel/miqucontrolpanel.conf`.
 
-### System Installation
-To build and install system-wide to `/usr`:
+---
+
+## 🔨 Build & Run
+
 ```bash
-sudo ./make.sh
+# In monorepo root:
+cmake --build build --target miqucontrolpanel
+
+# Standalone:
+./make.sh
 ```

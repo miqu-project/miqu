@@ -1,49 +1,48 @@
 # miqunotify
 
-Lightweight, modern Wayland desktop notification daemon and slide-out notification center for the Miqu ecosystem built natively with `miqutoolkit` and `sd-bus`.
+> **Native Wayland Desktop Notification Daemon & Slide-Out History Center**
 
-## Features
-- **FreeDesktop Notifications v1.2**: Full `org.freedesktop.Notifications` compatibility.
-- **Corner Toast Banners**: Floating toasts with application icons, timestamps, action buttons, timer progress bars, and hover-to-pause.
-- **Slide-out Notification Center**: Persistent drawer (`miqunotify --toggle`) tracking notification history, DND toggle, and clear-all actions.
-- **Do Not Disturb (DND)**: Suppresses popup banners while queuing notifications in history.
-- **Runtime IPC & Miqubar Badge**: Updates `/run/user/<uid>/miqunotify_state` so `miqubar` can display live unread badge counters (`[ 🔔 3 ]`).
-- **Unified Theming**: Seamlessly inherits typography, corner radiuses, and color palettes from `miqutoolkit`.
+`miqunotify` is a modern desktop notification service implementing the FreeDesktop notifications specification (v1.2) with floating toast banners and a slide-out notification drawer, built with `miqutoolkit` and `sd-bus`.
 
-## Usage
-Start daemon:
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
+
+---
+
+## 🔍 What is What
+
+- **Corner Toast Banners**: Floating banners with application icons, timestamps, action buttons, progress bars, and hover-to-pause.
+- **Slide-Out Notification Drawer**: Persistent side center (`miqunotify --toggle`) tracking notification history, DND toggle, and clear-all actions.
+- **Do Not Disturb (DND)**: Suppresses popup banners while recording all notifications in history.
+- **Miqubar Integration**: Automatically updates `/run/user/<uid>/miqunotify_state` so `miqubar` displays live unread notification counters.
+- **FreeDesktop Specification**: Fully compatible with `notify-send` and desktop application notifications.
+
+---
+
+## ⚙️ Usage & Configuration
+
 ```bash
+# Start daemon:
 miqunotify
-```
 
-Start daemon with verbose debug logging:
-```bash
-miqunotify --debug
-```
-
-Toggle Notification Center drawer:
-```bash
+# Toggle notification center drawer:
 miqunotify --toggle
-```
 
-Print notification history log to stdout:
-```bash
-miqunotify --history
-# or JSON format:
-miqunotify --history --json
-```
-
-Re-show most recent notification banner:
-```bash
+# Re-show recent notification:
 miqunotify --pop
-```
 
-Generate default user configuration:
-```bash
+# Generate user config:
 miqunotify --init-config
 ```
+Config location: `~/.config/miqunotify/miqunotify.conf`.
 
-Send a test notification:
+---
+
+## 🔨 Build & Run
+
 ```bash
-notify-send "Welcome to Miqu" "This is a native notification banner."
+# In monorepo root:
+cmake --build build --target miqunotify
+
+# Standalone:
+./make.sh
 ```

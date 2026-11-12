@@ -1,36 +1,41 @@
 # miqubar
 
-Independent Wayland status bar and Windows-style taskbar for Miquland built natively with `miqutoolkit`.
+> **Wayland Status Bar & Windows-Style Taskbar**
 
-## Features
-- **Start Menu Button**: Spawns application runner (`miqulauncher` by default).
-- **Compact Workspace Button**: Displays workspace glyph with an active workspace badge (`[ ⊞ 1 ]`).
-  - Hover over or click to reveal an interactive workspace flyout.
-- **Running Window Taskbar**: Tracks open windows via `zwlr_foreign_toplevel_manager_v1`.
-  - Application icon, window title, and active accent underline indicator.
-  - Left-click to focus/minimize; middle-click to close; right-click for window context menu.
-- **Hardware Telemetry Modules**: Real-time CPU, RAM, and Battery percentage indicators.
-- **Audio Control**: Volume indicator; click to open Quick Settings flyout.
-- **Windows-Style Stacked Clock**: Time and Date display; click to open interactive Calendar flyout.
-- **Layer Shell Integration**: Anchored to bottom or top with an exclusive zone so windows tile seamlessly.
+`miqubar` is the native Wayland desktop panel and taskbar for the Miqu ecosystem, built with `miqutoolkit` using layer-shell surface protocols.
 
-## Configuration
-Generate default user configuration:
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
+
+---
+
+## 🔍 What is What
+
+- **Start Menu Button**: Quick launcher trigger (launches `miqulauncher` by default).
+- **Workspace Indicator**: Shows the active workspace with a badge (`[ ⊞ 1 ]`); hover or click to reveal an interactive workspace flyout.
+- **Foreign Toplevel Taskbar**: Tracks open windows via `zwlr_foreign_toplevel_manager_v1` with application icons, title text, and active accent underlines. Click to focus/minimize, middle-click to close.
+- **Hardware Telemetry Modules**: Real-time CPU, RAM, and Battery percentages with warning thresholds.
+- **Audio Control**: Audio volume slider and quick settings flyout.
+- **Stacked Clock & Calendar**: Compact time/date display; click to open the interactive monthly calendar flyout.
+- **Layer Shell Anchoring**: Anchored to screen edges with an exclusive zone so tiling windows adjust automatically.
+
+---
+
+## ⚙️ Configuration
+
+Generate user configuration:
 ```bash
 miqubar --init-config
 ```
-Configuration file is located at `~/.config/miqubar/miqubar.conf`.
+Config location: `~/.config/miqubar/miqubar.conf` (automatically watched via inotify for live reload).
 
-## Build & Installation
+---
 
-### Local Build
+## 🔨 Build & Run
+
 ```bash
+# In monorepo root:
+cmake --build build --target miqubar
+
+# Standalone:
 ./make.sh
 ```
-
-### System Installation
-To build and install system-wide to `/usr`:
-```bash
-sudo ./make.sh
-```
-

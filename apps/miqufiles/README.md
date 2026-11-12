@@ -1,63 +1,40 @@
 # miqufiles
 
-<p align="center">
-  <b>Modern Yazi-style Miller Columns File Manager for the Miqu Desktop Ecosystem.</b>
-</p>
+> **Yazi-Style Miller Columns File Manager for Wayland**
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Language-C%2B%2B20-blue?style=flat-square" alt="C++20" />
-  <img src="https://img.shields.io/badge/Toolkit-miqutoolkit-purple?style=flat-square" alt="miqutoolkit" />
-  <img src="https://img.shields.io/badge/Display-Wayland%20Native-orange?style=flat-square" alt="Wayland Native" />
-  <img src="https://img.shields.io/badge/License-GPL--3.0-green?style=flat-square" alt="GPLv3" />
-</p>
+`miqufiles` is a fast, keyboard-first native Wayland file manager featuring a 3-column Miller Columns browsing interface and instant contextual previews, built with `miqutoolkit`.
+
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
 ---
 
-## 🌟 Overview
+## 🔍 What is What
 
-`miqufiles` (Display name: **Files**) is a lightweight, responsive Wayland-native file manager featuring a **Yazi-style 3-column Miller Columns GUI**:
-1. **Left Column (Parent Directory)**: Shows parent directory context with the current folder highlighted.
-2. **Center Column (Active Directory)**: Fast keyboard/mouse-driven browsing of current directory items.
-3. **Right Column (Contextual Preview)**: Peeks into child directory contents if a folder is selected, or renders rich file previews (images, text/code with syntax styling, or binary metadata) when a file is selected.
-
----
-
-## ⌨️ Controls & Shortcuts
-
-| Action | Shortcuts |
-|---|---|
-| **Navigate Up (Parent)** | `h`, `Left Arrow`, `Backspace`, Toolbar Back Button |
-| **Enter Directory / Open File** | `l`, `Right Arrow`, `Return` / `Enter`, Double Click |
-| **Move Selection Up / Down** | `k` / `j`, `Up` / `Down` Arrow, Mouse Click / Scroll |
-| **Jump to Top / Bottom** | `g` / `G`, `Home` / `End` |
-| **Page Up / Page Down** | `Page Up` / `Page Down` |
-| **Toggle Hidden Files (Dotfiles)** | `.`, `Ctrl+H`, Toolbar Dotfiles Button |
-| **Jump to Home (`$HOME`)** | `~`, Toolbar Home Button |
-| **Search / Filter Files** | `/`, Toolbar Search Button |
-| **Refresh Directory** | `F5`, `Ctrl+R`, Toolbar Reload Button |
-| **Quit** | `q`, `Escape` (when not in search), Window Close Button |
+- **Miller Columns Layout**:
+  - **Left**: Parent directory navigation and folder breadcrumb context.
+  - **Center**: Active folder contents with instant keyboard cursor traversal.
+  - **Right**: Contextual live preview (child directory preview, high-resolution image rendering, monospace code/text syntax view, or binary file metadata).
+- **Keyboard Ergonomics**: Navigate with `h`/`j`/`k`/`l` or Arrow keys; toggle hidden files with `.`; search with `/`; refresh with `F5`; jump to home with `~`.
+- **Lightweight C++20 Core**: Instant startup, minimal RAM footprint, and 0% idle CPU usage.
 
 ---
 
 ## ⚙️ Configuration
 
-`miqufiles` strictly adheres to the **Uniform Two-Tier Single-File Authority Model**:
-- System baseline: `/usr/share/miqufiles/miqufiles.conf`
-- User config: `~/.config/miqufiles/miqufiles.conf`
-
-To generate a documented user configuration with safe timestamped archiving:
+Generate default configuration:
 ```bash
 miqufiles --init-config
 ```
+Config location: `~/.config/miqufiles/miqufiles.conf`.
 
 ---
 
-## 🔨 Build & Install
+## 🔨 Build & Run
 
 ```bash
-# Build locally
-./make.sh
+# In monorepo root:
+cmake --build build --target miqufiles
 
-# Install system-wide
-sudo ./make.sh
+# Standalone:
+./make.sh
 ```

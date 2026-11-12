@@ -1,49 +1,43 @@
 # miquoverview
 
-`miquoverview` is a GPU-accelerated live workspace expose and overview plugin for `miquland`.
+> **GPU-Accelerated Workspace Exposé & Window Manager Plugin for Miquland**
 
-## Features
-- **Full-Screen Responsive Overview**: Fills the usable screen space while respecting exclusive reservations set by desktop components such as `miqubar`.
-- **Configurable Edge Margins**: Preserves a comfortable, polished perimeter border around the workspace display (configurable in `miquoverview.conf`).
-- **Screen-Aspect Workspace Geometry**: Accurately scales the entire workspace into a prominent central rectangle matching the exact monitor aspect ratio.
-- **Live Hardware-Accelerated Rendering**: Windows inside the active workspace are placed and scaled live with zero frame-dropping using wlroots hardware scene nodes (`v->set_overview_scaled`).
-- **Workspace Navigation & Pager**: Interactive top workspace pill bar showing open workspaces, window counts, and active selection.
-- **Direct Window & Workspace Activation**: Click any window to switch to that workspace and focus it immediately; click empty space to activate that workspace; click outside the workspace to dismiss.
-- **Complete Keyboard Navigation**: Use `←`/`→` (or `h`/`l`) to switch between workspaces, `↑`/`↓` (or `k`/`j` / `Tab`) to cycle windows, `1`-`9` for instant workspace jumps, `Enter` to activate, and `Escape` to close.
-- **Mouse Wheel Scrolling**: Switch across workspaces with natural vertical or horizontal scroll wheel gestures.
-- **Uniform Two-Tier Configuration**: Supports standalone user configurations and live dynamic reload with `miqutheme`.
+`miquoverview` provides an interactive, full-screen workspace expose and multitasking overview for `miquland`. It scales windows live with zero frame-dropping using hardware-accelerated scene nodes.
 
-## Configuration & Theming
-`miquoverview` follows the uniform Miqu ecosystem Two-Tier Architecture:
-- **Tier 1 (System Baseline)**: `/usr/share/miquoverview/miquoverview.conf`
-- **Tier 2 (User Standalone)**: `~/.config/miquoverview/miquoverview.conf`
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
-It includes a self-contained baseline fallback theme and optionally supports decoupled dynamic theming via:
+---
+
+## 🔍 What is What
+
+- **Live Scene Node Scaling**: Windows inside the active workspace are scaled smoothly in real time using wlroots scene nodes without CPU buffer copy overhead.
+- **Interactive Workspace Pager**: Top navigation pill bar displays all active workspaces, open window counts, and current selection.
+- **Direct Window & Workspace Dispatch**: Click any window to switch to that workspace and focus it immediately; click empty space to jump to that workspace; press `Esc` to dismiss.
+- **Full Keyboard Navigation**: Arrow keys or `h`/`l` to switch workspaces, `j`/`k` or `Tab` to cycle windows, `1`-`9` for instant workspace jumps.
+- **Dynamic Theming**: Automatically synchronizes colors and typography with `miqutheme`.
+
+---
+
+## ⚙️ Configuration & Keybindings
+
+Add to `~/.config/miquland/miquland.conf`:
 ```ini
-source = ~/.config/miqutheme/current/miqutoolkit.conf
-```
-Config changes and theme updates are watched via `inotify` and hot-reloaded automatically with 0% idle CPU.
-
-In `~/.config/miquland/miquland.conf`:
-```ini
-# Load plugin
 plugins {
     load = /usr/lib/miquland/plugins/libmiquoverview.so
 }
 
-# Keybindings
 bind = SUPER, Tab, overview_toggle
-bind = SUPER, o, overview_toggle
 ```
+Config location: `~/.config/miquoverview/miquoverview.conf`.
 
-## Building & Installation
+---
 
-### Local Build (No root)
+## 🔨 Build & Run
+
 ```bash
+# In monorepo root:
+cmake --build build --target miquoverview
+
+# Standalone:
 ./make.sh
-```
-
-### System-wide Installation (/usr)
-```bash
-sudo ./make.sh
 ```

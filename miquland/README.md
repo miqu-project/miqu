@@ -1,148 +1,50 @@
-# Miquland
+# miquland
 
-<p align="center">
-  <b>Dynamic Tiling Wayland Compositor Built with wlroots & SceneFX</b>
-</p>
+> **Dynamic Tiling Wayland Compositor Built with wlroots & SceneFX**
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Language-C%2B%2B20-blue?style=flat-square" alt="C++20" />
-  <img src="https://img.shields.io/badge/Compositor-wlroots-purple?style=flat-square" alt="wlroots" />
-  <img src="https://img.shields.io/badge/Effects-SceneFX-orange?style=flat-square" alt="SceneFX" />
-  <img src="https://img.shields.io/badge/License-GPL--3.0-green?style=flat-square" alt="GPLv3" />
-</p>
+`miquland` is the core Wayland compositor and window manager for the Miqu Desktop Ecosystem. Built with modern C++20, `wlroots`, and `SceneFX`, it delivers high-framerate dynamic tiling, GPU-accelerated window effects (rounded corners, dual-pass blurs, soft drop shadows), protocol-compliant session management, and a native IPC plugin architecture.
+
+Website & Documentation: [**miqu-project.github.io/#docs**](https://miqu-project.github.io/#docs)
 
 ---
 
-`miquland` is the core Wayland compositor and window manager for the **Miqu Desktop Ecosystem**. Built on modern C++20, `wlroots`, and `SceneFX`, it delivers high-framerate dynamic tiling, GPU-accelerated window effects (rounded corners, dual-pass blurs, soft drop shadows), protocol-compliant session management, and a native IPC plugin architecture.
+## 🔍 What is What
+
+- **Dynamic Tiling Layouts**: Supports `spiral` (Fibonacci binary space partitioning) and `stack` (master-and-stack column layout) with dynamic splitting.
+- **GPU Visual Pipeline**: Real-time corner rounding, dual-Kawase window blur, drop shadows, and border gradients via `SceneFX`.
+- **Protocol Suite**: Implements `wlr-layer-shell-v1`, `ext-session-lock-v1`, `ext-idle-notify-v1`, `wlr-output-power-management-v1`, and XWayland.
+- **IPC Daemon (`miquctl`)**: Unix domain socket controller for querying state, dispatching layouts, live event subscription, and graceful shutdown orchestration.
+- **Two-Tier Configuration**: System baseline at `/usr/share/miquland/miquland.conf`, user config at `~/.config/miquland/miquland.conf` (created via `miquland --init-config` with safe timestamped archiving).
 
 ---
 
-## ✨ Features & Architecture
-
-* **Dynamic Tiling Layouts**:
-  * `spiral`: Alternating horizontal/vertical binary space partitioning (Fibonacci BSP).
-  * `stack`: Master-and-stack column layout with adjustable split ratios.
-* **GPU-Accelerated Visuals**: Hardware rendering via `SceneFX` supporting real-time window corner rounding, customizable drop shadows, dual-pass Gaussian layer blurs, and border shading.
-* **Comprehensive Wayland Protocol Suite**:
-  * Layer Shell (`wlr-layer-shell-unstable-v1`) for desktop bars, notifications, and wallpaper surfaces.
-  * Session Lock (`ext-session-lock-v1`) for secure screen locking.
-  * Idle Management (`ext-idle-notify-v1`) for power and display sleep events.
-  * Output Power Management (`wlr-output-power-management-v1`).
-* **Self-Contained Configuration Model (Sway Contract)**:
-  * **Zero-Config Baseline**: Runs directly from `/usr/share/miquland/miquland.conf` on fresh installs.
-  * **On-Demand User Config**: Generates `~/.config/miquland/miquland.conf` via `miquland --init-config`.
-  * **Safe Archiving**: If a user config already exists, `--init-config` safely archives it to `miquland.conf.bak.<YYYYMMDD-HHMMSS>` before writing the fresh default.
-  * **Single-File Authority**: Once present, `miquland` loads exclusively from the user config with zero hidden background merging.
-
----
-
-## ⌨️ Default Keybindings
+## ⌨️ Common Keybindings
 
 | Key Combo | Action |
 | :--- | :--- |
-| `Super + Return` | Swap active window with master / promote |
-| `Super + T` | Launch default terminal (`kitty` / configured) |
+| `Super + Return` | Swap active window with master |
+| `Super + T` | Open default terminal (`kitty`) |
 | `Super + Space` | Open application launcher (`miqulauncher`) |
 | `Super + Tab` | Toggle workspace overview (`miquoverview`) |
 | `Super + Q` | Close focused window |
 | `Super + V` | Toggle floating state |
 | `Super + M` | Toggle fullscreen |
 | `Super + L` | Toggle layout engine (`spiral` ↔ `stack`) |
-| `Super + J` / `Super + K` | Focus next / previous window |
-| `Super + 1` .. `Super + 9` | Switch to workspace 1–9 |
-| `Super + Shift + 1` .. `9` | Move focused window to workspace 1–9 |
+| `Super + J` / `K` | Focus next / previous window |
+| `Super + 1` .. `9` | Switch to workspace 1–9 |
+| `Super + Shift + 1` .. `9` | Move window to workspace 1–9 |
 | `Super + Alt + L` | Lock session (`miqulock`) |
-| `Super + Shift + Q` | Graceful desktop shutdown (`shutdown` / `miquctl shutdown`) |
-
-*All shortcuts, gestures, window rules, and monitor configs can be customized in [`assets/miquland.conf`](assets/miquland.conf).*
+| `Super + Shift + Q` | Graceful shutdown prompt (`miqupower`) |
 
 ---
 
-## 🎮 Compositor Controller & IPC (`miquctl`)
+## 🔨 Build & Run
 
-`miquland` includes a native Unix domain socket IPC subsystem and first-party CLI controller: **`miquctl`**. It enables querying workspaces, client windows, and outputs, issuing layout dispatches, real-time event streaming (`miquctl subscribe`), and orchestrating graceful application shutdowns (`miquctl shutdown`).
-
-> 📖 **Full Documentation**: For the complete command reference, wire protocol specifications, and third-party bar integration, visit the [**Miqu Project Documentation Portal**](https://miqu-project.github.io/#docs).
-
----
-
-## 🎥 Screen Sharing & Portals (OBS Studio & WebRTC)
-
-Currently, the Miqu ecosystem does not maintain a bespoke portal daemon (such as `xdg-desktop-portal-miqu`). Instead, `miquland` implements modern Wayland capture protocols and relies on standard backends:
-* **`xdg-desktop-portal-wlr`**: Handles monitor screen recording and individual window capture via `ext-image-copy-capture-v1`, `ext-foreign-toplevel-list-v1`, and `ext-foreign-toplevel-image-capture-source-v1`.
-* **`xdg-desktop-portal-gtk`**: Handles native desktop dialogs, file pickers, and app choosers.
-
-### System Configuration Baseline
-The default portal mapping is automatically installed to the system baseline at:
-```text
-/usr/share/xdg-desktop-portal/miquland-portals.conf
-```
-```ini
-[preferred]
-default=gtk
-org.freedesktop.impl.portal.ScreenCast=wlr
-org.freedesktop.impl.portal.Screenshot=wlr
-```
-
-### User Customization & Overrides
-To customize or override portal backends, place your user configuration at:
-```text
-~/.config/xdg-desktop-portal/miquland-portals.conf
-```
-Any preferences declared in your user configuration file will take precedence over the system baseline.
-
----
-
-## 🔨 Building & Installation
-
-### 1. Build Locally (Unprivileged)
 ```bash
+# In monorepo root:
+cmake --build build --target miquland
+
+# Standalone build & install:
 ./make.sh
-```
-
-### 2. System-Wide Installation
-```bash
 sudo ./make.sh
 ```
-Installs the binary to `/usr/bin/miquland` and the system default configuration to `/usr/share/miquland/miquland.conf`.
-
----
-
-## 📸 Screenshots
-
-![Screenshot 1](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc1.png)
-
-![Screenshot 2](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc2.png)
-
-![Screenshot 3](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc3.png)
-
-![Screenshot 4](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc4.png)
-
-![Screenshot 5](https://raw.githubusercontent.com/miqu-project/miqu-project.github.io/main/assets/screenshots/sc5.png)
-
----
-
-## 🙏 Acknowledgements & Inspirations
-
-`miquland` and the Miqu Desktop Ecosystem stand on the shoulders of giants across the open-source community. Sincere gratitude and credits go to:
-
-* **[wlroots](https://gitlab.freedesktop.org/wlroots/wlroots)** — For the modular, rock-solid Wayland compositor library and foundation.
-* **[tinywl](https://gitlab.freedesktop.org/wlroots/wlroots/-/tree/master/tinywl)** — The minimal wlroots reference compositor that serves as the genesis for bootstrapping and learning Wayland development.
-* **[dwl](https://codeberg.org/dwl/dwl)** — For showing how concise and elegant a tiling Wayland compositor can be.
-* **[Hyprland](https://github.com/hyprwm/Hyprland)** — For shaping the perspective on how a modern tiling window manager should feel as a daily driver, inspiring the fluid motion, animations, blur, and visual aesthetics.
-* **[Sway](https://github.com/swaywm/sway)** — For the configuration architecture paradigms, single-file authority ideas, and reliable layer-shell contracts.
-* **[SceneFX](https://github.com/wlrfx/scenefx)** — For providing hardware-accelerated scene-graph rendering with corner rounding, drop shadows, and dual-pass blur effects.
-* **[GNOME](https://www.gnome.org/)** — For inspiring the intuitive, full-screen workspace overview and multitasking flow (`miquoverview`).
-* **Windows** — For the familiar, ergonomic bottom taskbar design and desktop accessibility (`miqubar`).
-* **[Rofi](https://github.com/davatorium/rofi)** — For inspiring the keyboard-driven application launcher and switcher (`miqulauncher`).
-* **[UFW](https://launchpad.net/ufw)** — For serving as the reliable security and packet filtering backend for the control panel firewall module (`miqucontrolpanel`).
-* **[MPD](https://www.musicpd.org/)** — For providing the robust, lightweight audio engine backend (`miqumusic`).
-
-### Special Thanks
-* **[Antigravity IDE](https://deepmind.google/technologies/) by Google** — For pair programming, architectural reasoning, and AI coding assistance throughout the development of the Miqu ecosystem.
-
----
-
-## 📄 License
-Licensed under the GNU General Public License v3.0.
-

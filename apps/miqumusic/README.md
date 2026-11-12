@@ -1,52 +1,39 @@
-<p align="center">
-  <img src="assets/miqumusic.png" alt="MiquMusic Logo" width="140" />
-</p>
+# miqumusic
 
-# MiquMusic 🎵
+> **Fast, Lightweight Native MPD Audio Player & Queue Manager**
 
-A fast, modern native Wayland music player designed for MPD (Music Player Daemon), engineered with **`miqutoolkit`** for the Miqu desktop environment.
+`miqumusic` is a native Wayland client for the Music Player Daemon (MPD), built with `miqutoolkit` and `libmpdclient`. It provides smooth local audio playback, queue management, and album art display with zero web/Electron bloat.
 
-MiquMusic delivers smooth local audio playback, full queue controls, responsive seek mechanics, and integrated album artwork display.
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
 ---
 
-## ✨ Features
+## 🔍 What is What
 
-- 🎧 **Native MPD Integration**: Seamless socket connection to local or remote Music Player Daemon instances.
-- 🎛️ **Full Playback Controls**: Play, pause, seek, track skip, shuffle, repeat, and volume management.
-- 📜 **Queue & Playlist Management**: Real-time playlist viewer, dynamic queue ordering, and quick search.
-- 🖼️ **Album Art & Track Metadata**: Embedded album artwork display with artist, album, and track typography.
-- ⚡ **Wayland Native & Zero Bloat**: Built with `miqutoolkit` widgets and Cairo rendering with zero Electron/web overhead.
-
----
-
-## 🛠️ Build & Installation
-
-### Prerequisites
-- C++20 compiler (`gcc` or `clang`)
-- CMake 3.20+
-- `miqutoolkit`
-- `libmpdclient`
-
-### Local Build
-```bash
-./make.sh
-```
-
-### System Installation
-To build and install system-wide to `/usr`:
-```bash
-sudo ./make.sh
-```
+- **MPD Socket Integration**: Direct communication with local or networked Music Player Daemon instances.
+- **Playback & Seek Engine**: Responsive seek bar, volume slider, track skip, shuffle, and repeat modes.
+- **Queue & Playlist Controls**: Real-time playlist viewer, dynamic queue reordering, and search filtering.
+- **Artwork & Metadata**: Embedded album artwork viewer and clean track typography.
+- **Dynamic Theming**: Instant color palette updates via `miqutheme`.
 
 ---
 
 ## ⚙️ Configuration
 
-MiquMusic adheres to the Miqu configuration doctrine:
-- Shipped root template: `/usr/share/miqumusic/miqumusic.conf`
-- Generate user configuration:
+Generate default configuration:
 ```bash
 miqumusic --init-config
 ```
-This generates `~/.config/miqumusic/miqumusic.conf` with live inotify reload support.
+Config location: `~/.config/miqumusic/miqumusic.conf`.
+
+---
+
+## 🔨 Build & Run
+
+```bash
+# In monorepo root:
+cmake --build build --target miqumusic
+
+# Standalone:
+./make.sh
+```

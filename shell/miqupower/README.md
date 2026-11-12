@@ -1,59 +1,39 @@
 # miqupower
 
-> Modern, native Desktop Environment Power & Session Management Dialog built with `miqutoolkit`.
+> **Desktop Power & Session Management Dialog with Running Application Guards**
 
-`miqupower` provides a smooth, keyboard-accessible session management interface with graceful shutdown integration for `miquland` and the Miqu ecosystem.
+`miqupower` is a native Wayland session dialog built with `miqutoolkit`. It provides accessible power controls, running window warnings, and graceful shutdown orchestration for `miquland`.
 
----
-
-## Features
-
-- **5 Core Desktop Power Actions**:
-  - ⏻ **Shut Down** (`systemctl poweroff` / graceful `miquland` teardown)
-  - ↻ **Restart** (`systemctl reboot` / graceful `miquland` teardown)
-  - ⏾ **Sleep** (`systemctl suspend` with automatic screen lock)
-  - 🔒 **Lock** (`miqulock` / `loginctl lock-session`)
-  - 🚪 **Log Out** (graceful desktop session termination)
-  - *(Optional)* **Hibernate** (`systemctl hibernate`)
-- **Active Applications Safety Warning**:
-  - Queries running application windows directly from `miquland` via IPC (`clients`).
-  - Warns the user if active application windows are open before shutting down or restarting.
-  - Displays application titles, icons, and workspace badges.
-  - Allows the user to cancel (<kbd>Esc</kbd>) to save work or proceed (<kbd>Enter</kbd>).
-- **Graceful Shutdown Visual Feedback**:
-  - Stays mapped on the Wayland layer-shell overlay layer while `miquland` prompts and closes application windows.
-  - Displays a clean teardown progress view with status updates and an indeterminate progress bar.
-- **Ergonomic Keyboard Navigation**:
-  - Hotkeys: <kbd>S</kbd> (Shut Down), <kbd>R</kbd> (Restart), <kbd>U</kbd> (Sleep), <kbd>L</kbd> (Lock), <kbd>E</kbd> (Log Out).
-  - Arrow keys (<kbd>Left</kbd> / <kbd>Right</kbd> / <kbd>Tab</kbd>) + <kbd>Enter</kbd>.
-  - Instant dismissal with <kbd>Esc</kbd> or click outside.
-- **Direct CLI Execution**:
-  - Run `miqupower` for the interactive menu.
-  - Run `miqupower --shutdown` or `miqupower --reboot` for immediate graceful actions.
-- **Dynamic Theming**:
-  - Fully reactive to `miqutheme` through `miqutoolkit` tokens.
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
 ---
 
-## Configuration
+## 🔍 What is What
 
-Following the Two-Tier Configuration Architecture:
-- System baseline: `/usr/share/miqupower/miqupower.conf`
-- User configuration: `~/.config/miqupower/miqupower.conf`
+- **5 Core Power Actions**: Shut Down (`poweroff`), Restart (`reboot`), Sleep (`suspend` with auto-lock), Lock (`miqulock`), and Log Out (graceful compositor exit).
+- **Active Application Guard**: Queries running windows from `miquland` via IPC (`clients`); warns the user before shutdown or reboot to prevent data loss.
+- **Graceful Teardown Feedback**: Renders an overlay progress view while windows close cleanly before power termination.
+- **Keyboard Ergonomics**: Hotkeys `S` (Shut Down), `R` (Restart), `U` (Sleep), `L` (Lock), `E` (Log Out); `Esc` to cancel.
+- **Direct CLI Execution**: Supports instant action execution via `miqupower --shutdown` or `miqupower --reboot`.
 
-To generate a user configuration file:
+---
+
+## ⚙️ Configuration
+
+Generate default configuration:
 ```bash
 miqupower --init-config
 ```
+Config location: `~/.config/miqupower/miqupower.conf`.
 
 ---
 
-## Build & Installation
+## 🔨 Build & Run
 
 ```bash
-# Local test build
-./make.sh
+# In monorepo root:
+cmake --build build --target miqupower
 
-# System-wide install
-sudo ./make.sh
+# Standalone:
+./make.sh
 ```

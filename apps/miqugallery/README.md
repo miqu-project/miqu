@@ -1,52 +1,39 @@
-<p align="center">
-  <img src="assets/miqugallery.png" alt="MiquGallery Logo" width="140" />
-</p>
+# miqugallery
 
-# MiquGallery 🖼️
+> **High-Performance Image Viewer & Media Gallery for Wayland**
 
-A fast, modern native Wayland gallery and media viewer for high-resolution images and videos, built with **`miqutoolkit`**.
+`miqugallery` is a fast media viewer built with `miqutoolkit`, optimized for smooth panning, fluid zoom, and intuitive album browsing across high-resolution image formats.
 
-MiquGallery provides fluid panning, responsive zooming, intuitive folder navigation, and hardware-accelerated playback for the Miqu desktop ecosystem.
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
 ---
 
-## ✨ Features
+## 🔍 What is What
 
-- 📸 **Extensive Format Support**: Full viewing support for PNG, JPEG, WebP, AVIF, HEIC, TIFF, BMP, and SVG.
-- 🎬 **Video Playback**: Native video streaming and playback for MP4, MKV, WebM, and AVI containers.
-- 🔍 **Smooth Zoom & Pan**: Fluid mouse/trackpad panning, gesture zooming, fit-to-window, and 1:1 pixel inspection.
-- 🗂️ **Folder & Album Browsing**: Dynamic thumbnail filmstrip and quick folder navigation.
-- ℹ️ **Metadata & EXIF Inspector**: Clean inspection of camera parameters, resolution, color profiles, and timestamps.
-
----
-
-## 🛠️ Build & Installation
-
-### Prerequisites
-- C++20 compiler (`gcc` or `clang`)
-- CMake 3.20+
-- `miqutoolkit`
-- Media libraries: `gstreamer`, `libjpeg-turbo`, `libpng`, `libwebp`
-
-### Local Build
-```bash
-./make.sh
-```
-
-### System Installation
-To build and install system-wide to `/usr`:
-```bash
-sudo ./make.sh
-```
+- **Format Support**: Full viewing support for PNG, JPEG, WebP, AVIF, HEIC, TIFF, BMP, and SVG.
+- **Pan & Zoom Engine**: Smooth trackpad/mouse panning, gesture zooming, fit-to-window, and 1:1 pixel inspection.
+- **Filmstrip Navigation**: Dynamic thumbnail preview bar and quick folder navigation.
+- **EXIF Inspector**: Metadata panel displaying resolution, camera exposure values, and timestamps.
+- **Lightweight Architecture**: Cairo-accelerated rendering with low memory overhead.
 
 ---
 
 ## ⚙️ Configuration
 
-MiquGallery adheres to the Miqu configuration doctrine:
-- Shipped root template: `/usr/share/miqugallery/miqugallery.conf`
-- Generate user configuration:
+Generate default configuration:
 ```bash
 miqugallery --init-config
 ```
-This generates `~/.config/miqugallery/miqugallery.conf` with live inotify reload support.
+Config location: `~/.config/miqugallery/miqugallery.conf`.
+
+---
+
+## 🔨 Build & Run
+
+```bash
+# In monorepo root:
+cmake --build build --target miqugallery
+
+# Standalone:
+./make.sh
+```

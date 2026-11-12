@@ -1,51 +1,41 @@
 # miquidle
 
-A modern, lightweight Wayland idle management daemon for the **Miquland** desktop ecosystem, inspired by `swayidle` and `hypridle`.
+> **Wayland Idle Management Daemon & Power State Coordinator**
 
-## Features
-- **Wayland Protocol**: Full support for standard `ext-idle-notify-v1` idle notifications and automatic compositor-level idle inhibition.
-- **Sleep & Lock Management**: Integrates with `systemd-logind` via `sd-bus` to handle session locks and acquire delay inhibitors before system suspend.
-- **Flexible Configuration**: Supports modular listener definitions (`timeout`, `on-timeout`, `on-resume`) and command hooks (`lock_cmd`, `unlock_cmd`, `before_sleep_cmd`, `after_sleep_cmd`).
-- **CLI Compatibility**: Supports both config file parsing and inline `swayidle`-compatible command-line arguments.
-- **Signal Handling**: Responds to `SIGTERM`/`SIGINT` for clean termination (executing pending resume commands), and `SIGUSR1` to immediately trigger idle timeouts.
+`miquidle` monitors user activity and coordinates display power saving and screen locking via the Wayland `ext-idle-notify-v1` protocol and `systemd-logind`.
 
-## Installation
+Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
-### Local Build
+---
+
+## 🔍 What is What
+
+- **Ext Idle Notify Protocol**: Listens for user inactivity timeouts natively from the Wayland compositor with full protocol inhibitor support.
+- **Logind & Sleep Integration**: Integrates with `systemd-logind` to acquire delay inhibitors and lock the session before system suspend.
+- **Configurable Listeners**: Modular timeout triggers (`timeout`, `on-timeout`, `on-resume`) and command hooks (`lock_cmd`, `before_sleep_cmd`, `after_sleep_cmd`).
+- **Signal Handling**: Responds to `SIGUSR1` for instant lock testing, and `SIGTERM`/`SIGINT` for graceful termination.
+
+---
+
+## ⚙️ Usage & Configuration
+
 ```bash
-./make.sh
-```
-
-### System-wide Install
-```bash
-sudo ./make.sh
-```
-
-## Configuration
-
-Default configuration locations (checked in order):
-1. `-c /path/to/config.conf` (via CLI)
-2. `~/.config/miquidle/miquidle.conf`
-3. `/etc/xdg/miquidle/miquidle.conf`
-4. `/usr/share/miquidle/miquidle.conf`
-
-See `assets/miquidle.conf` for a documented example configuration.
-
-## Usage
-
-Start the daemon using the default config:
-```bash
+# Start daemon with default config:
 miquidle
-```
 
-Specify a custom config file:
-```bash
-miquidle -c ~/.config/miquidle/custom.conf
+# Specify inline commands (swayidle-compatible):
+miquidle timeout 300 'miqulock' before-sleep 'miqulock'
 ```
+Config location: `~/.config/miquidle/miquidle.conf`.
 
-Or pass commands directly on the command line:
+---
+
+## 🔨 Build & Run
+
 ```bash
-miquidle timeout 300 'miqulock' \
-         timeout 600 'wlr-randr --output eDP-1 --off' resume 'wlr-randr --output eDP-1 --on' \
-         before-sleep 'miqulock'
+# In monorepo root:
+cmake --build build --target miquidle
+
+# Standalone:
+./make.sh
 ```
