@@ -1,0 +1,35 @@
+#pragma once
+
+#include "miqutoolkit/view/button.hpp"
+#include "miqutoolkit/system/workspace_manager.hpp"
+#include <memory>
+#include <vector>
+
+namespace miqu {
+class Window;
+}
+
+namespace miqubar {
+
+class WorkspaceButtonView : public miqu::Button {
+public:
+    WorkspaceButtonView();
+    ~WorkspaceButtonView() override;
+
+    void draw(cairo_t* cr, const miqu::Rect& bounds) override;
+    bool on_mouse_move(int lx, int ly, const miqu::Rect& bounds) override;
+
+    void show_flyout();
+    void hide_flyout();
+    void sync_workspaces();
+
+private:
+    bool trigger_overview();
+
+    size_t m_active_id = 1;
+    std::vector<miqu::WorkspaceInfo> m_workspaces;
+    std::shared_ptr<miqu::Window> m_flyout_window;
+    bool m_is_hovered = false;
+};
+
+} // namespace miqubar

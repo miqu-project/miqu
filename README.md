@@ -5,14 +5,15 @@
 <h1 align="center">Miqu Desktop Ecosystem</h1>
 
 <p align="center">
-  <b>The official umbrella repository for the Miqu Wayland desktop environment and application suite.</b>
+  <b>The unified monorepo for the Miqu Wayland desktop environment, UI toolkit, shell, and native application suite.</b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/miqu-project/miquland"><img src="https://img.shields.io/badge/Compositor-miquland-blue?style=flat-square" alt="miquland" /></a>
-  <a href="https://github.com/miqu-project/miqutoolkit"><img src="https://img.shields.io/badge/Toolkit-miqutoolkit-purple?style=flat-square" alt="miqutoolkit" /></a>
-  <a href="https://github.com/miqu-project/miqu-linux-apps"><img src="https://img.shields.io/badge/Apps-miqu--linux--apps-green?style=flat-square" alt="miqu-linux-apps" /></a>
-  <a href="https://github.com/miqu-project/miqu-android"><img src="https://img.shields.io/badge/Mobile-miqu--android-orange?style=flat-square" alt="miqu-android" /></a>
+  <img src="https://img.shields.io/badge/Language-C%2B%2B20-blue?style=flat-square" alt="C++20" />
+  <img src="https://img.shields.io/badge/Display-Wayland%20Native-orange?style=flat-square" alt="Wayland Native" />
+  <img src="https://img.shields.io/badge/Toolkit-miqutoolkit-purple?style=flat-square" alt="miqutoolkit" />
+  <img src="https://img.shields.io/badge/Architecture-Monorepo-green?style=flat-square" alt="Monorepo" />
+  <img src="https://img.shields.io/badge/Build-CMake%20%2F%20Ninja-red?style=flat-square" alt="Ninja" />
 </p>
 
 <p align="center">
@@ -23,82 +24,104 @@
 
 ## 🏛️ Overview
 
-**Miqu** is an ambitious, unified desktop environment engineered from the ground up for Wayland on Linux. It eliminates desktop fragmentation by providing a dedicated wlroots-based compositor, a custom C++ UI toolkit with instant theme propagation, a cohesive first-party native desktop application suite, and companion mobile applications.
+**Miqu** is an ambitious, unified desktop environment engineered from the ground up for Wayland on Linux. It eliminates desktop fragmentation by providing a dedicated wlroots-based compositor, a custom C++20 UI framework with instant theme propagation, a modular desktop shell, and cohesive first-party native applications.
 
-This repository serves as the **meta-repository / umbrella distribution** for the entire Miqu ecosystem, synchronizing all primary subsystems via Git submodules. Full documentation, architectural guides, and IPC references are available on the [**Miqu Project Documentation Portal**](https://miqu-project.github.io/#docs).
+All core desktop subsystems are housed in this **unified monorepo**, enabling atomic commits, in-tree build linking, and zero submodule overhead. Full documentation, architectural guides, and IPC references are available on the [**Miqu Project Documentation Portal**](https://miqu-project.github.io/#docs).
 
 ---
 
 ## 🚀 Quick Start (Build & Install)
 
-### 1. Clone the Ecosystem
-Clone the umbrella repository along with all components:
+### 1. Clone the Monorepo
+Clone the entire desktop codebase with a single command (no submodules required):
 
 ```bash
-git clone --recurse-submodules https://github.com/miqu-project/miqu.git
+git clone https://github.com/miqu-project/miqu.git
 cd miqu
 ```
 
-> [!TIP]
-> If you cloned without `--recurse-submodules`, you can initialize the submodules at any time by running:
-> ```bash
-> git submodule update --init --recursive
-> ```
-> `install_all.sh` will also auto-detect and initialize submodules automatically if they are missing.
-
 ### 2. Build & Install Everything
-Execute the ecosystem orchestrator to build and install `miquland`, `miqutoolkit`, and all `miqu-linux-apps` in topological dependency order:
+Execute the unified monorepo installer to build and install `miqutoolkit`, `miquland`, `shell`, and `apps` in topological dependency order:
 
 ```bash
-sudo ./install_all.sh
+sudo ./install.sh
 ```
 
-To build locally into development build directories without installing to `/usr`:
+To build locally into a development build directory without installing to `/usr`:
 ```bash
-./install_all.sh
+./install.sh
 ```
 
 ---
 
-## 📦 Repository Structure
+## 📦 Monorepo Directory Structure
 
-The Miqu ecosystem codebase is structured across the following repositories:
+```
+miqu/
+├── CMakeLists.txt              # Root CMake orchestrator (in-tree linking)
+├── install.sh                  # Master build & install script
+├── README.md                   # Ecosystem documentation
+├── AGENTS.md                   # Architectural contracts & guidelines
+│
+├── miquland/                   # Flagship wlroots Wayland compositor & miquctl IPC
+├── miqutoolkit/                # Shared C++20 UI framework & Cairo/Pango widgets
+│
+├── shell/                      # Desktop Shell UI, Daemons & Protocols (11 components)
+│   ├── miqubar/                # Wayland status bar, taskbar, system tray & flyouts
+│   ├── miqudesk/               # Interactive desktop canvas, icons & widgets
+│   ├── miqulauncher/           # Fast fuzzy app launcher & active window switcher
+│   ├── miquoverview/           # GPU-accelerated workspace exposé plugin for miquland
+│   ├── miqunotify/             # Native notification daemon & slide-out center
+│   ├── miqupower/              # Session & power dialog with running app warning
+│   ├── miqudm/                 # Wayland-native Display Manager & login greeter
+│   ├── miqubg/                 # Independent wallpaper daemon & transitions
+│   ├── miqulock/               # Session locker (ext-session-lock-v1)
+│   ├── miquidle/               # Idle daemon (ext-idle-notify-v1)
+│   └── miqupolkit/             # Native Polkit privilege escalation agent
+│
+└── apps/                       # Standalone First-Party Applications (6 apps)
+    ├── miqucontrolpanel/       # Centralized settings, WireGuard VPN, DNS & privacy
+    ├── miqufiles/              # Modern Yazi-style Miller columns file manager
+    ├── miqumusic/              # Fast, lightweight native MPD audio player
+    ├── miqugallery/            # Hardware-accelerated image & media viewer
+    ├── miqutheme/              # Visual appearance & dynamic wallpaper theme manager
+    └── miquinfo/               # Real-time hardware telemetry & resource monitor
+```
 
-| Repository | Role | Technology | Description |
+---
+
+## ⚙️ Subsystem Breakdown
+
+| Subsystem | Directory | Technology | Description |
 | :--- | :--- | :---: | :--- |
-| [**`miquland`**](https://github.com/miqu-project/miquland) | **Compositor & Window Manager** | C++20 / wlroots | GPU-accelerated tiling compositor with dynamic layout engines, overview plugin, and IPC daemon (`miquctl`). |
-| [**`miqutoolkit`**](https://github.com/miqu-project/miqutoolkit) | **Shared UI Toolkit** | C++20 / Cairo / Pango | Unified Wayland application toolkit providing declarative widgets, fluid animations, and live theme propagation. |
-| [**`miqu-linux-apps`**](https://github.com/miqu-project/miqu-linux-apps) | **Native Desktop Suite** | C++20 / miqutoolkit | Cohesive suite of 17 first-party desktop applications (`miqubar`, `miqudesk`, `miqucontrolpanel`, `miqufiles`, `miqumusic`, `miqulauncher`, `miquoverview`, `miqunotify`, `miqupower`, `miqutheme`, `miqugallery`, `miquinfo`, `miqudm`, `miqubg`, `miqulock`, `miquidle`, `miqupolkit`). |
-| [**`miqu-android`**](https://github.com/miqu-project/miqu-android) | **Mobile Applications** | Kotlin / Jetpack Compose | Native Android apps and mobile companions designed to complement the Miqu environment. |
-| [**`miqu-project.github.io`**](https://github.com/miqu-project/miqu-project.github.io) | **Documentation & Web** | HTML / CSS / JS | Official landing website and documentation portal. |
-| [**`.github`**](https://github.com/miqu-project/.github) | **Organization Profile & Assets** | Markdown / Assets | GitHub organization profile landing page (`profile/README.md`) and ecosystem assets. |
+| **Compositor** | [`miquland`](miquland/) | C++20 / wlroots | GPU-accelerated tiling compositor with dynamic layout engines, scenefx blur, and IPC daemon (`miquctl`). |
+| **UI Toolkit** | [`miqutoolkit`](miqutoolkit/) | C++20 / Cairo / Pango | Unified Wayland UI library with declarative widgets, fluid animations, and live inotify theme reload. |
+| **Desktop Shell** | [`shell/`](shell/) | C++20 / miqutoolkit | Core layer-shell UI components and system daemons (`miqubar`, `miqudesk`, `miqulauncher`, `miquoverview`, `miqunotify`, `miqupower`, `miqudm`, `miqubg`, `miqulock`, `miquidle`, `miqupolkit`). |
+| **Desktop Apps** | [`apps/`](apps/) | C++20 / miqutoolkit | Standalone client applications (`miqucontrolpanel`, `miqufiles`, `miqumusic`, `miqugallery`, `miqutheme`, `miquinfo`). |
 
 ---
 
-## 🛠️ Developer Submodule Workflow
+## 🛠️ Developer Workflow
 
-### Pulling the Latest Changes from All Repositories
-To fetch and update all submodules to the latest commits on their tracking branches:
+### In-Tree Incremental Builds
+Because all components share the root `CMakeLists.txt`, editing `miqutoolkit` and building any downstream application rebuilds both in parallel without requiring `sudo make install`:
+
 ```bash
-git submodule update --remote --merge
+# Configure once
+cmake -B build -G Ninja
+
+# Rebuild a specific application instantly
+cmake --build build --target miqucontrolpanel
+
+# Run the fresh binary directly
+./build/apps/miqucontrolpanel/miqucontrolpanel
 ```
 
-### Working on Individual Components
-Each subfolder (`miquland`, `miqutoolkit`, `miqu-linux-apps`) remains a complete, independent Git repository:
+### Standalone Component Compilation
+Each shell component and application retains its own standalone `make.sh` and can still be compiled independently if desired:
 ```bash
-cd miquland
-git checkout main
-# make code edits...
-git commit -m "feat(core): example improvement"
-git push origin main
-```
-
-To lock in the updated component versions in the parent meta-repository:
-```bash
-cd ..
-git add miquland
-git commit -m "chore(deps): update miquland submodule pointer"
-git push origin main
+cd apps/miqufiles
+./make.sh
 ```
 
 ---
@@ -119,4 +142,4 @@ git push origin main
 
 ## 📜 Architecture & Standards
 
-All contributors and agents working across the Miqu ecosystem adhere strictly to the architectural standards and configuration rules specified in [**`AGENTS.md`**](AGENTS.md).
+All contributors and agents working across the Miqu ecosystem adhere strictly to the architectural contracts, configuration management doctrine, and coding craftsmanship standards specified in [**`AGENTS.md`**](AGENTS.md).

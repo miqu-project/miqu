@@ -1,0 +1,94 @@
+#pragma once
+
+#include "miqutoolkit/core/color.hpp"
+#include <string>
+
+namespace miqubar {
+
+class BarConfig {
+public:
+    static BarConfig& get();
+
+    void load(const std::string& custom_path = "");
+    void sync_defaults_from_toolkit();
+
+    // General
+    std::string position = "bottom";
+    int height = 48;
+    bool reserve_space = true;
+    int bar_corner_radius = 8;
+    bool custom_bar_corner_radius = false;
+    bool miqubar_outline = false;
+    int margin_top = 0;
+    int margin_bottom = 0;
+    int margin_left = 0;
+    int margin_right = 0;
+    int padding_top = 4;
+    int padding_bottom = 4;
+    int padding_left = 6;
+    int padding_right = 6;
+
+    int get_item_height() const {
+        int inner_h = height - padding_top - padding_bottom;
+        return std::max(12, inner_h);
+    }
+
+    // Start & Taskbar
+    bool show_start = true;
+    std::string launcher_cmd = "miqulauncher";
+    std::string start_icon = "miquland";
+    int icon_size = 28;
+
+    // Workspaces
+    bool show_workspace_btn = true;
+    std::string workspace_display = "icon"; // "icon", "dots", or "badge"
+    bool hover_flyout = true;
+
+    // Search
+    bool show_search = true;
+    std::string search_style = "pill"; // "pill" or "icon"
+    std::string search_cmd = "miqulauncher -show search";
+    int search_width = 160;
+    std::string search_placeholder = "Search";
+
+    // Taskbar
+    bool show_taskbar = true;
+    bool group_apps = true;
+    bool icon_only = true;
+    int max_title_chars = 24;
+    int item_max_width = 200;
+    bool show_active_underline = true;
+    bool middle_click_close = true;
+    bool show_hover_popup = true;
+    int hover_popup_max_width = 320;
+    int hover_delay_ms = 300;
+
+    // Modules
+    bool show_cpu = false;
+    bool show_memory = false;
+    bool show_network = true;
+    bool show_bluetooth = true;
+    bool show_volume = true;
+    bool show_brightness = true;
+    bool show_battery = true;
+    bool show_dark_mode = true;
+    bool show_notifications = true;
+    bool show_clock = true;
+    bool show_power = true;
+    bool clock_stacked = true;
+    std::string time_format = "%H:%M";
+    std::string date_format = "%d/%m/%Y";
+    int telemetry_interval_ms = 2000;
+
+    // Appearance tokens (synced from miqutoolkit)
+    std::string font_family = "Sans";
+    int font_size = 11;
+    int corner_radius = 8;
+    int border_width = 1;
+
+
+private:
+    BarConfig();
+};
+
+} // namespace miqubar

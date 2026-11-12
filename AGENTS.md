@@ -121,24 +121,26 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miquland`**: Wayland window manager and compositor (wlroots-based), responsible for window management, tiling and floating layouts, input handling, Wayland protocol implementations (including layer-shell and session-lock), and the IPC/plugin architecture.
 - **`miqutoolkit`**: Shared C++20 UI framework and application development toolkit (Cairo/Pango/Wayland abstraction), providing common widgets, design token theming, layout containers, event loop integration, and instant theme propagation across all applications.
 
-### Linux Applications (`miqu-linux-apps`)
+### Desktop Shell & Daemons (`shell/`)
 - **`miqubar`**: Wayland status bar and taskbar, featuring workspace indicators, window lists, system tray, battery/network telemetry modules, and interactive flyout menus.
 - **`miqudesk`**: Interactive desktop canvas and widget layer that brings familiar desktop ergonomics (desktop icons, shortcuts, widgets) to a modern tiling Wayland environment.
-- **`miqucontrolpanel`**: Modern Miller-columns centralized desktop control panel, network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
-- **`miqumusic`**: Fast, lightweight native MPD (Music Player Daemon) client and audio playback interface.
 - **`miqulauncher`**: Fast application launcher, fuzzy dmenu alternative, workspace navigator, and active window switcher.
 - **`miquoverview`**: GPU-accelerated live workspace expose and overview plugin/utility for window management in `miquland`.
 - **`miqunotify`**: Native desktop notification daemon and slide-out notification history center.
 - **`miqupower`**: Desktop Environment power and session management dialog with running application detection, graceful teardown visual feedback, and systemd-logind / miquland IPC integration.
-- **`miqutheme`**: Visual theme and appearance manager for selecting color schemes, wallpapers, fonts, and global design tokens.
-- **`miqugallery`**: High-performance image viewer and media gallery application.
-- **`miquinfo`**: Hardware monitoring, system telemetry, and diagnostic resource utility.
 - **`miqudm`**: Wayland-native Display Manager and login greeter with PAM and logind session management.
 - **`miqubg`**: Independent wallpaper daemon responsible for rendering, scaling, and transitioning desktop background images.
 - **`miqulock`**: Session locking utility implementing the Wayland `ext-session-lock-v1` protocol.
 - **`miquidle`**: Idle management daemon monitoring user activity and power events via the Wayland `ext-idle-notify-v1` protocol.
 - **`miqupolkit`**: Native graphical Polkit authentication agent handling privilege escalation prompts.
+
+### Standalone Desktop Applications (`apps/`)
+- **`miqucontrolpanel`**: Modern Miller-columns centralized desktop control panel, network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
 - **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
+- **`miqumusic`**: Fast, lightweight native MPD (Music Player Daemon) client and audio playback interface.
+- **`miqugallery`**: High-performance image viewer and media gallery application.
+- **`miqutheme`**: Visual theme and appearance manager for selecting color schemes, wallpapers, fonts, and global design tokens.
+- **`miquinfo`**: Hardware monitoring, system telemetry, and diagnostic resource utility.
 
 ---
 

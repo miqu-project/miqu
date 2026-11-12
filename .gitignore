@@ -10,3 +10,5 @@ git_token_password
 
 # Build artifacts
 build/
+build*/
+.old*

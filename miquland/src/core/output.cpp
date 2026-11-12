@@ -1,0 +1,607 @@
+#include "core/output.hpp"
+#include "core/server.hpp"
+#include "core/workspace.hpp"
+#include "core/input/input.hpp"
+#include "core/config/config.hpp"
+#include "core/animation/animation_manager.hpp"
+#include "core/ipc/ipc_server.hpp"
+#include <ctime>
+#include <cmath>
+
+namespace miquland {
+
+Output::Output(Server* server, struct wlr_output* wlr_output)
+    : m_server(server), m_wlr_output(wlr_output)
+{
+    wlr_output_init_render(wlr_output, server->get_allocator(), server->get_renderer());
+
+    apply_config();
+
+    m_frame_listener.notify = handle_frame;
+    wl_signal_add(&wlr_output->events.frame, &m_frame_listener);
+
+    m_needs_frame_listener.notify = handle_needs_frame;
+    wl_signal_add(&wlr_output->events.needs_frame, &m_needs_frame_listener);
+
+    m_request_state_listener.notify = handle_request_state;
+    wl_signal_add(&wlr_output->events.request_state, &m_request_state_listener);
+
+    m_destroy_listener.notify = handle_destroy;
+    wl_signal_add(&wlr_output->events.destroy, &m_destroy_listener);
+}
+
+void Output::apply_config() {
+    const MonitorRule* rule = Config::get().find_monitor_rule(m_wlr_output->name ? m_wlr_output->name : "");
+
+    struct wlr_output_state state;
+    wlr_output_state_init(&state);
+
+    if (rule && rule->disabled) {
+        wlr_output_state_set_enabled(&state, false);
+        wlr_output_commit_state(m_wlr_output, &state);
+        wlr_output_state_finish(&state);
+
+        wlr_output_layout_remove(m_server->get_output_manager()->get_layout(), m_wlr_output);
+        return;
+    }
+
+    bool needs_commit = false;
+    if (!m_wlr_output->enabled) {
+        wlr_output_state_set_enabled(&state, true);
+        needs_commit = true;
+    }
+
+    // Mode resolution and refresh rate
+    struct wlr_output_mode* best_mode = nullptr;
+    int target_width = 0;
+    int target_height = 0;
+    int32_t target_refresh_mHz = 0;
+
+    if (rule && rule->width > 0 && rule->height > 0) {
+        target_width = rule->width;
+        target_height = rule->height;
+        target_refresh_mHz = (int32_t)(rule->refresh_rate * 1000.0);
+        struct wlr_output_mode* m;
+        wl_list_for_each(m, &m_wlr_output->modes, link) {
+            if (m->width == rule->width && m->height == rule->height) {
+                if (target_refresh_mHz > 0) {
+                    if (std::abs(m->refresh - target_refresh_mHz) < 1000) {
+                        best_mode = m;
+                        break;
+                    }
+                } else {
+                    if (!best_mode || m->refresh > best_mode->refresh) {
+                        best_mode = m;
+                    }
+                }
+            }
+        }
+    } else {
+        best_mode = wlr_output_preferred_mode(m_wlr_output);
+        if (best_mode) {
+            target_width = best_mode->width;
+            target_height = best_mode->height;
+            target_refresh_mHz = best_mode->refresh;
+        }
+    }
+
+    if (best_mode) {
+        if (m_wlr_output->current_mode != best_mode) {
+            wlr_output_state_set_mode(&state, best_mode);
+            needs_commit = true;
+        }
+    } else if (target_width > 0 && target_height > 0) {
+        if (m_wlr_output->width != target_width || m_wlr_output->height != target_height ||
+            (target_refresh_mHz > 0 && std::abs(m_wlr_output->refresh - target_refresh_mHz) >= 1000)) {
+            wlr_output_state_set_custom_mode(&state, target_width, target_height, target_refresh_mHz);
+            needs_commit = true;
+        }
+    }
+
+    // Scale
+    float scale = (rule && rule->scale > 0.0) ? (float)rule->scale : 1.0f;
+    if (std::abs(m_wlr_output->scale - scale) > 0.001f) {
+        wlr_output_state_set_scale(&state, scale);
+        needs_commit = true;
+        if (m_server && m_server->get_input_manager()) {
+            m_server->get_input_manager()->load_cursor_scale(scale);
+        }
+    }
+
+    // Transform
+    enum wl_output_transform transform = rule ? rule->transform : WL_OUTPUT_TRANSFORM_NORMAL;
+    if (m_wlr_output->transform != transform) {
+        wlr_output_state_set_transform(&state, transform);
+        needs_commit = true;
+    }
+
+    if (needs_commit || !m_scene_output) {
+        wlr_output_commit_state(m_wlr_output, &state);
+    }
+    wlr_output_state_finish(&state);
+
+    m_usable_area = {
+        .x = 0,
+        .y = 0,
+        .width = m_wlr_output->width,
+        .height = m_wlr_output->height
+    };
+
+    if (!m_scene_output) {
+        m_scene_output = wlr_scene_output_create(m_server->get_scene(), m_wlr_output);
+    }
+
+    struct wlr_output_layout* layout = m_server->get_output_manager()->get_layout();
+    if (layout) {
+        struct wlr_output_layout_output* l_out = wlr_output_layout_get(layout, m_wlr_output);
+        if (rule && rule->x >= 0 && rule->y >= 0) {
+            if (!l_out || l_out->x != rule->x || l_out->y != rule->y) {
+                wlr_output_layout_add(layout, m_wlr_output, rule->x, rule->y);
+            }
+        } else if (!l_out) {
+            wlr_output_layout_add_auto(layout, m_wlr_output);
+        }
+    }
+
+    if (m_server) {
+        m_server->arrange_layers(m_wlr_output);
+        if (layout) {
+            struct wlr_box box = { 0, 0, 0, 0 };
+            wlr_output_layout_get_box(layout, nullptr, &box);
+            if (box.width > 0 && box.height > 0) {
+                m_server->update_optimized_blur_geometry(box.width, box.height);
+                m_server->mark_optimized_blur_dirty();
+            }
+        }
+    }
+}
+
+Output::~Output() {
+    if (m_gamma_transform) {
+        wlr_color_transform_unref(m_gamma_transform);
+        m_gamma_transform = nullptr;
+    }
+    wl_list_remove(&m_frame_listener.link);
+    wl_list_remove(&m_needs_frame_listener.link);
+    wl_list_remove(&m_request_state_listener.link);
+    wl_list_remove(&m_destroy_listener.link);
+}
+
+void Output::handle_needs_frame(struct wl_listener* listener, void* data) {
+    Output* output = wl_container_of(listener, output, m_needs_frame_listener);
+    wlr_output_schedule_frame(output->m_wlr_output);
+}
+
+void Output::handle_frame(struct wl_listener* listener, void* data) {
+    Output* output = wl_container_of(listener, output, m_frame_listener);
+
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    double now_ms = static_cast<double>(now.tv_sec) * 1000.0 + static_cast<double>(now.tv_nsec) / 1000000.0;
+
+    if (output->m_server && output->m_server->get_animation_manager()) {
+        output->m_server->get_animation_manager()->tick(now_ms);
+    }
+
+    bool has_active_anims = (output->m_server && output->m_server->get_animation_manager() &&
+                             output->m_server->get_animation_manager()->has_active_animations());
+
+    bool needs_frame = output->m_wlr_output->needs_frame ||
+                       wlr_scene_output_needs_frame(output->m_scene_output) ||
+                       has_active_anims;
+
+    if (!needs_frame) {
+        return;
+    }
+
+    if (has_active_anims) {
+        output->m_wlr_output->needs_frame = true;
+    }
+
+    struct wlr_output_state state;
+    wlr_output_state_init(&state);
+
+    struct wlr_scene_output_state_options options = {};
+    if (output->m_software_gamma && output->m_gamma_transform) {
+        options.color_transform = output->m_gamma_transform;
+    }
+
+    if (!wlr_scene_output_build_state(output->m_scene_output, &state, (options.color_transform ? &options : nullptr))) {
+        wlr_output_state_finish(&state);
+        if (output->m_server && output->m_server->get_animation_manager() &&
+            output->m_server->get_animation_manager()->has_active_animations()) {
+            wlr_output_schedule_frame(output->m_wlr_output);
+        }
+        return;
+    }
+
+    if (state.committed & WLR_OUTPUT_STATE_DAMAGE) {
+        pixman_region32_intersect_rect(&state.damage, &state.damage, 0, 0,
+            output->m_wlr_output->width, output->m_wlr_output->height);
+    }
+
+    if (wlr_output_commit_state(output->m_wlr_output, &state)) {
+        wlr_scene_output_send_frame_done(output->m_scene_output, &now);
+    }
+
+    wlr_output_state_finish(&state);
+
+    if (output->m_server && output->m_server->get_animation_manager() &&
+        output->m_server->get_animation_manager()->has_active_animations()) {
+        wlr_output_schedule_frame(output->m_wlr_output);
+    }
+}
+
+bool Output::commit_tearing() {
+    if (!m_scene_output || !m_wlr_output) return false;
+
+    struct wlr_output_state state;
+    wlr_output_state_init(&state);
+
+    if (!wlr_scene_output_build_state(m_scene_output, &state, nullptr)) {
+        wlr_output_state_finish(&state);
+        return false;
+    }
+
+    if (state.committed & WLR_OUTPUT_STATE_DAMAGE) {
+        pixman_region32_intersect_rect(&state.damage, &state.damage, 0, 0,
+            m_wlr_output->width, m_wlr_output->height);
+    }
+
+    state.tearing_page_flip = true;
+
+    bool ok = wlr_output_commit_state(m_wlr_output, &state);
+    wlr_output_state_finish(&state);
+
+    if (ok) {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        wlr_scene_output_send_frame_done(m_scene_output, &now);
+        if (m_server && m_server->get_animation_manager() &&
+            m_server->get_animation_manager()->has_active_animations()) {
+            wlr_output_schedule_frame(m_wlr_output);
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static void kelvin_to_rgb(double kelvin, double& r, double& g, double& b) {
+    kelvin = std::clamp(kelvin, 1000.0, 10000.0);
+    double temp = kelvin / 100.0;
+
+    if (temp <= 66.0) {
+        r = 255.0;
+    } else {
+        r = 329.698727446 * std::pow(temp - 60.0, -0.1332047592);
+    }
+
+    if (temp <= 66.0) {
+        g = 99.4708025861 * std::log(temp) - 161.1195681661;
+    } else {
+        g = 288.1221695283 * std::pow(temp - 60.0, -0.0755148492);
+    }
+
+    if (temp >= 66.0) {
+        b = 255.0;
+    } else if (temp <= 19.0) {
+        b = 0.0;
+    } else {
+        b = 138.5177312231 * std::log(temp - 10.0) - 305.0447927307;
+    }
+
+    r = std::clamp(r, 0.0, 255.0);
+    g = std::clamp(g, 0.0, 255.0);
+    b = std::clamp(b, 0.0, 255.0);
+}
+
+bool Output::set_gamma_temperature(int temp_k) {
+    if (!m_wlr_output) return false;
+
+    if (m_gamma_transform) {
+        wlr_color_transform_unref(m_gamma_transform);
+        m_gamma_transform = nullptr;
+    }
+
+    if (temp_k < 6500 && temp_k >= 1000) {
+        double r_ref, g_ref, b_ref;
+        kelvin_to_rgb(6500.0, r_ref, g_ref, b_ref);
+
+        double r_raw, g_raw, b_raw;
+        kelvin_to_rgb(static_cast<double>(temp_k), r_raw, g_raw, b_raw);
+
+        double r_scale = std::clamp(r_raw / r_ref, 0.0, 1.0);
+        double g_scale = std::clamp(g_raw / g_ref, 0.0, 1.0);
+        double b_scale = std::clamp(b_raw / b_ref, 0.0, 1.0);
+
+        size_t ramp_size = wlr_output_get_gamma_size(m_wlr_output);
+        if (ramp_size == 0) ramp_size = 256;
+
+        std::vector<uint16_t> r_lut(ramp_size);
+        std::vector<uint16_t> g_lut(ramp_size);
+        std::vector<uint16_t> b_lut(ramp_size);
+
+        for (size_t i = 0; i < ramp_size; ++i) {
+            double v = static_cast<double>(i) / static_cast<double>(ramp_size - 1);
+            r_lut[i] = static_cast<uint16_t>(std::clamp(std::round(v * r_scale * 65535.0), 0.0, 65535.0));
+            g_lut[i] = static_cast<uint16_t>(std::clamp(std::round(v * g_scale * 65535.0), 0.0, 65535.0));
+            b_lut[i] = static_cast<uint16_t>(std::clamp(std::round(v * b_scale * 65535.0), 0.0, 65535.0));
+        }
+
+        m_gamma_transform = wlr_color_transform_init_lut_3x1d(ramp_size, r_lut.data(), g_lut.data(), b_lut.data());
+    }
+
+    struct wlr_output_state state;
+    wlr_output_state_init(&state);
+    wlr_output_state_set_color_transform(&state, m_gamma_transform);
+
+    bool ok = wlr_output_commit_state(m_wlr_output, &state);
+    wlr_output_state_finish(&state);
+
+    if (!ok && m_gamma_transform) {
+        m_software_gamma = true;
+    } else {
+        m_software_gamma = false;
+    }
+
+    wlr_output_schedule_frame(m_wlr_output);
+    return true;
+}
+
+void Output::handle_request_state(struct wl_listener* listener, void* data) {
+    Output* output = wl_container_of(listener, output, m_request_state_listener);
+    auto* event = static_cast<struct wlr_output_event_request_state*>(data);
+    wlr_output_commit_state(output->m_wlr_output, event->state);
+    if (output->m_server->get_output_manager()) {
+        output->m_server->get_output_manager()->update_manager_config();
+    }
+}
+
+void Output::handle_destroy(struct wl_listener* listener, void* data) {
+    Output* output = wl_container_of(listener, output, m_destroy_listener);
+    output->m_server->get_output_manager()->remove_output(output);
+}
+
+OutputManager::OutputManager(Server* server)
+    : m_server(server)
+{
+    m_output_layout = wlr_output_layout_create(server->get_display());
+    wlr_scene_attach_output_layout(server->get_scene(), m_output_layout);
+
+    m_new_output_listener.notify = handle_new_output;
+    wl_signal_add(&server->get_backend()->events.new_output, &m_new_output_listener);
+
+    m_output_manager_v1 = wlr_output_manager_v1_create(server->get_display());
+    if (m_output_manager_v1) {
+        m_output_manager_apply_listener.notify = handle_manager_apply;
+        wl_signal_add(&m_output_manager_v1->events.apply, &m_output_manager_apply_listener);
+
+        m_output_manager_test_listener.notify = handle_manager_test;
+        wl_signal_add(&m_output_manager_v1->events.test, &m_output_manager_test_listener);
+    }
+}
+
+OutputManager::~OutputManager() {
+    wl_list_remove(&m_new_output_listener.link);
+    if (m_output_manager_v1) {
+        wl_list_remove(&m_output_manager_apply_listener.link);
+        wl_list_remove(&m_output_manager_test_listener.link);
+    }
+}
+
+struct wlr_box OutputManager::get_primary_geometry() const {
+    struct wlr_box box = { 0, 0, 0, 0 };
+    if (m_output_layout) {
+        wlr_output_layout_get_box(m_output_layout, nullptr, &box);
+    }
+    return box;
+}
+
+struct wlr_box OutputManager::get_primary_usable_geometry() const {
+    auto* primary = get_primary_output();
+    if (primary) {
+        const auto& area = primary->get_usable_area();
+        if (area.width > 0 && area.height > 0) {
+            return area;
+        }
+    }
+    return get_primary_geometry();
+}
+
+Output* OutputManager::find_output(struct wlr_output* wlr_out) const {
+    for (const auto& out : m_outputs) {
+        if (out && out->get_wlr_output() == wlr_out) {
+            return out.get();
+        }
+    }
+    return nullptr;
+}
+
+void OutputManager::add_output(std::unique_ptr<Output> output) {
+    if (!output) return;
+    Output* ptr = output.get();
+    m_outputs.push_back(std::move(output));
+    if (m_server && ptr->get_wlr_output()) {
+        m_server->arrange_layers(ptr->get_wlr_output());
+    }
+    if (m_server && m_server->is_gamma_enabled()) {
+        ptr->set_gamma_temperature(m_server->get_gamma_temperature());
+    }
+    if (m_server->get_ext_workspace_group() && ptr->get_wlr_output()) {
+        wlr_ext_workspace_group_handle_v1_output_enter(m_server->get_ext_workspace_group(), ptr->get_wlr_output());
+    }
+    if (m_server->get_workspace_manager()) {
+        m_server->get_workspace_manager()->recalculate_layout();
+    }
+    if (m_server->get_input_manager()) {
+        m_server->get_input_manager()->reapply_device_config();
+    }
+    update_manager_config();
+
+    if (m_server->get_ipc_server() && ptr->get_wlr_output()) {
+        std::string payload = "{\"action\":\"connect\",\"name\":\"" + ipc::escape_json(ptr->get_wlr_output()->name ? ptr->get_wlr_output()->name : "unknown") + "\"}";
+        m_server->get_ipc_server()->broadcast_event("monitor", payload);
+    }
+}
+
+void OutputManager::remove_output(Output* output) {
+    std::string out_name;
+    if (output && output->get_wlr_output() && output->get_wlr_output()->name) {
+        out_name = output->get_wlr_output()->name;
+    }
+
+    if (m_server->get_ext_workspace_group() && output && output->get_wlr_output()) {
+        wlr_ext_workspace_group_handle_v1_output_leave(m_server->get_ext_workspace_group(), output->get_wlr_output());
+    }
+    for (auto it = m_outputs.begin(); it != m_outputs.end(); ++it) {
+        if (it->get() == output) {
+            m_outputs.erase(it);
+            break;
+        }
+    }
+    if (m_server->get_workspace_manager()) {
+        m_server->get_workspace_manager()->recalculate_layout();
+    }
+    if (m_server->get_input_manager()) {
+        m_server->get_input_manager()->reapply_device_config();
+    }
+    update_manager_config();
+
+    if (m_server->get_ipc_server() && !out_name.empty()) {
+        std::string payload = "{\"action\":\"disconnect\",\"name\":\"" + ipc::escape_json(out_name) + "\"}";
+        m_server->get_ipc_server()->broadcast_event("monitor", payload);
+    }
+}
+
+void OutputManager::handle_new_output(struct wl_listener* listener, void* data) {
+    OutputManager* manager = wl_container_of(listener, manager, m_new_output_listener);
+    auto* wlr_output = static_cast<struct wlr_output*>(data);
+
+    auto output = std::make_unique<Output>(manager->m_server, wlr_output);
+    manager->add_output(std::move(output));
+}
+
+void OutputManager::reapply_all_configs() {
+    for (const auto& out : m_outputs) {
+        if (out) {
+            out->apply_config();
+        }
+    }
+    update_manager_config();
+    if (m_server->get_workspace_manager()) {
+        m_server->get_workspace_manager()->recalculate_layout();
+    }
+    if (m_server->get_input_manager()) {
+        m_server->get_input_manager()->reapply_device_config();
+    }
+}
+
+void OutputManager::apply_all_configs() {
+    reapply_all_configs();
+}
+
+void OutputManager::update_manager_config() {
+    if (!m_output_manager_v1) return;
+
+    struct wlr_output_configuration_v1* config = wlr_output_configuration_v1_create();
+    for (const auto& out : m_outputs) {
+        if (!out || !out->get_wlr_output()) continue;
+        struct wlr_output* wlr_out = out->get_wlr_output();
+        struct wlr_output_configuration_head_v1* config_head =
+            wlr_output_configuration_head_v1_create(config, wlr_out);
+
+        struct wlr_box box = { 0, 0, 0, 0 };
+        wlr_output_layout_get_box(m_output_layout, wlr_out, &box);
+        config_head->state.x = box.x;
+        config_head->state.y = box.y;
+    }
+    wlr_output_manager_v1_set_configuration(m_output_manager_v1, config);
+}
+
+void OutputManager::handle_manager_apply(struct wl_listener* listener, void* data) {
+    OutputManager* manager = wl_container_of(listener, manager, m_output_manager_apply_listener);
+    auto* config = static_cast<struct wlr_output_configuration_v1*>(data);
+    manager->apply_config(config, false);
+}
+
+void OutputManager::handle_manager_test(struct wl_listener* listener, void* data) {
+    OutputManager* manager = wl_container_of(listener, manager, m_output_manager_test_listener);
+    auto* config = static_cast<struct wlr_output_configuration_v1*>(data);
+    manager->apply_config(config, true);
+}
+
+bool OutputManager::apply_config(struct wlr_output_configuration_v1* config, bool test_only) {
+    bool ok = true;
+    struct wlr_output_configuration_head_v1* config_head;
+    wl_list_for_each(config_head, &config->heads, link) {
+        struct wlr_output* wlr_out = config_head->state.output;
+        struct wlr_output_state state;
+        wlr_output_state_init(&state);
+        wlr_output_head_v1_state_apply(&config_head->state, &state);
+        if (!wlr_output_test_state(wlr_out, &state)) {
+            ok = false;
+        }
+        wlr_output_state_finish(&state);
+        if (!ok) break;
+    }
+
+    if (!ok) {
+        wlr_output_configuration_v1_send_failed(config);
+        wlr_output_configuration_v1_destroy(config);
+        return false;
+    }
+
+    if (test_only) {
+        wlr_output_configuration_v1_send_succeeded(config);
+        wlr_output_configuration_v1_destroy(config);
+        return true;
+    }
+
+    wl_list_for_each(config_head, &config->heads, link) {
+        struct wlr_output* wlr_out = config_head->state.output;
+        struct wlr_output_state state;
+        wlr_output_state_init(&state);
+        wlr_output_head_v1_state_apply(&config_head->state, &state);
+        wlr_output_commit_state(wlr_out, &state);
+        wlr_output_state_finish(&state);
+
+        if (config_head->state.enabled) {
+            wlr_output_layout_add(m_output_layout, wlr_out, config_head->state.x, config_head->state.y);
+        } else {
+            wlr_output_layout_remove(m_output_layout, wlr_out);
+        }
+
+        Output* out = find_output(wlr_out);
+        if (out && m_server) {
+            m_server->arrange_layers(wlr_out);
+        }
+    }
+
+    wlr_output_configuration_v1_send_succeeded(config);
+    wlr_output_configuration_v1_destroy(config);
+
+    update_manager_config();
+    if (m_output_layout && m_server) {
+        struct wlr_box box = { 0, 0, 0, 0 };
+        wlr_output_layout_get_box(m_output_layout, nullptr, &box);
+        if (box.width > 0 && box.height > 0) {
+            m_server->update_optimized_blur_geometry(box.width, box.height);
+            m_server->mark_optimized_blur_dirty();
+        }
+    }
+    if (m_server->get_workspace_manager()) {
+        m_server->get_workspace_manager()->recalculate_layout();
+    }
+    return true;
+}
+
+void OutputManager::set_gamma_temperature(int temp_k) {
+    for (auto& output : m_outputs) {
+        if (output) {
+            output->set_gamma_temperature(temp_k);
+        }
+    }
+}
+
+} // namespace miquland

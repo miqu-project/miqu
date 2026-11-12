@@ -1,0 +1,36 @@
+# miqubar
+
+Independent Wayland status bar and Windows-style taskbar for Miquland built natively with `miqutoolkit`.
+
+## Features
+- **Start Menu Button**: Spawns application runner (`miqulauncher` by default).
+- **Compact Workspace Button**: Displays workspace glyph with an active workspace badge (`[ ⊞ 1 ]`).
+  - Hover over or click to reveal an interactive workspace flyout.
+- **Running Window Taskbar**: Tracks open windows via `zwlr_foreign_toplevel_manager_v1`.
+  - Application icon, window title, and active accent underline indicator.
+  - Left-click to focus/minimize; middle-click to close; right-click for window context menu.
+- **Hardware Telemetry Modules**: Real-time CPU, RAM, and Battery percentage indicators.
+- **Audio Control**: Volume indicator; click to open Quick Settings flyout.
+- **Windows-Style Stacked Clock**: Time and Date display; click to open interactive Calendar flyout.
+- **Layer Shell Integration**: Anchored to bottom or top with an exclusive zone so windows tile seamlessly.
+
+## Configuration
+Generate default user configuration:
+```bash
+miqubar --init-config
+```
+Configuration file is located at `~/.config/miqubar/miqubar.conf`.
+
+## Build & Installation
+
+### Local Build
+```bash
+./make.sh
+```
+
+### System Installation
+To build and install system-wide to `/usr`:
+```bash
+sudo ./make.sh
+```
+
