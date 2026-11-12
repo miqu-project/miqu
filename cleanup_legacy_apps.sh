@@ -94,10 +94,8 @@ echo "----------------------------------------------------------------"
 echo "==> [5/6] Purging stale repository & temp build artifacts..."
 echo "----------------------------------------------------------------"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-remove_path "${SCRIPT_DIR}/miqu-linux-apps/miqucontrolpanel/.build.root"
-remove_path "${SCRIPT_DIR}/miqu-linux-apps/miqucontrolpanel/build.root"
-remove_path "${SCRIPT_DIR}/miqu-linux-apps/miqusettings"
-remove_path "${SCRIPT_DIR}/miqu-linux-apps/miqusecure"
+remove_path "${SCRIPT_DIR}/.old_miqu-linux-apps"
+remove_path "${SCRIPT_DIR}/.old_miqutoolkit"
 
 # Purge any stale root temp directories
 for tmpdir in /tmp/miqusecure_stale_* /tmp/miqusettings_stale_* /tmp/*miqutest* /tmp/*miqusettings* /tmp/*miqusecure*; do
