@@ -1,9 +1,10 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_group.hpp"
 #include <string>
 #include <vector>
 #include <functional>
+#include <memory>
 
 namespace miqu {
 
@@ -12,15 +13,52 @@ enum class TabBarStyle {
     Underline  // Flat row with underline accent on active tab
 };
 
-class TabBar : public View {
+class TabBar;
+
+class TabItemView : public View {
+public:
+    TabItemView(TabBar* parent_bar, int index, std::string text);
+    ~TabItemView() override = default;
+
+    int get_index() const { return m_index; }
+    void set_index(int index) { m_index = index; }
+
+    const std::string& get_text() const { return m_text; }
+    void set_text(const std::string& text);
+
+    void draw(cairo_t* cr, const Rect& bounds) override;
+    Size measure_size() const override;
+    void draw_focus_ring(cairo_t* cr, const Rect& bounds) override;
+
+    bool on_mouse_move(int lx, int ly, const Rect& bounds) override;
+    bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
+    bool on_key(const KeyPressEvent& event) override;
+
+private:
+    TabBar* m_parent_bar = nullptr;
+    int m_index = 0;
+    std::string m_text;
+    bool m_hovered = false;
+    bool m_pressed = false;
+};
+
+class TabBar : public ViewGroup {
 public:
     TabBar();
+    ~TabBar() override = default;
 
     void set_tabs(const std::vector<std::string>& tabs);
     void add_tab(const std::string& label);
     void set_tab_text(int index, const std::string& text);
     const std::vector<std::string>& get_tabs() const { return m_tabs; }
     size_t get_tab_count() const { return m_tabs.size(); }
+
+    std::shared_ptr<TabItemView> get_tab_item(size_t index) const {
+        if (index < m_children.size()) {
+            return std::dynamic_pointer_cast<TabItemView>(m_children[index]);
+        }
+        return nullptr;
+    }
 
     void set_selected_index(int index);
     int get_selected_index() const { return m_selected_index; }
@@ -32,7 +70,11 @@ public:
     bool is_equal_widths() const { return m_equal_widths; }
 
     void set_font_size(int size) { m_font_size = size; }
+    int get_font_size() const { return m_font_size; }
+
     void set_corner_radius(int radius) { m_corner_radius = radius; }
+    int get_corner_radius() const { return m_corner_radius; }
+
     void set_bold_active(bool bold) { m_bold_active = bold; }
     bool is_bold_active() const { return m_bold_active; }
 
@@ -43,14 +85,9 @@ public:
     void draw(cairo_t* cr, const Rect& bounds) override;
     Size measure_size() const override;
 
-    bool on_mouse_move(int lx, int ly, const Rect& bounds) override;
-    bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
-
 private:
     std::vector<std::string> m_tabs;
     int m_selected_index = 0;
-    int m_hovered_index = -1;
-    int m_pressed_index = -1;
     TabBarStyle m_style = TabBarStyle::Segmented;
     bool m_equal_widths = true;
     int m_font_size = -1;
@@ -58,8 +95,6 @@ private:
     bool m_bold_active = false;
 
     std::function<void(int)> m_on_tab_selected;
-
-    int get_tab_index_at(int lx, int ly, const Rect& bounds) const;
 };
 
 class TabBarBuilder : public std::enable_shared_from_this<TabBarBuilder> {

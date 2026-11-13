@@ -336,6 +336,9 @@ void MillerView::update_preview_ribbon() {
 
     if (m_preview_title) {
         std::string title_str = item ? item->title : "";
+        if (item && (item->id == "ws_wallpaper" || item->is_wallpaper)) {
+            title_str = "Wallpaper";
+        }
         m_preview_title->set_text(title_str);
         if (config) {
             m_preview_title->set_text_color(config->colors.on_surface_variant);

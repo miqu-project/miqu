@@ -6,6 +6,11 @@
 #include <iomanip>
 #include <sstream>
 #include <filesystem>
+#include <thread>
+#include <cstring>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 
@@ -314,82 +319,409 @@ void MillerView::render_tiling_preview(const std::shared_ptr<SettingItem>& item,
     add_preview_card(main_card);
 }
 
+static std::string expand_wallpaper_path(const std::string& path) {
+    if (path.empty() || path[0] != '~') return path;
+    const char* home = std::getenv("HOME");
+    if (!home) return path;
+    if (path.size() == 1) return std::string(home);
+    if (path[1] == '/') return std::string(home) + path.substr(1);
+    return path;
+}
+
+static FitMode wallpaper_str_to_fit_mode(const std::string& mode_str) {
+    std::string s = mode_str;
+    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+    if (s == "fit" || s == "contain") return FitMode::Contain;
+    if (s == "stretch" || s == "fill") return FitMode::Fill;
+    if (s == "center") return FitMode::Center;
+    if (s == "tile") return FitMode::Tile;
+    return FitMode::Cover;
+}
+
+static bool send_miqubg_wallpaper_ipc(const std::string& image_path, const std::string& fit_mode) {
+    const char* wayland_display = std::getenv("WAYLAND_DISPLAY");
+    std::string display_name = (wayland_display && *wayland_display) ? wayland_display : "wayland-0";
+
+    const char* runtime_dir = std::getenv("XDG_RUNTIME_DIR");
+    std::string sock_path = (runtime_dir && *runtime_dir)
+        ? std::string(runtime_dir) + "/miqubg-" + display_name + ".sock"
+        : "/tmp/miqubg-" + std::to_string(getuid()) + "-" + display_name + ".sock";
+
+    std::string mode_str = "cover";
+    std::string lower = fit_mode;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    if (lower == "fit" || lower == "contain") mode_str = "contain";
+    else if (lower == "stretch" || lower == "fill") mode_str = "fill";
+    else if (lower == "center") mode_str = "center";
+    else if (lower == "tile") mode_str = "tile";
+    else mode_str = "cover";
+
+    std::string cmd = "SET * " + mode_str + " #000000 " + image_path + "\n";
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return false;
+
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+    struct sockaddr_un addr;
+    std::memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    std::strncpy(addr.sun_path, sock_path.c_str(), sizeof(addr.sun_path) - 1);
+
+    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        close(fd);
+        // Fallback: daemon not yet listening on socket, spawn miqubg directly
+        std::string spawn = "miqubg -i \"" + image_path + "\" -m " + mode_str + " &";
+        int res = system(spawn.c_str());
+        return (res == 0);
+    }
+
+    ssize_t sent = write(fd, cmd.c_str(), cmd.size());
+    if (sent < 0) {
+        close(fd);
+        return false;
+    }
+
+    char buf[256];
+    std::memset(buf, 0, sizeof(buf));
+    read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    return true;
+}
+
+struct ColorPreset {
+    std::string name;
+    Color primary;
+    Color secondary;
+    Color tertiary;
+};
+
+static const std::vector<ColorPreset> s_preset_schemes = {
+    {"Sapphire",   Color::from_hex("#3584e4"), Color::from_hex("#78aeed"), Color::from_hex("#1c3d5a")},
+    {"Emerald",    Color::from_hex("#2ec27e"), Color::from_hex("#8ff0a4"), Color::from_hex("#1b4332")},
+    {"Sunset",     Color::from_hex("#e66100"), Color::from_hex("#f6a65e"), Color::from_hex("#5c2600")},
+    {"Lavender",   Color::from_hex("#9141ac"), Color::from_hex("#dc8add"), Color::from_hex("#3d1a47")},
+    {"Arctic",     Color::from_hex("#00a896"), Color::from_hex("#02c39a"), Color::from_hex("#05383b")},
+    {"Rose",       Color::from_hex("#e01b24"), Color::from_hex("#f88379"), Color::from_hex("#5c060a")},
+    {"Caramel",    Color::from_hex("#c678dd"), Color::from_hex("#e5c07b"), Color::from_hex("#2c2530")},
+    {"Monochrome", Color::from_hex("#7f8c8d"), Color::from_hex("#bdc3c7"), Color::from_hex("#2c3e50")}
+};
+
+static int s_selected_scheme_idx = 0;
+
+class ColorSchemePreviewView : public View {
+public:
+    ColorSchemePreviewView(Color c1, Color c2, Color c3, std::string name, bool selected = false)
+        : m_col1(c1), m_col2(c2), m_col3(c3), m_name(std::move(name)), m_selected(selected) {
+        set_focusable(true);
+        set_draw_focus_ring(false);
+    }
+
+    void set_selected(bool sel) {
+        if (m_selected != sel) {
+            m_selected = sel;
+            request_redraw();
+        }
+    }
+    bool is_selected() const { return m_selected; }
+    const std::string& get_name() const { return m_name; }
+
+    bool on_mouse_move(int lx, int ly, const Rect& bounds) override {
+        bool in = bounds.contains(Point(lx, ly));
+        if (in != m_hovered) {
+            m_hovered = in;
+            request_redraw();
+        }
+        return in;
+    }
+
+    bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override {
+        if (!is_visible() || !is_enabled()) return false;
+        if (button == MouseButton::Left && pressed && bounds.contains(Point(lx, ly))) {
+            request_focus();
+            if (m_on_click) {
+                m_on_click();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    void draw(cairo_t* cr, const Rect& bounds) override {
+        if (!is_visible() || !cr || bounds.width <= 0 || bounds.height <= 0) return;
+        auto config = Config::get();
+        double r = get_inner_radius(config);
+
+        int text_h = 16;
+        int swatch_h = std::max(10, bounds.height - text_h - 4);
+        int swatch_w = bounds.width;
+        int sx = bounds.x;
+        int sy = bounds.y;
+
+        // Clip rounded rectangle for the swatch
+        cairo_save(cr);
+        CardView::draw_rounded_rect(cr, sx, sy, swatch_w, swatch_h, r);
+        cairo_clip(cr);
+
+        // 1. Left half (50%)
+        double mid_x = sx + swatch_w / 2.0;
+        cairo_rectangle(cr, sx, sy, mid_x - sx, swatch_h);
+        cairo_set_source_rgba(cr, m_col1.r, m_col1.g, m_col1.b, m_col1.a);
+        cairo_fill(cr);
+
+        // 2. Right top quarter (25%)
+        double mid_y = sy + swatch_h / 2.0;
+        cairo_rectangle(cr, mid_x, sy, (sx + swatch_w) - mid_x, mid_y - sy);
+        cairo_set_source_rgba(cr, m_col2.r, m_col2.g, m_col2.b, m_col2.a);
+        cairo_fill(cr);
+
+        // 3. Right bottom quarter (25%)
+        cairo_rectangle(cr, mid_x, mid_y, (sx + swatch_w) - mid_x, (sy + swatch_h) - mid_y);
+        cairo_set_source_rgba(cr, m_col3.r, m_col3.g, m_col3.b, m_col3.a);
+        cairo_fill(cr);
+
+        cairo_restore(cr);
+
+        // Stroke border
+        cairo_save(cr);
+        CardView::draw_rounded_rect(cr, sx, sy, swatch_w, swatch_h, r);
+        if (has_focus() || m_selected) {
+            cairo_set_source_rgba(cr, config->colors.primary.r, config->colors.primary.g, config->colors.primary.b, 1.0f);
+            cairo_set_line_width(cr, 2.0);
+        } else if (m_hovered) {
+            cairo_set_source_rgba(cr, config->colors.primary.r, config->colors.primary.g, config->colors.primary.b, 0.6f);
+            cairo_set_line_width(cr, 1.5);
+        } else {
+            cairo_set_source_rgba(cr, config->colors.outline.r, config->colors.outline.g, config->colors.outline.b, 0.35f);
+            cairo_set_line_width(cr, 1.0);
+        }
+        cairo_stroke(cr);
+        cairo_restore(cr);
+
+        // Name text
+        if (!m_name.empty()) {
+            cairo_save(cr);
+            if (has_focus() || m_selected) {
+                cairo_set_source_rgba(cr, config->colors.primary.r, config->colors.primary.g, config->colors.primary.b, 1.0f);
+            } else {
+                cairo_set_source_rgba(cr, config->colors.on_surface.r, config->colors.on_surface.g, config->colors.on_surface.b, 0.85f);
+            }
+            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, (has_focus() || m_selected) ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+            cairo_set_font_size(cr, config->metrics.caption_size > 0 ? config->metrics.caption_size : 11.0);
+
+            cairo_text_extents_t ext;
+            cairo_text_extents(cr, m_name.c_str(), &ext);
+            double tx = bounds.x + (bounds.width - ext.width) / 2.0 - ext.x_bearing;
+            double ty = sy + swatch_h + 3 + ext.height;
+            cairo_move_to(cr, tx, ty);
+            cairo_show_text(cr, m_name.c_str());
+            cairo_restore(cr);
+        }
+    }
+
+private:
+    Color m_col1, m_col2, m_col3;
+    std::string m_name;
+    bool m_selected = false;
+    bool m_hovered = false;
+};
+
+class PlaceholderSchemeView : public View {
+public:
+    PlaceholderSchemeView(std::string label = "") : m_label(std::move(label)) {
+        set_focusable(true);
+        set_draw_focus_ring(false);
+    }
+
+    bool on_mouse_move(int lx, int ly, const Rect& bounds) override {
+        bool in = bounds.contains(Point(lx, ly));
+        if (in != m_hovered) {
+            m_hovered = in;
+            request_redraw();
+        }
+        return in;
+    }
+
+    bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override {
+        if (!is_visible() || !is_enabled()) return false;
+        if (button == MouseButton::Left && pressed && bounds.contains(Point(lx, ly))) {
+            request_focus();
+            if (m_on_click) {
+                m_on_click();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    void draw(cairo_t* cr, const Rect& bounds) override {
+        if (!is_visible() || !cr || bounds.width <= 0 || bounds.height <= 0) return;
+        auto config = Config::get();
+        double r = get_inner_radius(config);
+
+        int text_h = 16;
+        int swatch_h = std::max(10, bounds.height - text_h - 4);
+        int swatch_w = bounds.width;
+        int sx = bounds.x;
+        int sy = bounds.y;
+
+        // Background
+        cairo_save(cr);
+        CardView::draw_rounded_rect(cr, sx, sy, swatch_w, swatch_h, r);
+        cairo_set_source_rgba(cr, config->colors.surface_variant.r, config->colors.surface_variant.g, config->colors.surface_variant.b, 0.35f);
+        cairo_fill_preserve(cr);
+
+        // Dashed border
+        const double dashes[] = {4.0, 3.0};
+        cairo_set_dash(cr, dashes, 2, 0);
+        if (has_focus()) {
+            cairo_set_source_rgba(cr, config->colors.primary.r, config->colors.primary.g, config->colors.primary.b, 1.0f);
+            cairo_set_line_width(cr, 1.8);
+        } else if (m_hovered) {
+            cairo_set_source_rgba(cr, config->colors.outline.r, config->colors.outline.g, config->colors.outline.b, 0.6f);
+            cairo_set_line_width(cr, 1.2);
+        } else {
+            cairo_set_source_rgba(cr, config->colors.outline.r, config->colors.outline.g, config->colors.outline.b, 0.3f);
+            cairo_set_line_width(cr, 1.0);
+        }
+        cairo_stroke(cr);
+        cairo_restore(cr);
+
+        // Placeholder dots inside
+        cairo_save(cr);
+        cairo_set_source_rgba(cr, config->colors.on_surface_variant.r, config->colors.on_surface_variant.g, config->colors.on_surface_variant.b, 0.25f);
+        double cx1 = sx + swatch_w * 0.3;
+        double cx2 = sx + swatch_w * 0.5;
+        double cx3 = sx + swatch_w * 0.7;
+        double cy = sy + swatch_h * 0.5;
+        cairo_arc(cr, cx1, cy, 3.5, 0, 2 * M_PI);
+        cairo_fill(cr);
+        cairo_arc(cr, cx2, cy, 3.5, 0, 2 * M_PI);
+        cairo_fill(cr);
+        cairo_arc(cr, cx3, cy, 3.5, 0, 2 * M_PI);
+        cairo_fill(cr);
+        cairo_restore(cr);
+
+        if (!m_label.empty()) {
+            cairo_save(cr);
+            if (has_focus()) {
+                cairo_set_source_rgba(cr, config->colors.primary.r, config->colors.primary.g, config->colors.primary.b, 1.0f);
+            } else {
+                cairo_set_source_rgba(cr, config->colors.on_surface_variant.r, config->colors.on_surface_variant.g, config->colors.on_surface_variant.b, 0.5f);
+            }
+            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, has_focus() ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+            cairo_set_font_size(cr, config->metrics.caption_size > 0 ? config->metrics.caption_size : 11.0);
+            cairo_text_extents_t ext;
+            cairo_text_extents(cr, m_label.c_str(), &ext);
+            double tx = bounds.x + (bounds.width - ext.width) / 2.0 - ext.x_bearing;
+            double ty = sy + swatch_h + 3 + ext.height;
+            cairo_move_to(cr, tx, ty);
+            cairo_show_text(cr, m_label.c_str());
+            cairo_restore(cr);
+        }
+    }
+
+private:
+    std::string m_label;
+    bool m_hovered = false;
+};
+
 void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     if (!item || !item->wallpaper_cfg) return;
     auto main_card = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->padding(16, 16)
-        ->spacing(16)
+        ->spacing(14)
         ->backgroundColor(config->colors.surface)
         ->stroke(1, config->colors.outline.with_alpha(0.3f))
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    // 1. Display Aspect Ratio Rectangle (16:9 Ratio - 320x180 px)
-    auto display_rect = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->gravity(Gravity::Center)
-        ->backgroundColor(config->colors.surface_variant.with_alpha(0.45f))
-        ->stroke(1, config->colors.outline.with_alpha(0.35f))
+    // 1. Display Aspect Ratio Rectangle (16:9 Ratio - 320x180 px ImageView)
+    std::string expanded_path = expand_wallpaper_path(item->wallpaper_cfg->wallpaper_path);
+
+    auto img_view = ImageViewBuilder::create()
+        ->source(expanded_path)
+        ->fitMode(wallpaper_str_to_fit_mode(item->wallpaper_cfg->fit_mode))
         ->cornerRadius(get_inner_radius(config))
-        ->spacing(4)
+        ->border(1, config->colors.outline.with_alpha(0.35f))
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.45f))
         ->build();
-
-    auto wp_icon = TextViewBuilder::create()
-        ->text("󰸉")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2))
-        ->textColor(config->colors.primary.with_alpha(0.85f))
-        ->build();
-    display_rect->add_view(wp_icon);
-
-    auto wp_name = TextViewBuilder::create()
-        ->text(item->wallpaper_cfg->current_wallpaper)
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.on_surface)
-        ->build();
-    display_rect->add_view(wp_name);
-
-    auto wp_tag = TextViewBuilder::create()
-        ->text("16:9 Display Preview")
-        ->caption(true)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
-        ->build();
-    display_rect->add_view(wp_tag);
 
     LayoutParams d_lp;
     d_lp.width = 320;
     d_lp.height = 180;
     d_lp.gravity = Gravity::CenterHorizontal;
-    main_card->add_view(display_rect, d_lp);
+    main_card->add_view(img_view, d_lp);
 
-    // 2. Bottom Row: Browse Button, Fit Mode Spinner, Apply Button
+    // Current wallpaper filename label
+    std::string display_name = item->wallpaper_cfg->current_wallpaper.empty()
+        ? "No wallpaper selected"
+        : item->wallpaper_cfg->current_wallpaper;
+    auto wp_name = TextViewBuilder::create()
+        ->text(display_name)
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.on_surface)
+        ->center(true)
+        ->build();
+    LayoutParams name_lp(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent));
+    name_lp.gravity = Gravity::CenterHorizontal;
+    main_card->add_view(wp_name, name_lp);
+
+    // 2. Bottom Row: Browse Button, Fit Mode Spinner, Apply Button (Centered)
     auto bottom_row = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
-        ->gravity(Gravity::CenterVertical)
+        ->gravity(Gravity::Center)
         ->spacing(10)
         ->build();
 
     auto on_browse = [this, item]() {
-        static const std::vector<std::string> mock_wallpapers = {
-            "aurora_minimal.png",
-            "cyber_neon.png",
-            "mountain_twilight.png",
-            "forest_mist.png",
-            "abstract_waves.png"
-        };
-        static size_t wp_idx = 0;
-        wp_idx = (wp_idx + 1) % mock_wallpapers.size();
-        item->wallpaper_cfg->current_wallpaper = mock_wallpapers[wp_idx];
-        item->wallpaper_cfg->wallpaper_path = "~/Pictures/Wallpapers/" + mock_wallpapers[wp_idx];
-        rebuild_preview_column();
-        notify_state_changed();
+        std::thread([this, item]() {
+            std::string cmd;
+            if (system("which zenity >/dev/null 2>&1") == 0) {
+                cmd = "zenity --file-selection --title=\"Select Wallpaper\" "
+                      "--file-filter=\"Image files | *.png *.jpg *.jpeg *.webp *.svg *.bmp *.avif *.jxl\" "
+                      "--file-filter=\"All files | *\" 2>/dev/null";
+            } else if (system("which kdialog >/dev/null 2>&1") == 0) {
+                cmd = "kdialog --getopenfilename : \"Images (*.png *.jpg *.jpeg *.webp *.svg *.bmp *.avif *.jxl)\" 2>/dev/null";
+            }
+            if (cmd.empty()) return;
+
+            FILE* fp = popen(cmd.c_str(), "r");
+            std::string selected_path;
+            if (fp) {
+                char buf[2048];
+                if (fgets(buf, sizeof(buf), fp) != nullptr) {
+                    selected_path = buf;
+                }
+                pclose(fp);
+            }
+            while (!selected_path.empty() && (selected_path.back() == '\n' || selected_path.back() == '\r' || selected_path.back() == ' ')) {
+                selected_path.pop_back();
+            }
+            if (!selected_path.empty() && fs::exists(selected_path)) {
+                if (auto* eng = AppEngine::instance()) {
+                    eng->post_delayed(0, [this, item, selected_path]() {
+                        item->wallpaper_cfg->wallpaper_path = selected_path;
+                        item->wallpaper_cfg->current_wallpaper = fs::path(selected_path).filename().string();
+                        item->last_action_message = "";
+                        rebuild_preview_column();
+                        notify_state_changed();
+                    });
+                }
+            }
+        }).detach();
     };
 
     auto browse_btn = ButtonBuilder::create()
         ->text("Browse")
         ->style(ButtonStyle::Outlined)
         ->padding(14, 6)
-        ->cornerRadius(get_inner_radius(config))
+        ->cornerRadius(get_btn_radius(config))
         ->onClick(on_browse)
         ->build();
 
@@ -410,10 +742,13 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
         ->selectedIndex(cur_fit_idx)
         ->fontSize(config->metrics.font_size)
         ->padding(12, 6)
-        ->cornerRadius(get_inner_radius(config))
-        ->onItemSelected([item](int idx, const std::string& val) {
+        ->cornerRadius(get_btn_radius(config))
+        ->onItemSelected([item, img_view](int idx, const std::string& val) {
             (void)idx;
             item->wallpaper_cfg->fit_mode = val;
+            if (img_view) {
+                img_view->set_fit_mode(wallpaper_str_to_fit_mode(val));
+            }
         })
         ->build();
     LayoutParams s_lp(static_cast<int>(LayoutDimension::WrapContent), 36);
@@ -421,7 +756,18 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
     bottom_row->add_view(fit_spinner, s_lp);
 
     auto on_apply = [this, item]() {
-        item->last_action_message = "Wallpaper applied: " + item->wallpaper_cfg->current_wallpaper;
+        std::string expanded = expand_wallpaper_path(item->wallpaper_cfg->wallpaper_path);
+        if (!expanded.empty() && fs::exists(expanded)) {
+            bool ok = send_miqubg_wallpaper_ipc(expanded, item->wallpaper_cfg->fit_mode);
+            if (ok) {
+                item->last_action_message = "Wallpaper applied via miqubg";
+            } else {
+                item->last_action_message = "Failed to connect to miqubg daemon";
+            }
+        } else {
+            item->last_action_message = "Image not found: " + item->wallpaper_cfg->current_wallpaper;
+        }
+        rebuild_preview_column();
         notify_state_changed();
     };
 
@@ -429,7 +775,7 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
         ->text("Apply")
         ->primary(true)
         ->padding(16, 6)
-        ->cornerRadius(get_inner_radius(config))
+        ->cornerRadius(get_btn_radius(config))
         ->onClick(on_apply)
         ->build();
 
@@ -437,8 +783,197 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
     a_lp.gravity = Gravity::CenterVertical;
     bottom_row->add_view(apply_btn, a_lp);
 
-    main_card->add_view(bottom_row);
+    LayoutParams row_lp(static_cast<int>(LayoutDimension::WrapContent), static_cast<int>(LayoutDimension::WrapContent));
+    row_lp.gravity = Gravity::CenterHorizontal;
+    main_card->add_view(bottom_row, row_lp);
+
+    if (!item->last_action_message.empty()) {
+        auto fb = TextViewBuilder::create()
+            ->text(item->last_action_message)
+            ->caption(true)
+            ->textColor(config->colors.primary)
+            ->center(true)
+            ->build();
+        LayoutParams fb_lp(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent));
+        fb_lp.gravity = Gravity::CenterHorizontal;
+        main_card->add_view(fb, fb_lp);
+    }
+
     add_preview_card(main_card);
+
+    // ==============================================================================
+    // 2. Style Section Card
+    // ==============================================================================
+    auto style_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(16, 16)
+        ->spacing(12)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto style_header = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->gravity(Gravity::CenterVertical)
+        ->spacing(8)
+        ->build();
+
+    auto style_icon = TextViewBuilder::create()
+        ->text("󰔎")
+        ->textSize(config->metrics.font_size + 2)
+        ->textColor(config->colors.primary)
+        ->build();
+    style_header->add_view(style_icon);
+
+    auto style_title = TextViewBuilder::create()
+        ->text("Style")
+        ->textSize(static_cast<int>(config->metrics.font_size * 1.15f))
+        ->bold(true)
+        ->textColor(config->colors.on_surface)
+        ->build();
+    style_header->add_view(style_title);
+
+    style_card->add_view(style_header);
+
+    // Segmented TabBar for switching between Preset Color and Wallpaper Color
+    auto tab_bar = TabBarBuilder::create()
+        ->tabs({"Preset Color", "Wallpaper Color"})
+        ->selectedIndex(0)
+        ->style(TabBarStyle::Segmented)
+        ->equalWidths(true)
+        ->build();
+
+    LayoutParams tab_lp(300, 32);
+    tab_lp.gravity = Gravity::CenterHorizontal;
+    style_card->add_view(tab_bar, tab_lp);
+
+    // Page 0: Preset Color
+    auto preset_page = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->spacing(8)
+        ->gravity(Gravity::Center)
+        ->padding(2, 4)
+        ->build();
+
+    auto row1 = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->spacing(8)
+        ->gravity(Gravity::Center)
+        ->build();
+
+    auto row2 = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->spacing(8)
+        ->gravity(Gravity::Center)
+        ->build();
+
+    auto scheme_views = std::make_shared<std::vector<std::shared_ptr<ColorSchemePreviewView>>>();
+
+    for (size_t i = 0; i < s_preset_schemes.size(); ++i) {
+        const auto& s = s_preset_schemes[i];
+        auto sv = std::make_shared<ColorSchemePreviewView>(
+            s.primary, s.secondary, s.tertiary, s.name, static_cast<int>(i) == s_selected_scheme_idx
+        );
+        scheme_views->push_back(sv);
+
+        sv->set_on_click_listener([this, item, i, scheme_views]() {
+            s_selected_scheme_idx = static_cast<int>(i);
+            for (size_t j = 0; j < scheme_views->size(); ++j) {
+                (*scheme_views)[j]->set_selected(static_cast<int>(j) == s_selected_scheme_idx);
+            }
+            item->last_action_message = "Preset selected: " + s_preset_schemes[i].name;
+            rebuild_preview_column();
+            notify_state_changed();
+        });
+
+        if (i < 4) {
+            row1->add_view(sv, LayoutParams(70, 54));
+        } else {
+            row2->add_view(sv, LayoutParams(70, 54));
+        }
+    }
+
+    preset_page->add_view(row1, LayoutParams(static_cast<int>(LayoutDimension::WrapContent), 54, Gravity::CenterHorizontal));
+    preset_page->add_view(row2, LayoutParams(static_cast<int>(LayoutDimension::WrapContent), 54, Gravity::CenterHorizontal));
+
+    // Page 1: Wallpaper Color (Placeholder grid + coming soon message)
+    auto wp_page = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->spacing(12)
+        ->gravity(Gravity::Center)
+        ->padding(4, 4)
+        ->build();
+
+    auto wp_placeholder_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->spacing(8)
+        ->gravity(Gravity::Center)
+        ->build();
+
+    for (int i = 1; i <= 4; ++i) {
+        auto ph = std::make_shared<PlaceholderSchemeView>("Scheme " + std::to_string(i));
+        ph->set_on_click_listener([this, item, i]() {
+            item->last_action_message = "Wallpaper color extraction coming soon (Scheme " + std::to_string(i) + ")";
+            rebuild_preview_column();
+            notify_state_changed();
+        });
+        wp_placeholder_row->add_view(ph, LayoutParams(70, 54));
+    }
+    wp_page->add_view(wp_placeholder_row, LayoutParams(static_cast<int>(LayoutDimension::WrapContent), 54, Gravity::CenterHorizontal));
+
+    auto coming_soon_box = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->gravity(Gravity::Center)
+        ->spacing(2)
+        ->build();
+
+    auto cs_title = TextViewBuilder::create()
+        ->text("Coming soon")
+        ->bold(true)
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.primary)
+        ->center(true)
+        ->build();
+    coming_soon_box->add_view(cs_title);
+
+    auto cs_desc = TextViewBuilder::create()
+        ->text("Dynamic palette extraction from current wallpaper")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+        ->center(true)
+        ->build();
+    coming_soon_box->add_view(cs_desc);
+
+    wp_page->add_view(coming_soon_box, LayoutParams(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent), Gravity::CenterHorizontal));
+
+    // Inactive page is hidden so ViewGroup::collect_focusable_views only collects active page items
+    wp_page->set_visibility(Visibility::Gone);
+
+    // ViewPager with the two pages
+    auto view_pager = ViewPagerBuilder::create()
+        ->addPage(preset_page)
+        ->addPage(wp_page)
+        ->currentPage(0)
+        ->build();
+
+    tab_bar->set_on_tab_selected_listener([view_pager, preset_page, wp_page](int idx) {
+        view_pager->set_current_page(idx);
+        preset_page->set_visibility(idx == 0 ? Visibility::Visible : Visibility::Gone);
+        wp_page->set_visibility(idx == 1 ? Visibility::Visible : Visibility::Gone);
+    });
+
+    view_pager->set_on_page_changed_listener([tab_bar, preset_page, wp_page](int old_idx, int new_idx) {
+        (void)old_idx;
+        tab_bar->set_selected_index(new_idx);
+        preset_page->set_visibility(new_idx == 0 ? Visibility::Visible : Visibility::Gone);
+        wp_page->set_visibility(new_idx == 1 ? Visibility::Visible : Visibility::Gone);
+    });
+
+    LayoutParams vp_lp(static_cast<int>(LayoutDimension::MatchParent), 135);
+    style_card->add_view(view_pager, vp_lp);
+
+    add_preview_card(style_card);
 }
 
 void MillerView::render_keybindings_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {

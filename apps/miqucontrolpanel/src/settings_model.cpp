@@ -479,36 +479,15 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     }
 
     // ==============================================================================
-    // 6. Wallpaper & Style (Depth 1)
+    // 6. Appearance (Depth 1)
     // ==============================================================================
     {
-        auto ws_wallpaper = SettingItem::create_leaf("ws_wallpaper", "Wallpaper", "", "󰸉");
+        auto ws_wallpaper = SettingItem::create_leaf("ws_wallpaper", "Wallpaper and Style", "", "󰸉");
         ws_wallpaper->is_wallpaper = true;
 
-        auto ws_colors = SettingItem::create_leaf("ws_colors", "Color Theme & Palette", "", "󰔎");
-        ws_colors->has_switch = true;
-        ws_colors->switch_val = true;
-        ws_colors->switch_label = "Dark Appearance";
-        ws_colors->has_secondary_switch = true;
-        ws_colors->secondary_switch_val = true;
-        ws_colors->secondary_switch_label = "Extract Dynamic Matugen Palette";
-        ws_colors->has_slider = true;
-        ws_colors->slider_val = 0.45f;
-        ws_colors->slider_label = "Palette Warmth Tint (45%)";
-        ws_colors->slider_unit = "%";
-        ws_colors->has_action = true;
-        ws_colors->action_label = "Regenerate Palette (Matugen)";
-        ws_colors->telemetry_title = "Color palette specifications";
-        ws_colors->telemetry = {
-            {"Active Theme", "Miqu Dark Material 3"},
-            {"Primary Accent", "#3584e4 (Blue Sapphire)"},
-            {"Surface Tint", "#1e1e2e (Catppuccin Mocha)"},
-            {"Live Reload", "miqutheme (Dynamic inotify sync)"}
-        };
-
         root.push_back(SettingItem::create_category(
-            "cat_wallpaper_style", "Wallpaper & Style", "󰸉",
-            {ws_wallpaper, ws_colors}
+            "cat_appearance", "Appearance", "󰔎",
+            {ws_wallpaper}
         ));
     }
 
