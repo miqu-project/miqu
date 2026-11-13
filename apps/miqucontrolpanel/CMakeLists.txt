@@ -26,7 +26,7 @@ add_executable(miqucontrolpanel
     src/preview_personalization.cpp
     src/preview_hardware.cpp
     src/preview_apps.cpp
-    src/test_app.cpp
+    src/control_panel_app.cpp
     src/wifi_backend.cpp
     src/bluetooth_backend.cpp
     src/bluetooth_agent.cpp

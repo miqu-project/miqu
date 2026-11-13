@@ -234,9 +234,8 @@ bool EditText::on_key(const KeyPressEvent& event) {
             m_text.erase(m_cursor_pos - 1, 1);
             m_cursor_pos--;
             if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
-            return true;
         }
-        return false;
+        return true;
     }
 
     if (event.keysym == XKB_KEY_Delete) {
@@ -251,17 +250,15 @@ bool EditText::on_key(const KeyPressEvent& event) {
     if (event.keysym == XKB_KEY_Left) {
         if (m_cursor_pos > 0) {
             m_cursor_pos--;
-            return true;
         }
-        return false;
+        return true;
     }
 
     if (event.keysym == XKB_KEY_Right) {
         if (m_cursor_pos < static_cast<int>(m_text.size())) {
             m_cursor_pos++;
-            return true;
         }
-        return false;
+        return true;
     }
 
     if (event.keysym == XKB_KEY_Home) {

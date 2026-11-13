@@ -6,10 +6,10 @@
 
 namespace miqu {
 
-class TestApp {
+class ControlPanelApp {
 public:
-    explicit TestApp(std::shared_ptr<AppEngine> engine);
-    ~TestApp() = default;
+    explicit ControlPanelApp(std::shared_ptr<AppEngine> engine);
+    ~ControlPanelApp() = default;
 
     bool init();
     void sync_theme();
@@ -29,7 +29,7 @@ private:
     std::shared_ptr<LinearLayout> m_ribbon;
     std::shared_ptr<CardView> m_back_btn;
     std::shared_ptr<TextView> m_back_label;
-    std::shared_ptr<TextView> m_path_label;
+    std::shared_ptr<LinearLayout> m_breadcrumb_container;
     std::shared_ptr<SearchView> m_search_view;
     std::shared_ptr<MillerView> m_miller_view;
 };

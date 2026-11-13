@@ -35,15 +35,25 @@ public:
     bool navigate_down();
     bool navigate_enter();
     bool navigate_back();
+    bool navigate_right();
+    bool navigate_left();
+    void navigate_to_depth(size_t depth);
+    bool focus_first_preview_control();
+    bool focus_next_preview_control();
+    bool focus_prev_preview_control();
     bool trigger_active_action();
 
     // State Inspection
-    bool can_navigate_back() const { return !m_search_query.empty() || m_preview_expanded || m_preview_focused || !m_path.empty(); }
+    const std::vector<std::shared_ptr<SettingItem>>& get_path() const { return m_path; }
+    bool can_navigate_back() const { return !m_search_query.empty() || m_preview_expanded || !m_path.empty(); }
     void set_search_query(const std::string& query);
     const std::string& get_search_query() const { return m_search_query; }
     bool is_searching() const { return !m_search_query.empty(); }
     std::string get_breadcrumb_path() const;
     bool is_preview_focused() const { return m_preview_focused; }
+    std::shared_ptr<SettingItem> get_current_selected_item() const;
+
+    bool check_and_update_click_debounce();
 
     void set_on_state_changed(std::function<void()> cb) {
         m_on_state_changed = std::move(cb);
@@ -111,18 +121,16 @@ private:
     void render_touch_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_generic_fallback_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
 
-    std::shared_ptr<SettingItem> get_current_selected_item() const;
     const std::vector<std::shared_ptr<SettingItem>>& get_current_list() const;
     void notify_state_changed();
 
     void handle_parent_item_click(size_t idx);
     void execute_sibling_swap(const std::shared_ptr<SettingItem>& item, size_t index);
     void execute_shift_up(size_t index);
-    void cancel_pending_sibling_click();
 
-    uint64_t m_last_sibling_click_time_ms = 0;
-    int m_last_sibling_clicked_index = -1;
-    uint64_t m_single_click_timer_id = 0;
+    uint64_t m_last_click_time_ms = 0;
+    uint64_t m_last_navigate_enter_time_ms = 0;
+    uint64_t m_last_navigate_back_time_ms = 0;
 
     std::vector<std::shared_ptr<SettingItem>> m_root_tree;
 

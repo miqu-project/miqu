@@ -10,7 +10,7 @@ namespace miqu {
 
 SearchView::SearchView() {
     m_title_view = TextViewBuilder::create()->bold(true)->textSize(12)->build();
-    m_edit_text = EditTextBuilder::create()->focused(true)->padding(0, 0)->drawBackground(false)->build();
+    m_edit_text = EditTextBuilder::create()->focused(false)->padding(0, 0)->drawBackground(false)->build();
 
     m_edit_text->set_on_text_changed_listener([this](auto, const std::string& text) {
         if (m_on_text_change) {
@@ -65,6 +65,13 @@ void SearchView::set_on_query_text_listener(std::function<void(const std::string
                                             std::function<void(const std::string&)> on_submit) {
     m_on_text_change = std::move(on_change);
     m_on_text_submit = std::move(on_submit);
+    if (m_edit_text) {
+        m_edit_text->set_on_submit_listener([this](const std::string& text) {
+            if (m_on_text_submit) {
+                m_on_text_submit(text);
+            }
+        });
+    }
 }
 
 Size SearchView::measure_size() const {
@@ -195,6 +202,10 @@ void SearchView::draw_focus_ring(cairo_t* cr, const Rect& bounds) {
 
 bool SearchView::on_key(const KeyPressEvent& event) {
     if (!is_visible() || !event.pressed) return false;
+    bool has_any_focus = (has_focus() || is_focused() || (m_edit_text && (m_edit_text->has_focus() || m_edit_text->is_focused())));
+    if (!has_any_focus) {
+        return false;
+    }
 
     if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
         if (m_on_text_submit && m_edit_text) {

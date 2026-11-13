@@ -17,42 +17,45 @@ constexpr int WRAP_CONTENT = static_cast<int>(LayoutDimension::WrapContent);
 MillerView::MillerView() : LinearLayout(Orientation::Horizontal) {}
 
 MillerView::~MillerView() {
-    cancel_pending_sibling_click();
     if (m_bt_agent) {
         m_bt_agent->stop();
         m_bt_agent.reset();
     }
 }
 
-void MillerView::cancel_pending_sibling_click() {
-    if (m_single_click_timer_id != 0) {
-        if (auto* eng = AppEngine::instance()) {
-            eng->cancel_delayed(m_single_click_timer_id);
-        }
-        m_single_click_timer_id = 0;
+bool MillerView::check_and_update_click_debounce() {
+    auto now = std::chrono::steady_clock::now();
+    uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    constexpr uint64_t DEBOUNCE_THRESHOLD_MS = 250;
+    if (m_last_click_time_ms > 0 && (now_ms - m_last_click_time_ms) < DEBOUNCE_THRESHOLD_MS) {
+        return false;
     }
+    m_last_click_time_ms = now_ms;
+    return true;
 }
 
 void MillerView::execute_sibling_swap(const std::shared_ptr<SettingItem>& item, size_t index) {
-    cancel_pending_sibling_click();
-    m_last_sibling_clicked_index = -1;
-    m_last_sibling_click_time_ms = 0;
     if (!item) return;
 
     if (item->is_category) {
         if (!m_path.empty()) {
+            if (m_path.back() == item) {
+                return;
+            }
             m_path.back() = item;
         } else {
             m_path.push_back(item);
         }
         if (!m_history_indices.empty()) {
             m_history_indices.back() = static_cast<int>(index);
+        } else {
+            m_history_indices.push_back(static_cast<int>(index));
         }
-        m_current_index = 0;
-        m_preview_focused = false;
         if (m_preview_expanded) {
             set_preview_expanded(false);
         }
+        m_current_index = 0;
+        m_preview_focused = false;
         if (m_window) {
             m_window->clear_focus();
         }
@@ -64,21 +67,17 @@ void MillerView::execute_sibling_swap(const std::shared_ptr<SettingItem>& item, 
 }
 
 void MillerView::execute_shift_up(size_t index) {
-    cancel_pending_sibling_click();
-    m_last_sibling_clicked_index = -1;
-    m_last_sibling_click_time_ms = 0;
-
     if (!m_path.empty()) {
         m_path.pop_back();
         if (!m_history_indices.empty()) {
             m_history_indices.pop_back();
         }
     }
-    m_current_index = static_cast<int>(index);
-    m_preview_focused = false;
     if (m_preview_expanded) {
         set_preview_expanded(false);
     }
+    m_current_index = static_cast<int>(index);
+    m_preview_focused = false;
     if (m_window) {
         m_window->clear_focus();
     }
@@ -87,6 +86,8 @@ void MillerView::execute_shift_up(size_t index) {
 }
 
 void MillerView::handle_parent_item_click(size_t idx) {
+    if (!check_and_update_click_debounce()) return;
+
     if (m_path.size() >= 2) {
         m_path[m_path.size() - 2]->ensure_children();
     }
@@ -96,29 +97,7 @@ void MillerView::handle_parent_item_click(size_t idx) {
     if (idx >= parent_siblings->size()) return;
     const auto& item = (*parent_siblings)[idx];
 
-    auto now = std::chrono::steady_clock::now();
-    uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-
-    if (m_last_sibling_clicked_index == static_cast<int>(idx) &&
-        (now_ms - m_last_sibling_click_time_ms) <= 280) {
-        cancel_pending_sibling_click();
-        execute_sibling_swap(item, idx);
-    } else {
-        cancel_pending_sibling_click();
-        m_last_sibling_clicked_index = static_cast<int>(idx);
-        m_last_sibling_click_time_ms = now_ms;
-
-        if (auto* eng = AppEngine::instance()) {
-            m_single_click_timer_id = eng->post_delayed(220, [this, idx]() {
-                m_single_click_timer_id = 0;
-                m_last_sibling_clicked_index = -1;
-                m_last_sibling_click_time_ms = 0;
-                execute_shift_up(idx);
-            });
-        } else {
-            execute_shift_up(idx);
-        }
-    }
+    execute_sibling_swap(item, idx);
 }
 
 void MillerView::init() {
@@ -147,6 +126,7 @@ void MillerView::init() {
         ->itemHeight(40)
         ->spacing(4)
         ->itemCornerRadius(inner_rad)
+        ->scrollbar(false)
         ->build();
     m_parent_list->set_keyboard_navigation_enabled(false);
     m_parent_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
@@ -171,23 +151,32 @@ void MillerView::init() {
         ->itemHeight(40)
         ->spacing(4)
         ->itemCornerRadius(inner_rad)
+        ->scrollbar(false)
         ->build();
     m_current_list->set_keyboard_navigation_enabled(false);
     m_current_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
+        if (!check_and_update_click_debounce()) return;
         int clicked_idx = static_cast<int>(idx);
         if (clicked_idx != m_current_index) {
-            m_current_index = clicked_idx;
-            m_preview_focused = false;
             if (m_preview_expanded) {
                 set_preview_expanded(false);
             }
+            m_current_index = clicked_idx;
+            m_preview_focused = false;
             if (m_window) {
                 m_window->clear_focus();
             }
             rebuild_columns();
             notify_state_changed();
         } else {
-            navigate_enter();
+            auto item = get_current_selected_item();
+            if (item) {
+                if (item->is_category) {
+                    navigate_enter();
+                } else {
+                    focus_first_preview_control();
+                }
+            }
         }
     });
     m_current_pillar->add_view(m_current_list, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
@@ -229,6 +218,7 @@ void MillerView::init() {
         ->addView(icon_box)
         ->build();
     m_preview_toggle_btn->set_on_click_listener([this]() {
+        if (!check_and_update_click_debounce()) return;
         set_preview_expanded(!m_preview_expanded);
     });
     m_preview_toggle_btn->set_focusable(false);
@@ -248,13 +238,23 @@ void MillerView::init() {
         ->itemHeight(40)
         ->spacing(4)
         ->itemCornerRadius(inner_rad)
+        ->scrollbar(false)
         ->build();
     m_category_list->set_selectable(false);
     m_category_list->set_keyboard_navigation_enabled(false);
     m_category_list->set_margin(10, 0, 10, 0);
     m_category_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
-        navigate_enter();
+        if (!check_and_update_click_debounce()) return;
+        auto item = get_current_selected_item();
+        if (!item || !item->is_category) return;
+
+        m_path.push_back(item);
+        m_history_indices.push_back(m_current_index);
         m_current_index = static_cast<int>(idx);
+        m_preview_focused = false;
+        if (m_window) {
+            m_window->clear_focus();
+        }
         rebuild_columns();
         notify_state_changed();
     });
@@ -381,7 +381,7 @@ void MillerView::set_preview_expanded(bool expanded) {
         m_current_pillar->set_visibility(m_preview_expanded ? Visibility::Gone : Visibility::Visible);
     }
 
-    set_preview_focused(m_preview_expanded);
+    set_preview_focused(true);
 
     update_preview_ribbon();
     update_pillar_styles();
@@ -402,9 +402,10 @@ bool MillerView::on_mouse_button(int lx, int ly, MouseButton button, bool presse
     m_last_mouse_y = ly;
 
     if (button == MouseButton::Left && pressed) {
-        bool in_preview = m_preview_pillar && m_preview_pillar->get_bounds().contains(Point(lx, ly));
-        if (in_preview != m_preview_focused) {
-            set_preview_focused(in_preview);
+        bool in_preview_form = m_preview_pillar && m_preview_pillar->get_bounds().contains(Point(lx, ly))
+                               && m_preview_scroll && m_preview_scroll->is_visible();
+        if (in_preview_form != m_preview_focused) {
+            set_preview_focused(in_preview_form);
         }
     }
 
@@ -416,13 +417,11 @@ bool MillerView::on_scroll(double delta) {
     Point pt(m_last_mouse_x, m_last_mouse_y);
 
     if (m_preview_pillar && m_preview_pillar->get_bounds().contains(pt)) {
-        if (!m_preview_focused) set_preview_focused(true);
         if (m_category_list && m_category_list->is_visible()) return m_category_list->on_scroll(delta);
         if (m_preview_scroll && m_preview_scroll->is_visible()) return m_preview_scroll->on_scroll(delta);
         return false;
     }
 
-    if (m_preview_focused) set_preview_focused(false);
     if (m_current_pillar && m_current_pillar->get_bounds().contains(pt)) {
         return m_current_list && m_current_list->is_visible() && m_current_list->on_scroll(delta);
     }
@@ -780,15 +779,9 @@ void MillerView::rebuild_preview_column() {
 }
 
 bool MillerView::navigate_up() {
-    cancel_pending_sibling_click();
-    if (m_preview_expanded) {
-        set_preview_expanded(false);
-    }
+    if (m_preview_expanded) return false;
     if (m_preview_focused) {
-        set_preview_focused(false);
-    }
-    if (m_window) {
-        m_window->clear_focus();
+        return focus_first_preview_control();
     }
     const auto& list = get_current_list();
     if (list.empty()) return false;
@@ -806,15 +799,9 @@ bool MillerView::navigate_up() {
 }
 
 bool MillerView::navigate_down() {
-    cancel_pending_sibling_click();
-    if (m_preview_expanded) {
-        set_preview_expanded(false);
-    }
+    if (m_preview_expanded) return false;
     if (m_preview_focused) {
-        set_preview_focused(false);
-    }
-    if (m_window) {
-        m_window->clear_focus();
+        return focus_first_preview_control();
     }
     const auto& list = get_current_list();
     if (list.empty()) return false;
@@ -832,32 +819,34 @@ bool MillerView::navigate_down() {
 }
 
 bool MillerView::navigate_enter() {
-    cancel_pending_sibling_click();
+    if (m_preview_expanded) return false;
+    if (m_preview_focused) {
+        return focus_first_preview_control();
+    }
     auto item = get_current_selected_item();
     if (!item) return false;
+
+    auto now = std::chrono::steady_clock::now();
+    uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    constexpr uint64_t NAV_DEBOUNCE_MS = 150;
+    if (m_last_navigate_enter_time_ms > 0 && (now_ms - m_last_navigate_enter_time_ms) < NAV_DEBOUNCE_MS) {
+        return false;
+    }
+    m_last_navigate_enter_time_ms = now_ms;
 
     if (item->is_category) {
         m_path.push_back(item);
         m_history_indices.push_back(m_current_index);
         m_current_index = 0;
         m_preview_focused = false;
-        if (m_preview_expanded) {
-            set_preview_expanded(false);
+        if (m_window) {
+            m_window->clear_focus();
         }
         rebuild_columns();
         notify_state_changed();
         return true;
     } else {
-        // Entering leaf setting: expand preview to full width!
-        set_preview_expanded(true);
-        if (m_preview_layout) {
-            std::vector<View*> focusables;
-            m_preview_layout->collect_focusable_views(focusables);
-            if (!focusables.empty() && m_window) {
-                m_window->set_focused_view(focusables.front());
-            }
-        }
-        return true;
+        return focus_first_preview_control();
     }
 }
 
@@ -865,10 +854,10 @@ void MillerView::set_search_query(const std::string& query) {
     m_search_query = query;
     m_search_results.clear();
     m_current_index = 0;
-    m_preview_focused = false;
     if (m_preview_expanded) {
         set_preview_expanded(false);
     }
+    m_preview_focused = false;
 
     if (!m_search_query.empty()) {
         std::string lower_query = m_search_query;
@@ -904,7 +893,14 @@ void MillerView::set_search_query(const std::string& query) {
 }
 
 bool MillerView::navigate_back() {
-    cancel_pending_sibling_click();
+    auto now = std::chrono::steady_clock::now();
+    uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    constexpr uint64_t NAV_DEBOUNCE_MS = 150;
+    if (m_last_navigate_back_time_ms > 0 && (now_ms - m_last_navigate_back_time_ms) < NAV_DEBOUNCE_MS) {
+        return false;
+    }
+    m_last_navigate_back_time_ms = now_ms;
+
     if (m_window) {
         m_window->clear_focus();
     }
@@ -912,10 +908,10 @@ bool MillerView::navigate_back() {
         m_search_query.clear();
         m_search_results.clear();
         m_current_index = 0;
-        m_preview_focused = false;
         if (m_preview_expanded) {
             set_preview_expanded(false);
         }
+        m_preview_focused = false;
         rebuild_columns();
         notify_state_changed();
         return true;
@@ -923,11 +919,6 @@ bool MillerView::navigate_back() {
 
     if (m_preview_expanded) {
         set_preview_expanded(false);
-        return true;
-    }
-
-    if (m_preview_focused) {
-        set_preview_focused(false);
         return true;
     }
 
@@ -946,9 +937,99 @@ bool MillerView::navigate_back() {
         return true;
     }
 
+    if (m_preview_focused) {
+        set_preview_focused(false);
+        return true;
+    }
+
     return false;
 }
 
+bool MillerView::navigate_right() {
+    return navigate_enter();
+}
+
+bool MillerView::navigate_left() {
+    if (m_preview_expanded) return false;
+    return navigate_back();
+}
+
+void MillerView::navigate_to_depth(size_t target_depth) {
+    if (m_window) {
+        m_window->clear_focus();
+    }
+    if (!m_search_query.empty()) {
+        m_search_query.clear();
+        m_search_results.clear();
+    }
+    if (m_preview_expanded) {
+        set_preview_expanded(false);
+    }
+    m_preview_focused = false;
+
+    if (target_depth >= m_path.size()) {
+        rebuild_columns();
+        notify_state_changed();
+        return;
+    }
+
+    while (m_path.size() > target_depth) {
+        m_path.pop_back();
+        if (!m_history_indices.empty()) {
+            m_current_index = m_history_indices.back();
+            m_history_indices.pop_back();
+        } else {
+            m_current_index = 0;
+        }
+    }
+
+    rebuild_columns();
+    notify_state_changed();
+}
+
+bool MillerView::focus_first_preview_control() {
+    if (!m_preview_layout || !m_window) return false;
+    std::vector<View*> focusables;
+    m_preview_layout->collect_focusable_views(focusables);
+    if (focusables.empty()) return false;
+    set_preview_focused(true);
+    m_window->set_focused_view(focusables.front());
+    return true;
+}
+
+bool MillerView::focus_next_preview_control() {
+    if (!m_preview_layout || !m_window) return false;
+    std::vector<View*> focusables;
+    m_preview_layout->collect_focusable_views(focusables);
+    if (focusables.empty()) return false;
+
+    set_preview_focused(true);
+    View* cur = m_window->get_focused_view();
+    auto it = std::find(focusables.begin(), focusables.end(), cur);
+    if (it == focusables.end() || it + 1 == focusables.end()) {
+        m_window->set_focused_view(focusables.front());
+    } else {
+        m_window->set_focused_view(*(it + 1));
+    }
+    return true;
+}
+
+bool MillerView::focus_prev_preview_control() {
+    if (!m_preview_layout || !m_window) return false;
+    std::vector<View*> focusables;
+    m_preview_layout->collect_focusable_views(focusables);
+    if (focusables.empty()) return false;
+
+    set_preview_focused(true);
+    View* cur = m_window->get_focused_view();
+    auto it = std::find(focusables.begin(), focusables.end(), cur);
+    if (it == focusables.end() || it == focusables.begin()) {
+        m_window->set_focused_view(focusables.back());
+    } else {
+        m_window->set_focused_view(*(it - 1));
+    }
+    return true;
+}
 
 bool MillerView::trigger_active_action() {
     auto item = get_current_selected_item();

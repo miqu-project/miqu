@@ -1,4 +1,4 @@
-#include "test_app.hpp"
+#include "control_panel_app.hpp"
 #include <miqutoolkit/miqutoolkit.hpp>
 #include <iostream>
 #include <filesystem>
@@ -21,10 +21,11 @@ int main(int argc, char* argv[]) {
                       << "Keybindings:\n"
                       << "  [Ctrl+F]                Focus search bar\n"
                       << "  [Esc]                   Unfocus / back / clear search / quit at root\n"
-                      << "  [h / Left]              Navigate back to parent or leave preview\n"
-                      << "  [l / Right / Enter]     Enter category or expand/focus preview controls\n"
-                      << "  [j / Down]              Navigate down in list or controls\n"
-                      << "  [k / Up]                Navigate up in list or controls\n";
+                      << "  [Left / Backspace]      Navigate back to parent or leave detail form\n"
+                      << "  [Right / Enter]         Enter category or focus detail form\n"
+                      << "  [Up / Down]             Navigate up/down in category or search lists\n"
+                      << "  [Tab / Shift+Tab]       Cycle controls inside detail form\n"
+                      << "  [F11]                   Toggle full-width / standard 3-column view\n";
             return 0;
         } else if (arg == "--init-config") {
             std::string path = FsUtils::init_user_config("miqucontrolpanel");
@@ -53,9 +54,9 @@ int main(int argc, char* argv[]) {
     engine->setup_config_watcher();
 
     // 5. Initialize application
-    TestApp app(engine);
+    ControlPanelApp app(engine);
     if (!app.init()) {
-        std::cerr << "[miqucontrolpanel] Failed to initialize TestApp.\n";
+        std::cerr << "[miqucontrolpanel] Failed to initialize ControlPanelApp.\n";
         return 1;
     }
 

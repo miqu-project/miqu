@@ -24,6 +24,9 @@ public:
     void set_show_dividers(bool show) { m_show_dividers = show; }
     bool get_show_dividers() const { return m_show_dividers; }
 
+    void set_scrollbar_enabled(bool enabled) { m_scrollbar_enabled = enabled; request_redraw(); }
+    bool is_scrollbar_enabled() const { return m_scrollbar_enabled; }
+
     // Item management
     void set_items(std::vector<std::shared_ptr<View>> items);
     void add_item(std::shared_ptr<View> item);
@@ -73,6 +76,7 @@ private:
     int m_spacing = 2;
     int m_corner_radius = 6;
     bool m_show_dividers = false;
+    bool m_scrollbar_enabled = true;
 
     bool m_selectable = true;
     bool m_keyboard_navigation_enabled = true;
@@ -119,6 +123,11 @@ public:
 
     std::shared_ptr<ListViewBuilder> showDividers(bool show) {
         m_view->set_show_dividers(show);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<ListViewBuilder> scrollbar(bool enabled) {
+        m_view->set_scrollbar_enabled(enabled);
         return shared_from_this();
     }
 

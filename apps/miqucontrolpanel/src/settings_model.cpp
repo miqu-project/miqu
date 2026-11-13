@@ -208,7 +208,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Universal Search", "Search commands, web, and system actions", {"Super", "S"}},
             {"Web Browser", "Launch default web browser (Firefox)", {"Super", "F"}},
             {"File Manager", "Open terminal file manager (Yazi)", {"Super", "E"}},
-            {"Component Sandbox", "Interactive toolkit test sandbox (Miqu Test)", {"Super", "P"}}
+            {"Control Center", "System settings & control center", {"Super", "I"}}
         };
 
         // 3.3 Window Management

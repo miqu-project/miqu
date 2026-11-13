@@ -1204,32 +1204,6 @@ bool Window::focus_direction(FocusDirection dir) {
                 }
             }
         }
-
-        // 2. Wrap around on the same row band if reached the boundary (e.g. from Uninstall -> Open)
-        if (!best_match) {
-            View* wrap_target = nullptr;
-            for (View* candidate : focusable) {
-                if (candidate == m_focused_view) continue;
-                Rect cb = candidate->get_bounds();
-                bool shares_row = (cur.y < cb.y + cb.height) && (cur.y + cur.height > cb.y);
-                if (!shares_row) continue;
-
-                if (dir_right) {
-                    // Wrap to leftmost element on this row
-                    if (!wrap_target || cb.x < wrap_target->get_bounds().x) {
-                        wrap_target = candidate;
-                    }
-                } else {
-                    // Wrap to rightmost element on this row
-                    if (!wrap_target || cb.x > wrap_target->get_bounds().x) {
-                        wrap_target = candidate;
-                    }
-                }
-            }
-            if (wrap_target) {
-                best_match = wrap_target;
-            }
-        }
     } else {
         // Vertical Navigation (Up / Down)
         bool dir_down = (dir == FocusDirection::Down);
@@ -1304,35 +1278,35 @@ void Window::dispatch_key_event(const KeyPressEvent& event) {
         }
 
         // When a view has focus and did not consume directional arrows, perform spatial navigation
-        if (event.pressed) {
-            if (!event.has_shift()) {
-                if (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_KP_Down) {
-                    if (focus_direction(FocusDirection::Down)) {
-                        schedule_redraw();
-                        return;
-                    }
-                } else if (event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_KP_Up) {
-                    if (focus_direction(FocusDirection::Up)) {
-                        schedule_redraw();
-                        return;
-                    }
+        if (event.pressed && !event.has_ctrl() && !event.has_alt()) {
+            bool is_down = (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_KP_Down ||
+                            event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_J);
+            bool is_up = (event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_KP_Up ||
+                          event.keysym == XKB_KEY_k || event.keysym == XKB_KEY_K);
+            bool is_left = (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_KP_Left ||
+                            event.keysym == XKB_KEY_h || event.keysym == XKB_KEY_H);
+            bool is_right = (event.keysym == XKB_KEY_Right || event.keysym == XKB_KEY_KP_Right ||
+                             event.keysym == XKB_KEY_l || event.keysym == XKB_KEY_L);
+
+            if (is_down) {
+                if (focus_direction(FocusDirection::Down)) {
+                    schedule_redraw();
+                    return;
                 }
-            } else {
-                // Shift + Left / Right / H / L for horizontal spatial navigation between controls on the same row
-                bool is_left = (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_KP_Left ||
-                                event.keysym == XKB_KEY_h || event.keysym == XKB_KEY_H);
-                bool is_right = (event.keysym == XKB_KEY_Right || event.keysym == XKB_KEY_KP_Right ||
-                                 event.keysym == XKB_KEY_l || event.keysym == XKB_KEY_L);
-                if (is_left) {
-                    if (focus_direction(FocusDirection::Left)) {
-                        schedule_redraw();
-                        return;
-                    }
-                } else if (is_right) {
-                    if (focus_direction(FocusDirection::Right)) {
-                        schedule_redraw();
-                        return;
-                    }
+            } else if (is_up) {
+                if (focus_direction(FocusDirection::Up)) {
+                    schedule_redraw();
+                    return;
+                }
+            } else if (is_left) {
+                if (focus_direction(FocusDirection::Left)) {
+                    schedule_redraw();
+                    return;
+                }
+            } else if (is_right) {
+                if (focus_direction(FocusDirection::Right)) {
+                    schedule_redraw();
+                    return;
                 }
             }
         }

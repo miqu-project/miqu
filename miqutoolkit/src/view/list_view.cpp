@@ -180,8 +180,8 @@ void ListView::draw(cairo_t* cr, const Rect& bounds) {
         }
     }
 
-    // Scrollbar (if content overflows)
-    if (content_h > bounds.height) {
+    // Scrollbar (if enabled and content overflows)
+    if (m_scrollbar_enabled && content_h > bounds.height) {
         double scrollbar_w = 4.0;
         double scrollbar_x = bounds.x + bounds.width - scrollbar_w - 2.0;
         double visible_ratio = static_cast<double>(bounds.height) / content_h;
