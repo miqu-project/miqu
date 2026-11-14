@@ -277,39 +277,77 @@ void MillerView::init(const std::string& start_path) {
     m_preview_pillar->add_view(m_preview_scroll, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
     add_view(m_preview_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
-    // Default one step drill into Home (or start_path)
-    std::shared_ptr<FileItem> initial_target = nullptr;
-    int initial_idx = 0;
-
+    // Startup drill: open whichever folder it was launched from (m_start_path or current directory)
+    fs::path target_path;
+    std::error_code ec;
     if (!m_start_path.empty()) {
-        std::error_code ec;
-        fs::path sp = fs::canonical(m_start_path, ec);
-        if (!ec && fs::is_directory(sp, ec)) {
-            for (size_t i = 0; i < m_root_tree.size(); ++i) {
-                if (fs::equivalent(m_root_tree[i]->path, sp, ec)) {
-                    initial_target = m_root_tree[i];
-                    initial_idx = static_cast<int>(i);
-                    break;
-                }
-            }
-            if (!initial_target) {
-                auto custom_item = FilesModel::create_directory_item(sp, sp.filename().string(), "󰉋");
-                m_root_tree.insert(m_root_tree.begin(), custom_item);
-                initial_target = custom_item;
-                initial_idx = 0;
-            }
+        target_path = fs::canonical(m_start_path, ec);
+        if (ec || !fs::exists(target_path, ec)) {
+            target_path = fs::absolute(m_start_path, ec);
+        }
+    } else {
+        target_path = fs::current_path(ec);
+    }
+
+    if (ec || !fs::exists(target_path, ec)) {
+        const char* home = std::getenv("HOME");
+        target_path = home ? fs::path(home) : fs::path("/");
+    }
+
+    // If target_path is a file, target its parent directory and record file name for selection
+    std::string select_filename;
+    if (fs::is_regular_file(target_path, ec)) {
+        select_filename = target_path.filename().string();
+        target_path = target_path.parent_path();
+    }
+
+    // Decompose target_path into segments relative to "/"
+    // e.g. "/home/anisur/Downloads" -> ["home", "anisur", "Downloads"]
+    std::vector<std::string> segments;
+    for (fs::path p = target_path; p != p.root_path() && !p.empty(); p = p.parent_path()) {
+        std::string fname = p.filename().string();
+        if (!fname.empty() && fname != "/") {
+            segments.push_back(fname);
         }
     }
+    std::reverse(segments.begin(), segments.end());
 
-    if (!initial_target && !m_root_tree.empty()) {
-        initial_target = m_root_tree[0];
-        initial_idx = 0;
+    m_path.clear();
+    m_history_indices.clear();
+    m_current_index = 0;
+
+    std::vector<std::shared_ptr<FileItem>>* current_level = &m_root_tree;
+
+    for (const auto& seg : segments) {
+        std::shared_ptr<FileItem> match_item = nullptr;
+        int match_idx = -1;
+
+        for (size_t i = 0; i < current_level->size(); ++i) {
+            if ((*current_level)[i]->title == seg) {
+                match_item = (*current_level)[i];
+                match_idx = static_cast<int>(i);
+                break;
+            }
+        }
+
+        if (!match_item) {
+            break;
+        }
+
+        match_item->ensure_children();
+        m_path.push_back(match_item);
+        m_history_indices.push_back(match_idx);
+        current_level = &(match_item->children);
     }
 
-    if (initial_target) {
-        initial_target->ensure_children();
-        m_path.push_back(initial_target);
-        m_history_indices.push_back(initial_idx);
+    if (!select_filename.empty()) {
+        for (size_t i = 0; i < current_level->size(); ++i) {
+            if ((*current_level)[i]->title == select_filename) {
+                m_current_index = static_cast<int>(i);
+                break;
+            }
+        }
+    } else {
         m_current_index = 0;
     }
 
@@ -859,28 +897,19 @@ void MillerView::set_search_query(const std::string& query) {
         std::transform(lower_query.begin(), lower_query.end(), lower_query.begin(),
                        [](unsigned char c) { return std::tolower(c); });
 
-        std::function<void(const std::vector<std::shared_ptr<FileItem>>&)> search_recursive =
-            [&](const std::vector<std::shared_ptr<FileItem>>& items) {
-                for (const auto& item : items) {
-                    item->ensure_children();
-                    std::string t = item->title;
-                    std::transform(t.begin(), t.end(), t.begin(), [](unsigned char c) { return std::tolower(c); });
-                    std::string sub = item->subtitle;
-                    std::transform(sub.begin(), sub.end(), sub.begin(), [](unsigned char c) { return std::tolower(c); });
+        const auto* pool = m_path.empty() ? &m_root_tree : &(m_path.back()->children);
+        for (const auto& item : *pool) {
+            std::string t = item->title;
+            std::transform(t.begin(), t.end(), t.begin(), [](unsigned char c) { return std::tolower(c); });
+            std::string sub = item->subtitle;
+            std::transform(sub.begin(), sub.end(), sub.begin(), [](unsigned char c) { return std::tolower(c); });
 
-                    if (t.find(lower_query) != std::string::npos ||
-                        sub.find(lower_query) != std::string::npos ||
-                        item->id.find(lower_query) != std::string::npos) {
-                        m_search_results.push_back(item);
-                    }
-
-                    if (!item->children.empty()) {
-                        search_recursive(item->children);
-                    }
-                }
-            };
-
-        search_recursive(m_root_tree);
+            if (t.find(lower_query) != std::string::npos ||
+                sub.find(lower_query) != std::string::npos ||
+                item->id.find(lower_query) != std::string::npos) {
+                m_search_results.push_back(item);
+            }
+        }
     }
 
     rebuild_columns();
@@ -1039,14 +1068,14 @@ bool MillerView::trigger_active_action() {
 
 std::string MillerView::get_breadcrumb_path() const {
     if (!m_search_query.empty()) {
-        std::string path = "Files › Search: \"" + m_search_query + "\"";
+        std::string path = "/ › Search: \"" + m_search_query + "\"";
         auto current = get_current_selected_item();
         if (current) {
             path += " › " + current->title;
         }
         return path;
     }
-    std::string path = "Files";
+    std::string path = "/";
     for (const auto& item : m_path) {
         path += " › " + item->title;
     }

@@ -278,52 +278,8 @@ std::vector<std::shared_ptr<FileItem>> FilesModel::scan_directory(const fs::path
 }
 
 std::vector<std::shared_ptr<FileItem>> FilesModel::build_default_tree(const std::string& start_path) {
-    std::vector<std::shared_ptr<FileItem>> tree;
-
-    const char* home_env = std::getenv("HOME");
-    fs::path home = home_env ? fs::path(home_env) : fs::current_path();
-
-    // Standard Places / Bookmarks
-    if (fs::exists(home)) {
-        tree.push_back(create_directory_item(home, "Home", "󰋜"));
-    }
-
-    auto check_and_add = [&tree](const fs::path& p, const std::string& title, const std::string& icon) {
-        std::error_code ec;
-        if (fs::exists(p, ec) && fs::is_directory(p, ec)) {
-            tree.push_back(create_directory_item(p, title, icon));
-        }
-    };
-
-    check_and_add(home / "Documents", "Documents", "󰈙");
-    check_and_add(home / "Downloads", "Downloads", "󰉍");
-    check_and_add(home / "Pictures", "Pictures", "󰋩");
-    check_and_add(home / "Music", "Music", "󰎆");
-    check_and_add(home / "Videos", "Videos", "󰕧");
-    check_and_add(home / "Desktop", "Desktop", "󰇄");
-
-    // Root filesystem
-    check_and_add("/", "File System", "󰉖");
-
-    // If start_path was passed and exists, ensure it is accessible or top-level
-    if (!start_path.empty()) {
-        std::error_code ec;
-        fs::path sp(start_path);
-        if (fs::exists(sp, ec) && fs::is_directory(sp, ec)) {
-            bool already_present = false;
-            for (const auto& item : tree) {
-                if (fs::equivalent(item->path, sp, ec)) {
-                    already_present = true;
-                    break;
-                }
-            }
-            if (!already_present) {
-                tree.insert(tree.begin(), create_directory_item(sp, sp.filename().string(), "󰉋"));
-            }
-        }
-    }
-
-    return tree;
+    (void)start_path;
+    return scan_directory("/");
 }
 
 } // namespace miqu

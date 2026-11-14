@@ -262,7 +262,7 @@ void FilesApp::update_header() {
         };
 
         if (m_miller_view->is_searching()) {
-            add_crumb("Files", [this]() {
+            add_crumb("/", [this]() {
                 if (m_search_view) {
                     m_search_view->set_query("");
                     m_search_view->set_focused(false);
@@ -291,10 +291,20 @@ void FilesApp::update_header() {
             const auto& path = m_miller_view->get_path();
             auto current = m_miller_view->get_current_selected_item();
 
-            if (path.empty() && !current) {
-                add_crumb("Files", nullptr, true);
+            if (path.empty()) {
+                if (!current) {
+                    add_crumb("/", nullptr, true);
+                } else {
+                    add_crumb("/", [this]() {
+                        if (m_miller_view) {
+                            m_miller_view->navigate_to_depth(0);
+                        }
+                    }, false);
+                    add_separator();
+                    add_crumb(current->title, nullptr, true);
+                }
             } else {
-                add_crumb("Files", [this]() {
+                add_crumb("/", [this]() {
                     if (m_miller_view) {
                         m_miller_view->navigate_to_depth(0);
                     }
@@ -303,11 +313,12 @@ void FilesApp::update_header() {
                 for (size_t i = 0; i < path.size(); ++i) {
                     add_separator();
                     size_t target_depth = i + 1;
-                    add_crumb(path[i]->title, [this, target_depth]() {
+                    bool is_last = (i == path.size() - 1) && (!current);
+                    add_crumb(path[i]->title, is_last ? nullptr : std::function<void()>([this, target_depth]() {
                         if (m_miller_view) {
                             m_miller_view->navigate_to_depth(target_depth);
                         }
-                    }, false);
+                    }), is_last);
                 }
 
                 if (current) {
