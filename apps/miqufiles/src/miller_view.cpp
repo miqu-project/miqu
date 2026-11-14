@@ -277,6 +277,42 @@ void MillerView::init(const std::string& start_path) {
     m_preview_pillar->add_view(m_preview_scroll, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
     add_view(m_preview_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
+    // Default one step drill into Home (or start_path)
+    std::shared_ptr<FileItem> initial_target = nullptr;
+    int initial_idx = 0;
+
+    if (!m_start_path.empty()) {
+        std::error_code ec;
+        fs::path sp = fs::canonical(m_start_path, ec);
+        if (!ec && fs::is_directory(sp, ec)) {
+            for (size_t i = 0; i < m_root_tree.size(); ++i) {
+                if (fs::equivalent(m_root_tree[i]->path, sp, ec)) {
+                    initial_target = m_root_tree[i];
+                    initial_idx = static_cast<int>(i);
+                    break;
+                }
+            }
+            if (!initial_target) {
+                auto custom_item = FilesModel::create_directory_item(sp, sp.filename().string(), "󰉋");
+                m_root_tree.insert(m_root_tree.begin(), custom_item);
+                initial_target = custom_item;
+                initial_idx = 0;
+            }
+        }
+    }
+
+    if (!initial_target && !m_root_tree.empty()) {
+        initial_target = m_root_tree[0];
+        initial_idx = 0;
+    }
+
+    if (initial_target) {
+        initial_target->ensure_children();
+        m_path.push_back(initial_target);
+        m_history_indices.push_back(initial_idx);
+        m_current_index = 0;
+    }
+
     sync_theme();
     rebuild_columns();
 }
