@@ -431,4 +431,70 @@ bool MpdClient::add_and_play(const std::string& uri) {
     return false;
 }
 
+bool MpdClient::add_to_queue(const std::string& uri) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (uri.empty() || !check_connection_locked()) return false;
+    return mpd_run_add(m_cmd_conn, uri.c_str());
+}
+
+bool MpdClient::clear_queue() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!check_connection_locked()) return false;
+    return mpd_run_clear(m_cmd_conn);
+}
+
+bool MpdClient::delete_pos(unsigned int pos) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!check_connection_locked()) return false;
+    return mpd_run_delete(m_cmd_conn, pos);
+}
+
+bool MpdClient::load_playlist(const std::string& name) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (name.empty() || !check_connection_locked()) return false;
+    return mpd_run_load(m_cmd_conn, name.c_str());
+}
+
+std::vector<std::string> MpdClient::get_playlists() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    std::vector<std::string> playlists;
+    if (!check_connection_locked()) return playlists;
+
+    if (!mpd_send_list_playlists(m_cmd_conn)) {
+        return playlists;
+    }
+
+    struct mpd_playlist* pl = nullptr;
+    while ((pl = mpd_recv_playlist(m_cmd_conn)) != nullptr) {
+        const char* path = mpd_playlist_get_path(pl);
+        if (path) playlists.push_back(path);
+        mpd_playlist_free(pl);
+    }
+    mpd_response_finish(m_cmd_conn);
+    return playlists;
+}
+
+std::vector<Song> MpdClient::get_playlist_songs(const std::string& name) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    std::vector<Song> songs;
+    if (name.empty() || !check_connection_locked()) return songs;
+
+    if (!mpd_send_list_playlist_meta(m_cmd_conn, name.c_str())) {
+        return songs;
+    }
+
+    struct mpd_entity* entity = nullptr;
+    while ((entity = mpd_recv_entity(m_cmd_conn)) != nullptr) {
+        if (mpd_entity_get_type(entity) == MPD_ENTITY_TYPE_SONG) {
+            const struct mpd_song* s = mpd_entity_get_song(entity);
+            if (s) {
+                songs.push_back(parse_mpd_song(const_cast<struct mpd_song*>(s)));
+            }
+        }
+        mpd_entity_free(entity);
+    }
+    mpd_response_finish(m_cmd_conn);
+    return songs;
+}
+
 } // namespace miqumusic

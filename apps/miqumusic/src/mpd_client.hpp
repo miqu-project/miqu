@@ -49,9 +49,17 @@ public:
     std::vector<Song> get_queue();
     std::vector<Song> get_all_songs();
 
-    // Queue modification
+    // Queue & Playlists modification
     bool add_and_play(const std::string& uri);
+    bool add_to_queue(const std::string& uri);
+    bool clear_queue();
+    bool delete_pos(unsigned int pos);
+    bool load_playlist(const std::string& name);
     bool update_database();
+
+    // Playlists
+    std::vector<std::string> get_playlists();
+    std::vector<Song> get_playlist_songs(const std::string& name);
 
     // Album art / embedded picture retrieval via MPD protocol
     std::vector<uint8_t> fetch_art_data(const std::string& uri);

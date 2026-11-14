@@ -17,15 +17,28 @@ static std::string trim_str(const std::string& str) {
 }
 
 int main(int argc, char** argv) {
+    bool auto_exit = false;
+
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-h" || arg == "--help") {
-            std::cout << "Usage: miqumusic [OPTIONS]\n\n"
-                      << "Modern native MPD music player built with miqutoolkit.\n\n"
+            std::cout << "miqumusic — Desktop Miller-Columns Music Player & MPD Client\n\n"
+                      << "Usage: miqumusic [OPTIONS]\n\n"
                       << "Options:\n"
                       << "  -h, --help         Show this help message and exit\n"
-                      << "  --init-config      Generate default user configuration file\n";
+                      << "  --init-config      Generate default user configuration file\n"
+                      << "  --auto-exit        Initialize and exit immediately without event loop\n\n"
+                      << "Keybindings:\n"
+                      << "  [Space]            Toggle Play / Pause\n"
+                      << "  [Ctrl+F]           Focus instant search bar\n"
+                      << "  [F11]              Toggle full-width player / immersion mode\n"
+                      << "  [Left / Backspace] Navigate back to parent category / leave search\n"
+                      << "  [Right / Enter]    Enter category, album, or play track\n"
+                      << "  [Up / Down]        Navigate up/down in song or category lists\n"
+                      << "  [Esc]              Exit search or step back\n";
             return 0;
+        } else if (arg == "--auto-exit") {
+            auto_exit = true;
         } else if (arg == "--init-config") {
             std::string res = Config::init_user_config("miqumusic", "miqumusic.conf");
             if (!res.empty()) {
@@ -88,6 +101,14 @@ int main(int argc, char** argv) {
     if (!app.init()) {
         std::cerr << "[miqumusic] Failed to start MusicApp.\n";
         return 1;
+    }
+
+    engine->add_theme_change_listener([&app]() {
+        app.sync_theme();
+    });
+
+    if (auto_exit) {
+        return 0;
     }
 
     return app.run();
