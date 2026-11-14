@@ -64,23 +64,27 @@ public:
 
 private:
     void setup_columns();
-    void rebuild_category_list();
-    void rebuild_middle_column();
+    void rebuild_columns();
+    void rebuild_parent_column();
+    void rebuild_current_column();
     void update_right_pillar();
+    void handle_parent_item_click(size_t idx);
 
-    std::shared_ptr<View> create_category_item(MusicCategory cat, const std::string& title, const std::string& icon, bool selected);
-    std::shared_ptr<View> create_song_list_item(size_t index, const Song& song, bool is_current);
-    std::shared_ptr<View> create_text_list_item(const std::string& title, const std::string& subtitle, bool selected);
+    std::shared_ptr<miqu::View> create_parent_hero_box(const std::shared_ptr<miqu::Config>& config);
+    std::shared_ptr<miqu::View> create_category_item(MusicCategory cat, const std::string& title, const std::string& icon, bool selected);
+    std::shared_ptr<miqu::View> create_song_list_item(size_t index, const Song& song, bool is_current);
+    std::shared_ptr<miqu::View> create_text_list_item(const std::string& title, const std::string& subtitle, bool selected);
 
     std::shared_ptr<MpdClient> m_client;
 
     // Pillars
-    std::shared_ptr<miqu::LinearLayout> m_left_pillar;
-    std::shared_ptr<miqu::LinearLayout> m_middle_pillar;
+    std::shared_ptr<miqu::LinearLayout> m_parent_pillar;
+    std::shared_ptr<miqu::LinearLayout> m_current_pillar;
     std::shared_ptr<miqu::LinearLayout> m_right_pillar;
 
-    std::shared_ptr<miqu::ListView> m_category_list;
-    std::shared_ptr<miqu::ListView> m_middle_list;
+    std::shared_ptr<miqu::View> m_parent_hero;
+    std::shared_ptr<miqu::ListView> m_parent_list;
+    std::shared_ptr<miqu::ListView> m_current_list;
 
     std::shared_ptr<PlayerCardView> m_player_card;
     std::shared_ptr<VisualizerView> m_full_visualizer;
@@ -89,7 +93,7 @@ private:
     MusicCategory m_active_category = MusicCategory::Queue;
     std::vector<MusicNavLevel> m_path;
     std::vector<int> m_history_indices;
-    int m_middle_selected_index = 0;
+    int m_current_index = 0;
 
     std::string m_selected_artist;
     std::string m_selected_album;
