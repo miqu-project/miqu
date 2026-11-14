@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="photoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4facfe" />
+      <stop offset="100%" stop-color="#00f2fe" />
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f232a" />
+      <stop offset="100%" stop-color="#14171d" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bgGrad)" stroke="#303642" stroke-width="2" />
+  <!-- Photo frame -->
+  <rect x="24" y="24" width="80" height="80" rx="14" fill="#282e3a" stroke="#3b4353" stroke-width="2" />
+  <!-- Sun / lens -->
+  <circle cx="44" cy="48" r="10" fill="url(#photoGrad)" />
+  <!-- Mountains -->
+  <path d="M 28 88 L 52 56 L 68 76 L 82 60 L 100 88 Z" fill="url(#photoGrad)" opacity="0.9" />
+</svg>
