@@ -50,6 +50,163 @@ void MillerView::render_empty_preview(const std::shared_ptr<Config>& config) {
     add_preview_card(card);
 }
 
+void MillerView::render_empty_folder_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config) {
+    if (!item) return;
+
+    m_preview_layout->set_padding(Padding(14, 4, 14, 14));
+    m_preview_layout->set_divider_spacing(10);
+
+    // 1. Hero Folder Card
+    auto hero_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(16, 16)
+        ->spacing(14)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto header_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->spacing(14)
+        ->gravity(Gravity::CenterVertical)
+        ->build();
+
+    // Folder Icon Box
+    auto icon_box = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->gravity(Gravity::Center)
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.4f))
+        ->cornerRadius(get_inner_radius(config))
+        ->build();
+
+    auto folder_icon = TextViewBuilder::create()
+        ->text(item->icon.empty() ? "󰉖" : item->icon)
+        ->textSize(static_cast<int>(config->metrics.font_size * 2.2f))
+        ->textColor(config->colors.primary.with_alpha(0.85f))
+        ->center(true)
+        ->build();
+    icon_box->add_view(folder_icon);
+    header_row->add_view(icon_box, LayoutParams(80, 80));
+
+    // Info Column
+    auto info_col = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->spacing(4)
+        ->gravity(Gravity::CenterVertical)
+        ->build();
+
+    auto title_view = TextViewBuilder::create()
+        ->text(item->title)
+        ->textSize(static_cast<int>(config->metrics.font_size * 1.2f))
+        ->bold(true)
+        ->textColor(config->colors.on_surface)
+        ->ellipsize(true)
+        ->build();
+    info_col->add_view(title_view);
+
+    auto cat_view = TextViewBuilder::create()
+        ->text("Folder • Empty (0 items)")
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.primary)
+        ->ellipsize(true)
+        ->build();
+    info_col->add_view(cat_view);
+
+    if (!item->mtime_formatted.empty()) {
+        auto date_view = TextViewBuilder::create()
+            ->text("Modified: " + item->mtime_formatted)
+            ->caption(true)
+            ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+            ->build();
+        info_col->add_view(date_view);
+    }
+
+    header_row->add_view(info_col, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+    hero_card->add_view(header_row);
+
+    // Divider
+    auto div = LinearLayoutBuilder::create()
+        ->backgroundColor(config->colors.outline.with_alpha(0.2f))
+        ->build();
+    hero_card->add_view(div, LayoutParams(MATCH_PARENT, 1));
+
+    // Action Buttons Row
+    auto action_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->spacing(10)
+        ->gravity(Gravity::CenterVertical)
+        ->build();
+
+    auto term_btn = ButtonBuilder::create()
+        ->text("󰆍 Terminal Here")
+        ->padding(12, 6)
+        ->cornerRadius(get_btn_radius(config))
+        ->textSize(config->metrics.font_size)
+        ->build();
+    term_btn->set_focusable(true);
+    term_btn->set_on_click_listener([item]() {
+        if (!item || item->path.empty()) return;
+        std::string cmd = "alacritty --working-directory \"" + item->path.string() + "\" &";
+        (void)std::system(cmd.c_str());
+    });
+    action_row->add_view(term_btn, LayoutParams(WRAP_CONTENT, 32));
+
+    auto copy_btn = ButtonBuilder::create()
+        ->text("󰅍 Copy Path")
+        ->flat(true)
+        ->padding(12, 6)
+        ->cornerRadius(get_btn_radius(config))
+        ->textSize(config->metrics.font_size)
+        ->build();
+    copy_btn->set_focusable(true);
+    copy_btn->set_on_click_listener([item]() {
+        if (!item || item->path.empty()) return;
+        std::string p = item->path.string();
+        std::string cmd = "printf '%s' " + p + " | wl-copy 2>/dev/null || true";
+        (void)std::system(cmd.c_str());
+    });
+    action_row->add_view(copy_btn, LayoutParams(WRAP_CONTENT, 32));
+
+    hero_card->add_view(action_row);
+    add_preview_card(hero_card);
+
+    // 2. Path & Status Details Card
+    auto detail_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(16, 14)
+        ->spacing(8)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto location_label = TextViewBuilder::create()
+        ->text("Location")
+        ->caption(true)
+        ->bold(true)
+        ->textColor(config->colors.on_surface_variant)
+        ->build();
+    detail_card->add_view(location_label);
+
+    auto path_view = TextViewBuilder::create()
+        ->text(item->path.string())
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.on_surface)
+        ->ellipsize(true)
+        ->build();
+    detail_card->add_view(path_view);
+
+    auto empty_status = TextViewBuilder::create()
+        ->text("This folder is empty. Create or paste files here to populate it.")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+        ->build();
+    detail_card->add_view(empty_status);
+
+    add_preview_card(detail_card);
+}
+
 void MillerView::render_category_children_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config) {
     if (!item) return;
     item->ensure_children();

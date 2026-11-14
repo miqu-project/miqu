@@ -148,6 +148,10 @@ void MillerView::init(const std::string& start_path) {
     m_empty_search_box->set_visibility(Visibility::Gone);
     m_current_pillar->add_view(m_empty_search_box, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
+    m_empty_folder_box = create_empty_folder_box(config);
+    m_empty_folder_box->set_visibility(Visibility::Gone);
+    m_current_pillar->add_view(m_empty_folder_box, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
+
     m_current_list = ListViewBuilder::create()
         ->itemHeight(40)
         ->spacing(4)
@@ -605,6 +609,42 @@ std::shared_ptr<View> MillerView::create_empty_search_box(const std::shared_ptr<
     return empty_box;
 }
 
+std::shared_ptr<View> MillerView::create_empty_folder_box(const std::shared_ptr<Config>& config) {
+    auto empty_box = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->gravity(Gravity::Center)
+        ->padding(16, 32)
+        ->spacing(8)
+        ->build();
+
+    auto empty_icon = TextViewBuilder::create()
+        ->text("󰷏")
+        ->textSize(static_cast<int>(config->metrics.font_size * 2.4f))
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.45f))
+        ->center(true)
+        ->build();
+    empty_box->add_view(empty_icon);
+
+    auto empty_text = TextViewBuilder::create()
+        ->text("Folder is empty")
+        ->textSize(static_cast<int>(config->metrics.font_size * 1.15f))
+        ->bold(true)
+        ->textColor(config->colors.on_surface)
+        ->center(true)
+        ->build();
+    empty_box->add_view(empty_text);
+
+    auto empty_hint = TextViewBuilder::create()
+        ->text("No files or directories found\nPress ‹ Back or Left (h) to return")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+        ->center(true)
+        ->build();
+    empty_box->add_view(empty_hint);
+
+    return empty_box;
+}
+
 std::shared_ptr<View> MillerView::create_list_row_item(const std::shared_ptr<FileItem>& item,
                                                         const std::shared_ptr<Config>& config) {
     auto item_row = LinearLayoutBuilder::create()
@@ -694,13 +734,18 @@ void MillerView::rebuild_current_column() {
             m_current_list->clear_items();
             m_current_list->set_visibility(Visibility::Gone);
         }
-        if (m_empty_search_box && !m_search_query.empty()) {
-            m_empty_search_box->set_visibility(Visibility::Visible);
+        if (!m_search_query.empty()) {
+            if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Visible);
+            if (m_empty_folder_box) m_empty_folder_box->set_visibility(Visibility::Gone);
+        } else {
+            if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Gone);
+            if (m_empty_folder_box) m_empty_folder_box->set_visibility(Visibility::Visible);
         }
         return;
     }
 
     if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Gone);
+    if (m_empty_folder_box) m_empty_folder_box->set_visibility(Visibility::Gone);
     if (m_current_list) {
         m_current_list->set_visibility(Visibility::Visible);
         m_current_list->clear_items();
@@ -764,12 +809,23 @@ void MillerView::rebuild_preview_column() {
     if (!item) {
         if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
         if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
-        render_empty_preview(config);
+        if (!m_path.empty()) {
+            render_empty_folder_preview(m_path.back(), config);
+        } else {
+            render_empty_preview(config);
+        }
         return;
     }
 
     if (item->is_category) {
-        render_category_children_preview(item, config);
+        item->ensure_children();
+        if (item->children.empty()) {
+            if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
+            if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
+            render_empty_folder_preview(item, config);
+        } else {
+            render_category_children_preview(item, config);
+        }
         return;
     }
 

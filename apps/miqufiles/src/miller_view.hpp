@@ -70,10 +70,12 @@ private:
     // Column Element Builders
     std::shared_ptr<View> create_parent_hero_box(const std::shared_ptr<Config>& config);
     std::shared_ptr<View> create_empty_search_box(const std::shared_ptr<Config>& config);
+    std::shared_ptr<View> create_empty_folder_box(const std::shared_ptr<Config>& config);
     std::shared_ptr<View> create_list_row_item(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
 
     // Preview Renderers (preview_files.cpp)
     void render_empty_preview(const std::shared_ptr<Config>& config);
+    void render_empty_folder_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
     void render_category_children_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
     void render_file_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
 
@@ -112,6 +114,7 @@ private:
     std::shared_ptr<LinearLayout> m_current_pillar;
     std::shared_ptr<ListView> m_current_list;
     std::shared_ptr<View> m_empty_search_box;
+    std::shared_ptr<View> m_empty_folder_box;
 
     std::shared_ptr<LinearLayout> m_preview_pillar;
     std::shared_ptr<LinearLayout> m_preview_ribbon;
