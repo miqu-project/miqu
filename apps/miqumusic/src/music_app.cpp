@@ -293,27 +293,22 @@ void MusicApp::update_header() {
             add_crumb("Search: \"" + m_miller_view->get_search_query() + "\"", nullptr, true);
         } else {
             const auto& path = m_miller_view->get_path();
-            std::string leaf_title = m_miller_view->get_current_leaf_title();
 
             add_crumb("Music", [this]() {
                 if (m_miller_view) {
                     m_miller_view->navigate_to_depth(0);
                 }
-            }, path.empty() && leaf_title == "Music");
+            }, path.empty());
 
             for (size_t i = 0; i < path.size(); ++i) {
                 add_separator();
+                bool is_last = (i == path.size() - 1);
                 size_t target_depth = i + 1;
                 add_crumb(path[i].title, [this, target_depth]() {
                     if (m_miller_view) {
                         m_miller_view->navigate_to_depth(target_depth);
                     }
-                }, false);
-            }
-
-            if (!leaf_title.empty() && (path.empty() || leaf_title != path.back().title)) {
-                add_separator();
-                add_crumb(leaf_title, nullptr, true);
+                }, is_last);
             }
         }
     }

@@ -35,6 +35,9 @@ public:
     void sync_theme();
     void tick(double delta_time);
 
+    bool on_mouse_move(int lx, int ly, const miqu::Rect& bounds) override;
+    bool on_scroll(double delta) override;
+
     void update_playback(const MpdStatus& status, const Song& song);
     void update_queue(const std::vector<Song>& queue);
     void refresh_library();
@@ -65,15 +68,15 @@ public:
 private:
     void setup_columns();
     void rebuild_columns();
+    void update_pillar_styles();
     void rebuild_parent_column();
     void rebuild_current_column();
     void update_right_pillar();
     void handle_parent_item_click(size_t idx);
 
     std::shared_ptr<miqu::View> create_parent_hero_box(const std::shared_ptr<miqu::Config>& config);
-    std::shared_ptr<miqu::View> create_category_item(MusicCategory cat, const std::string& title, const std::string& icon, bool selected);
-    std::shared_ptr<miqu::View> create_song_list_item(size_t index, const Song& song, bool is_current);
-    std::shared_ptr<miqu::View> create_text_list_item(const std::string& title, const std::string& subtitle, bool selected);
+    std::shared_ptr<miqu::View> create_row_item(const std::string& title, const std::string& icon = "", bool has_children = true);
+    std::shared_ptr<miqu::View> create_song_row_item(size_t index, const Song& song, bool is_current);
 
     std::shared_ptr<MpdClient> m_client;
 
@@ -111,6 +114,9 @@ private:
     std::vector<Song> m_search_results;
 
     bool m_preview_expanded = false;
+    int m_last_mouse_x = -1;
+    int m_last_mouse_y = -1;
+
     MpdStatus m_last_status;
     Song m_last_song;
 
