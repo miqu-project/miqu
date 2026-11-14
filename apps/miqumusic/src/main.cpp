@@ -1,108 +1,66 @@
 #include "music_app.hpp"
 #include <miqutoolkit/miqutoolkit.hpp>
 #include <iostream>
-#include <fstream>
-#include <cstdlib>
 #include <filesystem>
 
 namespace fs = std::filesystem;
 using namespace miqu;
-using namespace miqumusic;
 
-static std::string trim_str(const std::string& str) {
-    size_t first = str.find_first_not_of(" \t\r\n\"'");
-    if (first == std::string::npos) return "";
-    size_t last = str.find_last_not_of(" \t\r\n\"'");
-    return str.substr(first, (last - first + 1));
-}
-
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
     bool auto_exit = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "-h" || arg == "--help") {
-            std::cout << "miqumusic — Desktop Miller-Columns Music Player & MPD Client\n\n"
+        if (arg == "--help" || arg == "-h") {
+            std::cout << "miqumusic — Desktop Music Player & Queue Browser\n\n"
                       << "Usage: miqumusic [OPTIONS]\n\n"
                       << "Options:\n"
-                      << "  -h, --help         Show this help message and exit\n"
-                      << "  --init-config      Generate default user configuration file\n"
-                      << "  --auto-exit        Initialize and exit immediately without event loop\n\n"
+                      << "  --init-config    Safely generate user configuration file (~/.config/miqumusic/miqumusic.conf)\n"
+                      << "  --auto-exit      Initialize UI components and exit immediately without entering event loop\n"
+                      << "  -h, --help       Display this help message and exit\n\n"
                       << "Keybindings:\n"
-                      << "  [Space]            Toggle Play / Pause\n"
-                      << "  [Ctrl+F]           Focus instant search bar\n"
-                      << "  [F11]              Toggle full-width player / immersion mode\n"
-                      << "  [Left / Backspace] Navigate back to parent category / leave search\n"
-                      << "  [Right / Enter]    Enter category, album, or play track\n"
-                      << "  [Up / Down]        Navigate up/down in song or category lists\n"
-                      << "  [Esc]              Exit search or step back\n";
+                      << "  [Ctrl+F]                Focus search bar\n"
+                      << "  [Esc]                   Unfocus / back / clear search / quit at root\n"
+                      << "  [Left / Backspace]      Navigate back to parent or leave detail form\n"
+                      << "  [Right / Enter]         Enter category or focus detail form\n"
+                      << "  [Up / Down]             Navigate up/down in category or search lists\n"
+                      << "  [Tab / Shift+Tab]       Cycle controls inside detail form\n"
+                      << "  [F11]                   Toggle full-width / standard 3-column view\n";
+            return 0;
+        } else if (arg == "--init-config") {
+            std::string path = FsUtils::init_user_config("miqumusic");
+            std::cout << "[miqumusic] Configuration initialized at: " << path << "\n";
             return 0;
         } else if (arg == "--auto-exit") {
             auto_exit = true;
-        } else if (arg == "--init-config") {
-            std::string res = Config::init_user_config("miqumusic", "miqumusic.conf");
-            if (!res.empty()) {
-                std::cout << "[miqumusic] Configuration initialized at: " << res << "\n";
-            } else {
-                std::cout << "[miqumusic] Configuration file already exists or could not be created.\n";
-            }
-            return 0;
         }
     }
 
-    auto engine = AppEngine::create();
-    if (!engine) {
-        std::cerr << "[miqumusic] Failed to initialize AppEngine. Is Wayland running?\n";
-        return 1;
-    }
-
-    // 1. Resolve configuration path (Canonical Two-Tier Authority Model)
+    // 1. Resolve canonical configuration path
     std::string user_conf = FsUtils::get_user_config_file("miqumusic");
     std::string target_conf = fs::exists(user_conf) ? user_conf : FsUtils::get_system_config_file("miqumusic");
 
-    std::string host = "";
-    unsigned int port = 0;
+    // 2. Load exclusive configuration file
+    Config::get()->load_from_file(target_conf);
 
-    if (!target_conf.empty()) {
-        // Overlay any toolkit appearance overrides (colors, fonts, metrics, icon_theme)
-        Config::get()->load_from_file(target_conf);
-
-        // Read MPD connection options
-        std::ifstream file(target_conf);
-        std::string line;
-        while (std::getline(file, line)) {
-            line = trim_str(line);
-            if (line.empty() || line[0] == '#' || line[0] == ';') continue;
-            auto eq = line.find('=');
-            if (eq == std::string::npos) continue;
-            std::string k = trim_str(line.substr(0, eq));
-            std::string v = trim_str(line.substr(eq + 1));
-            size_t cp = v.find('#');
-            if (cp != std::string::npos) v = trim_str(v.substr(0, cp));
-
-            if (k == "mpd_host" && !v.empty()) {
-                host = v;
-            } else if (k == "mpd_port" && !v.empty()) {
-                try { port = static_cast<unsigned int>(std::stoul(v)); } catch (...) {}
-            }
-        }
-    }
-
-    // Register config and theme watcher unconditionally
-    engine->setup_config_watcher();
-
-    // Environment variables override config file
-    const char* env_host = getenv("MPD_HOST");
-    if (env_host && *env_host) host = env_host;
-    const char* env_port = getenv("MPD_PORT");
-    if (env_port && *env_port) port = static_cast<unsigned int>(std::atoi(env_port));
-
-    MusicApp app(engine, host, port);
-    if (!app.init()) {
-        std::cerr << "[miqumusic] Failed to start MusicApp.\n";
+    // 3. Initialize AppEngine
+    auto engine = AppEngine::create();
+    if (!engine) {
+        std::cerr << "[miqumusic] Failed to initialize AppEngine.\n";
         return 1;
     }
 
+    // 4. Setup inotify config watcher for live reload
+    engine->setup_config_watcher();
+
+    // 5. Initialize application
+    MusicApp app(engine);
+    if (!app.init()) {
+        std::cerr << "[miqumusic] Failed to initialize MusicApp.\n";
+        return 1;
+    }
+
+    // 6. Connect dynamic live theme updates
     engine->add_theme_change_listener([&app]() {
         app.sync_theme();
     });
@@ -111,5 +69,5 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    return app.run();
+    return engine->enter_loop();
 }
