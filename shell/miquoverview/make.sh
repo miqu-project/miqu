@@ -1,22 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BUILD_DIR="${BUILD_DIR:-build}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+NAME="miquoverview"
+BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/build}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 
-echo "==> Configuring miquoverview ($BUILD_TYPE)..."
-cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_INSTALL_PREFIX="/usr" "$@"
+CMAKE_GENERATOR="Ninja"
+if ! command -v ninja >/dev/null 2>&1; then
+    CMAKE_GENERATOR="Unix Makefiles"
+fi
 
-echo "==> Building miquoverview..."
+echo "==> Configuring ${NAME} (${BUILD_TYPE}) using ${CMAKE_GENERATOR}..."
+cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_INSTALL_PREFIX="/usr" -G "$CMAKE_GENERATOR" "$@"
+
+echo "==> Building ${NAME}..."
 cmake --build "$BUILD_DIR" -j"$(nproc)"
 
-echo "==> Build finished successfully! Shared library is at $BUILD_DIR/libmiquoverview.so"
+echo "==> Build finished successfully! Shared library is in $BUILD_DIR"
 
 # If invoked with sudo/root, automatically install to system
 if [ "${EUID}" -eq 0 ]; then
-    echo "==> Installing miquoverview to system (/usr/lib/miquland/plugins/libmiquoverview.so)..."
+    echo "==> Installing ${NAME} to system (/usr/lib/miquland/plugins)..."
     cmake --install "$BUILD_DIR"
-    echo "==> miquoverview successfully installed to /usr/lib/miquland/plugins/libmiquoverview.so!"
+    echo "==> ${NAME} successfully installed!"
 else
     echo "==> Built locally in $BUILD_DIR. To install system-wide, run: sudo ./make.sh"
 fi
