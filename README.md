@@ -54,7 +54,7 @@ sudo ./uninstall.sh
 | **Compositor** | [`miquland/`](miquland/) | Dynamic tiling Wayland compositor built with wlroots, scenefx GPU blur, and `miquctl` IPC. |
 | **UI Toolkit** | [`miqutoolkit/`](miqutoolkit/) | Shared C++20 Cairo/Pango UI framework with RAII lifecycle safety and live theme reload. |
 | **Desktop Shell** | [`shell/`](shell/) | 11 layer-shell daemons and controls (`miqubar`, `miqudesk`, `miqulauncher`, `miquoverview`, `miqunotify`, `miqupower`, `miqudm`, `miqubg`, `miqulock`, `miquidle`, `miqupolkit`). |
-| **Desktop Apps** | [`apps/`](apps/) | 6 standalone windowed applications (`miqucontrolpanel`, `miqufiles`, `miqumusic`, `miqugallery`, `miqutheme`, `miquinfo`). |
+| **Desktop Apps** | [`apps/`](apps/) | 6 standalone windowed applications (`miqucontrolpanel`, `miqufiles`, `miqumusic`, `miquphotos`, `miqutheme`, `miquinfo`). |
 | **Mobile Apps** | [`mobile/`](mobile/) | Native Android companion applications (`doctor`, `recitation`) built in Kotlin & Jetpack Compose. |
 
 ---

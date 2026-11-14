@@ -773,7 +773,7 @@ static cairo_surface_t* load_surface(const std::string& path_or_name, int box_w,
     if (use_disk_cache) {
         pixbuf = gdk_pixbuf_new_from_file(disk_cache_file.c_str(), &error);
     } else if (quality == ImageQuality::FullOriginal) {
-        // Media viewer & full photos (miqugallery, wallpapers): decode synchronously from disk for instant frame 0 display
+        // Full photos & wallpapers (miquphotos, wallpapers): decode synchronously from disk for instant frame 0 display
         pixbuf = gdk_pixbuf_new_from_file_at_scale(file_to_decode.c_str(), req_w, req_h, preserve_aspect, &error);
     } else {
         // Cold SVG & icon decodes for launchers/grids: Asynchronously rasterize on ThreadPool without stalling the UI loop!
