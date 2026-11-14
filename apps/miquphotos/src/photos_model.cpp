@@ -180,6 +180,9 @@ std::vector<std::shared_ptr<FileItem>> PhotosModel::build_default_tree(const std
         fs::path canon = fs::canonical(dir, ec);
         if (ec) canon = dir;
 
+        // Never add user home itself as an album (direct home photos are listed directly as files)
+        if (canon == home) return;
+
         if (seen_paths.count(canon.string())) return;
 
         size_t count = count_images_in_directory(canon);
@@ -239,8 +242,15 @@ std::vector<std::shared_ptr<FileItem>> PhotosModel::build_default_tree(const std
     fs::path desktop_dir = home / "Desktop";
     inspect_and_add(desktop_dir);
 
-    // 3. Check direct photos in user home directory
-    inspect_and_add(home);
+    // 3. Collect direct photos in user home directory (shown directly as files)
+    std::vector<std::shared_ptr<FileItem>> home_photos;
+    std::error_code ec_home;
+    for (fs::directory_iterator it(home, fs::directory_options::skip_permission_denied, ec_home), end;
+         !ec_home && it != end; ++it) {
+        if (is_image_file(it->path())) {
+            home_photos.push_back(create_photo_item(it->path()));
+        }
+    }
 
     // 4. Other subdirectories in home (1 level deep)
     std::error_code ec;
@@ -264,7 +274,7 @@ std::vector<std::shared_ptr<FileItem>> PhotosModel::build_default_tree(const std
         }
     }
 
-    // Sort: Pictures first, then by photo count / alphabetically
+    // Sort: Pictures first, then alphabetically
     std::sort(tree.begin(), tree.end(), [&](const std::shared_ptr<FileItem>& a, const std::shared_ptr<FileItem>& b) {
         bool a_is_pics = (a->path == pictures_dir);
         bool b_is_pics = (b->path == pictures_dir);
@@ -272,7 +282,20 @@ std::vector<std::shared_ptr<FileItem>> PhotosModel::build_default_tree(const std
         return a->title < b->title;
     });
 
-    // If no folders with photos found anywhere, fallback to ~/Pictures or Home
+    // Sort direct home photos (newest first)
+    std::sort(home_photos.begin(), home_photos.end(), [](const std::shared_ptr<FileItem>& a, const std::shared_ptr<FileItem>& b) {
+        if (a->mtime_formatted != b->mtime_formatted) {
+            return a->mtime_formatted > b->mtime_formatted;
+        }
+        return a->title < b->title;
+    });
+
+    // Append direct home photos to tree as individual files
+    for (auto& p : home_photos) {
+        tree.push_back(std::move(p));
+    }
+
+    // If no folders or photos found anywhere, fallback to ~/Pictures or Home
     if (tree.empty()) {
         fs::path fallback = fs::exists(pictures_dir) ? pictures_dir : home;
         tree.push_back(create_album_item(fallback, 0));
