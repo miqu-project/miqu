@@ -101,7 +101,6 @@ BINARIES=(
     "miqutheme"
     "miquinfo"
     # Legacy
-    "miqugallery"
     "miqutest"
     "miqusettings"
     "miqusecure"
