@@ -426,6 +426,14 @@ void PhotosApp::handle_key_press(const KeyPressEvent& event) {
                 m_miller_view->set_preview_expanded(false);
                 return;
             }
+            if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_k || event.keysym == XKB_KEY_h) {
+                m_miller_view->navigate_up();
+                return;
+            }
+            if (event.keysym == XKB_KEY_Right || event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_l) {
+                m_miller_view->navigate_down();
+                return;
+            }
         } else {
             if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
                 if (m_window) m_window->clear_focus();

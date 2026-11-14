@@ -28,7 +28,7 @@ bool MillerView::check_and_update_click_debounce() {
 
 void MillerView::refresh_model() {
     m_root_tree = PhotosModel::build_default_tree(m_start_path);
-    if (m_preview_layout) {
+    if (m_preview_frame) {
         rebuild_columns();
         notify_state_changed();
     }
@@ -265,20 +265,12 @@ void MillerView::init(const std::string& start_path) {
     });
     m_preview_pillar->add_view(m_category_list, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
-    // 3c. Scrollable Interactive Cards Container
-    m_preview_layout = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->spacing(10)
-        ->padding(14, 4, 14, 14)
+    // 3c. Photo Preview & Detail Container (FrameLayout taking full remaining space)
+    m_preview_frame = FrameLayoutBuilder::create()
         ->backgroundColor(Color::transparent())
+        ->padding(4, 2, 4, 4)
         ->build();
-
-    m_preview_scroll = ScrollViewBuilder::create()
-        ->contentView(m_preview_layout)
-        ->scrollbar(true)
-        ->build();
-
-    m_preview_pillar->add_view(m_preview_scroll, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
+    m_preview_pillar->add_view(m_preview_frame, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
     add_view(m_preview_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
     // On launch: left pillar shows Photos Label Icon.
@@ -411,7 +403,7 @@ bool MillerView::on_mouse_button(int lx, int ly, MouseButton button, bool presse
 
     if (button == MouseButton::Left && pressed) {
         bool in_preview_form = m_preview_pillar && m_preview_pillar->get_bounds().contains(Point(lx, ly))
-                               && m_preview_scroll && m_preview_scroll->is_visible();
+                               && m_preview_frame && m_preview_frame->is_visible();
         if (in_preview_form != m_preview_focused) {
             set_preview_focused(in_preview_form);
         }
@@ -426,8 +418,9 @@ bool MillerView::on_scroll(double delta) {
 
     if (m_preview_pillar && m_preview_pillar->get_bounds().contains(pt)) {
         if (m_category_list && m_category_list->is_visible()) return m_category_list->on_scroll(delta);
-        if (m_preview_scroll && m_preview_scroll->is_visible()) return m_preview_scroll->on_scroll(delta);
-        return false;
+        if (delta > 0) return navigate_down();
+        if (delta < 0) return navigate_up();
+        return true;
     }
 
     if (m_current_pillar && m_current_pillar->get_bounds().contains(pt)) {
@@ -703,13 +696,11 @@ void MillerView::rebuild_current_column() {
 }
 
 void MillerView::add_preview_card(std::shared_ptr<View> card) {
-    if (!card) return;
+    if (!card || !m_preview_frame) return;
     LayoutParams lp = card->get_layout_params();
-    lp.width = static_cast<int>(LayoutDimension::MatchParent);
-    if (lp.height <= 0 && lp.height != static_cast<int>(LayoutDimension::MatchParent)) {
-        lp.height = static_cast<int>(LayoutDimension::WrapContent);
-    }
-    m_preview_layout->add_view(std::move(card), lp);
+    if (lp.width <= 0) lp.width = static_cast<int>(LayoutDimension::MatchParent);
+    if (lp.height <= 0) lp.height = static_cast<int>(LayoutDimension::WrapContent);
+    m_preview_frame->add_view(std::move(card), lp);
 }
 
 void MillerView::deferred_rebuild_preview(int delay_ms) {
@@ -726,11 +717,11 @@ void MillerView::deferred_rebuild_preview(int delay_ms) {
 
 void MillerView::rebuild_preview_column() {
     int focused_index = -1;
-    if (m_window && m_preview_layout) {
+    if (m_window && m_preview_frame) {
         View* current_focus = m_window->get_focused_view();
         if (current_focus) {
             std::vector<View*> old_focusables;
-            m_preview_layout->collect_focusable_views(old_focusables);
+            m_preview_frame->collect_focusable_views(old_focusables);
             for (size_t i = 0; i < old_focusables.size(); ++i) {
                 if (old_focusables[i] == current_focus) {
                     focused_index = static_cast<int>(i);
@@ -740,7 +731,9 @@ void MillerView::rebuild_preview_column() {
         }
     }
 
-    m_preview_layout->clear_views();
+    if (m_preview_frame) {
+        m_preview_frame->clear_views();
+    }
 
     auto config = Config::get();
     auto item = get_current_selected_item();
@@ -749,7 +742,7 @@ void MillerView::rebuild_preview_column() {
 
     if (!item) {
         if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
-        if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
+        if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Visible);
         if (!m_path.empty()) {
             render_empty_folder_preview(m_path.back(), config);
         } else {
@@ -762,7 +755,7 @@ void MillerView::rebuild_preview_column() {
         item->ensure_children();
         if (item->children.empty()) {
             if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
-            if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
+            if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Visible);
             render_empty_folder_preview(item, config);
         } else {
             render_category_children_preview(item, config);
@@ -772,17 +765,15 @@ void MillerView::rebuild_preview_column() {
 
     // Leaf photo preview
     if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
-    if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
-    m_preview_layout->set_padding(Padding(14, 4, 14, 14));
-    m_preview_layout->set_divider_spacing(10);
+    if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Visible);
 
     render_photo_preview(item, config);
 
     // Preserve focus across live updates
-    if (m_window && m_preview_layout) {
+    if (m_window && m_preview_frame) {
         if (m_preview_focused || m_preview_expanded) {
             std::vector<View*> new_focusables;
-            m_preview_layout->collect_focusable_views(new_focusables);
+            m_preview_frame->collect_focusable_views(new_focusables);
             if (focused_index >= 0) {
                 if (focused_index < static_cast<int>(new_focusables.size())) {
                     m_window->set_focused_view(new_focusables[focused_index]);
@@ -796,7 +787,7 @@ void MillerView::rebuild_preview_column() {
             View* cur = m_window->get_focused_view();
             if (cur) {
                 std::vector<View*> preview_views;
-                m_preview_layout->collect_focusable_views(preview_views);
+                m_preview_frame->collect_focusable_views(preview_views);
                 for (auto* pv : preview_views) {
                     if (pv == cur) {
                         m_window->clear_focus();
@@ -809,8 +800,7 @@ void MillerView::rebuild_preview_column() {
 }
 
 bool MillerView::navigate_up() {
-    if (m_preview_expanded) return false;
-    if (m_preview_focused) {
+    if (m_preview_focused && !m_preview_expanded) {
         return focus_first_preview_control();
     }
     const auto& list = get_current_list();
@@ -829,8 +819,7 @@ bool MillerView::navigate_up() {
 }
 
 bool MillerView::navigate_down() {
-    if (m_preview_expanded) return false;
-    if (m_preview_focused) {
+    if (m_preview_focused && !m_preview_expanded) {
         return focus_first_preview_control();
     }
     const auto& list = get_current_list();
@@ -1009,9 +998,9 @@ void MillerView::navigate_to_depth(size_t target_depth) {
 }
 
 bool MillerView::focus_first_preview_control() {
-    if (!m_preview_layout || !m_window) return false;
+    if (!m_preview_frame || !m_window) return false;
     std::vector<View*> focusables;
-    m_preview_layout->collect_focusable_views(focusables);
+    m_preview_frame->collect_focusable_views(focusables);
     if (focusables.empty()) return false;
     set_preview_focused(true);
     m_window->set_focused_view(focusables.front());
@@ -1019,9 +1008,9 @@ bool MillerView::focus_first_preview_control() {
 }
 
 bool MillerView::focus_next_preview_control() {
-    if (!m_preview_layout || !m_window) return false;
+    if (!m_preview_frame || !m_window) return false;
     std::vector<View*> focusables;
-    m_preview_layout->collect_focusable_views(focusables);
+    m_preview_frame->collect_focusable_views(focusables);
     if (focusables.empty()) return false;
 
     set_preview_focused(true);
@@ -1036,9 +1025,9 @@ bool MillerView::focus_next_preview_control() {
 }
 
 bool MillerView::focus_prev_preview_control() {
-    if (!m_preview_layout || !m_window) return false;
+    if (!m_preview_frame || !m_window) return false;
     std::vector<View*> focusables;
-    m_preview_layout->collect_focusable_views(focusables);
+    m_preview_frame->collect_focusable_views(focusables);
     if (focusables.empty()) return false;
 
     set_preview_focused(true);

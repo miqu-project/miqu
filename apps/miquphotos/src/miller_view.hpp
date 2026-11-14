@@ -123,8 +123,7 @@ private:
     std::shared_ptr<TextView> m_preview_title;
 
     std::shared_ptr<ListView> m_category_list;
-    std::shared_ptr<ScrollView> m_preview_scroll;
-    std::shared_ptr<LinearLayout> m_preview_layout;
+    std::shared_ptr<FrameLayout> m_preview_frame;
 
     std::string m_search_query;
     std::vector<std::shared_ptr<FileItem>> m_search_results;
