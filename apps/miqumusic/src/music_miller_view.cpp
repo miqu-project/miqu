@@ -1,4 +1,5 @@
 #include "music_miller_view.hpp"
+#include "art_loader.hpp"
 #include <algorithm>
 #include <set>
 #include <iostream>
@@ -24,16 +25,16 @@ void MusicMillerView::setup_columns() {
     auto config = Config::get();
     clear_views();
     set_divider_spacing(10);
-    set_padding(12, 4, 12, 12);
+    set_padding(12, 4, 12, 4);
     set_background_color(Color::transparent());
 
     int inner_rad = config ? config->metrics.corner_radius - 2 : 8;
 
-    // 1. Column 1: Parent Pillar (width 280)
+    // 1. Column 1: Parent Pillar (width 260)
     m_parent_pillar = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->spacing(4)
-        ->padding(10, 10)
+        ->padding(8, 8)
         ->backgroundColor(Color::transparent())
         ->build();
 
@@ -54,13 +55,13 @@ void MusicMillerView::setup_columns() {
     m_parent_list->set_visibility(Visibility::Gone);
     m_parent_pillar->add_view(m_parent_list, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
-    add_view(m_parent_pillar, LayoutParams(280, MATCH_PARENT));
+    add_view(m_parent_pillar, LayoutParams(260, MATCH_PARENT));
 
-    // 2. Column 2: Current / Center Pillar (width 300)
+    // 2. Column 2: Current / Center Pillar (width 280)
     m_current_pillar = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->spacing(4)
-        ->padding(10, 10)
+        ->padding(8, 8)
         ->backgroundColor(Color::transparent())
         ->build();
 
@@ -84,24 +85,110 @@ void MusicMillerView::setup_columns() {
     });
 
     m_current_pillar->add_view(m_current_list, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
-    add_view(m_current_pillar, LayoutParams(300, MATCH_PARENT));
+    add_view(m_current_pillar, LayoutParams(280, MATCH_PARENT));
 
-    // 3. Column 3: Right Pillar (Hero Player Card / Visualizer)
-    m_right_pillar = LinearLayoutBuilder::create()
+    // 3. Column 3: Dynamic Child Pillar (Subcategories / Leaf Preview / Visualizer)
+    m_child_pillar = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->spacing(4)
-        ->padding(6, 6)
+        ->padding(8, 8)
         ->backgroundColor(Color::transparent())
         ->build();
 
-    m_player_card = std::make_shared<PlayerCardView>(m_client);
-    m_right_pillar->add_view(m_player_card, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
+    // 3a. Subcategories List (Dynamic 3rd Pillar)
+    m_child_list = ListViewBuilder::create()
+        ->itemHeight(40)
+        ->spacing(4)
+        ->itemCornerRadius(inner_rad)
+        ->scrollbar(false)
+        ->build();
+    m_child_list->set_selectable(true);
+    m_child_list->set_keyboard_navigation_enabled(false);
+    m_child_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
+        handle_child_item_click(idx);
+    });
+    m_child_pillar->add_view(m_child_list, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
+    // 3b. Leaf Preview Card (When at leaf track level)
+    m_leaf_preview = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->gravity(Gravity::CenterHorizontal)
+        ->padding(20, 16)
+        ->spacing(12)
+        ->backgroundColor(Color::transparent())
+        ->build();
+
+    m_preview_art_image = ImageViewBuilder::create()
+        ->fitMode(FitMode::Cover)
+        ->cornerRadius(12)
+        ->build();
+    m_preview_art_image->set_layout_params(LayoutParams(160, 160));
+
+    m_preview_art_card = CardViewBuilder::create()
+        ->cornerRadius(12)
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.5f))
+        ->elevation(0)
+        ->addView(m_preview_art_image)
+        ->build();
+    m_preview_art_card->set_focusable(false);
+    m_leaf_preview->add_view(m_preview_art_card, LayoutParams(160, 160, Gravity::CenterHorizontal));
+
+    m_preview_title = TextViewBuilder::create()
+        ->text("Track Title")
+        ->textSize(config->metrics.font_size + 3)
+        ->bold(true)
+        ->textColor(config->colors.on_surface)
+        ->textAlignment(TextAlignment::Center)
+        ->ellipsize(true)
+        ->build();
+    m_leaf_preview->add_view(m_preview_title, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity::CenterHorizontal));
+
+    m_preview_artist = TextViewBuilder::create()
+        ->text("Artist Name")
+        ->textSize(config->metrics.font_size + 1)
+        ->textColor(config->colors.primary)
+        ->textAlignment(TextAlignment::Center)
+        ->ellipsize(true)
+        ->build();
+    m_leaf_preview->add_view(m_preview_artist, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity::CenterHorizontal));
+
+    m_preview_album = TextViewBuilder::create()
+        ->text("Album Title")
+        ->textSize(config->metrics.font_size - 1)
+        ->textColor(config->colors.on_surface_variant)
+        ->textAlignment(TextAlignment::Center)
+        ->ellipsize(true)
+        ->build();
+    m_leaf_preview->add_view(m_preview_album, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity::CenterHorizontal));
+
+    m_preview_details = TextViewBuilder::create()
+        ->text("00:00 • MPD")
+        ->textSize(config->metrics.font_size - 2)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+        ->textAlignment(TextAlignment::Center)
+        ->build();
+    m_leaf_preview->add_view(m_preview_details, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity::CenterHorizontal));
+
+    m_preview_play_btn = ButtonBuilder::create()
+        ->text("▶ Play Track")
+        ->style(ButtonStyle::Primary)
+        ->padding(16, 8)
+        ->cornerRadius(8)
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.on_primary)
+        ->backgroundColor(config->colors.primary)
+        ->build();
+    m_leaf_preview->add_view(m_preview_play_btn, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::CenterHorizontal));
+
+    m_leaf_preview->set_visibility(Visibility::Gone);
+    m_child_pillar->add_view(m_leaf_preview, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
+
+    // 3c. Visualizer
     m_full_visualizer = std::make_shared<VisualizerView>();
     m_full_visualizer->set_visibility(Visibility::Gone);
-    m_right_pillar->add_view(m_full_visualizer, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
+    m_child_pillar->add_view(m_full_visualizer, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
-    add_view(m_right_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
+    add_view(m_child_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
     update_pillar_styles();
 }
@@ -120,18 +207,18 @@ void MusicMillerView::update_pillar_styles() {
         m_parent_pillar->set_background_color(Color::transparent());
     }
 
-    // 2. Column 2: Center Pillar (Subtle active border, indicating active navigation pillar)
+    // 2. Column 2: Center Pillar (Active border, indicating active navigation pillar)
     if (m_current_pillar) {
         m_current_pillar->set_corner_radius(radius);
         m_current_pillar->set_stroke(1, active_border);
         m_current_pillar->set_background_color(Color::transparent());
     }
 
-    // 3. Column 3: Right Pillar Container
-    if (m_right_pillar) {
-        m_right_pillar->set_corner_radius(radius);
-        m_right_pillar->set_stroke(0, Color::transparent());
-        m_right_pillar->set_background_color(Color::transparent());
+    // 3. Column 3: Child Pillar (Dynamic Subcategories / Preview)
+    if (m_child_pillar) {
+        m_child_pillar->set_corner_radius(radius);
+        m_child_pillar->set_stroke(0, Color::transparent());
+        m_child_pillar->set_background_color(Color::transparent());
     }
 }
 
@@ -216,7 +303,7 @@ void MusicMillerView::rebuild_columns() {
     update_pillar_styles();
     rebuild_parent_column();
     rebuild_current_column();
-    update_right_pillar();
+    rebuild_child_column();
     request_redraw();
 }
 
@@ -684,13 +771,337 @@ void MusicMillerView::rebuild_current_column() {
     }
 }
 
-void MusicMillerView::update_right_pillar() {
-    bool is_vis = (m_active_category == MusicCategory::Visualizer);
-    if (m_full_visualizer) {
-        m_full_visualizer->set_visibility(is_vis ? Visibility::Visible : Visibility::Gone);
+void MusicMillerView::rebuild_child_column() {
+    if (!m_child_list || !m_leaf_preview || !m_full_visualizer) return;
+
+    m_child_display_items.clear();
+    m_child_display_songs.clear();
+
+    // 1. Visualizer Mode
+    if (m_active_category == MusicCategory::Visualizer) {
+        m_child_list->set_visibility(Visibility::Gone);
+        m_leaf_preview->set_visibility(Visibility::Gone);
+        m_full_visualizer->set_visibility(Visibility::Visible);
+        return;
     }
-    if (m_player_card) {
-        m_player_card->set_visibility(is_vis ? Visibility::Gone : Visibility::Visible);
+    m_full_visualizer->set_visibility(Visibility::Gone);
+
+    // 2. Search Mode -> show leaf preview for highlighted search result
+    if (is_searching()) {
+        if (m_current_index >= 0 && m_current_index < static_cast<int>(m_search_results.size())) {
+            m_child_list->set_visibility(Visibility::Gone);
+            m_leaf_preview->set_visibility(Visibility::Visible);
+            update_leaf_preview(m_search_results[m_current_index]);
+        } else {
+            m_child_list->set_visibility(Visibility::Gone);
+            m_leaf_preview->set_visibility(Visibility::Gone);
+        }
+        return;
+    }
+
+    // 3. Depth 0: Show subcategories of currently focused category in Pillar 2!
+    if (m_path.empty()) {
+        m_leaf_preview->set_visibility(Visibility::Gone);
+        m_child_list->set_visibility(Visibility::Visible);
+        m_child_list->clear_items();
+
+        // Check which category is focused in Pillar 2
+        if (m_current_index == 0) { // Queue
+            m_child_display_songs = m_cached_queue;
+            for (size_t i = 0; i < m_child_display_songs.size(); ++i) {
+                m_child_list->add_item(create_song_row_item(i, m_child_display_songs[i], false));
+            }
+        } else if (m_current_index == 1) { // Artists
+            m_child_display_items = m_cached_artists;
+            for (const auto& art : m_child_display_items) {
+                m_child_list->add_item(create_row_item(art, "󰠃", true));
+            }
+        } else if (m_current_index == 2) { // Albums
+            m_child_display_items = m_cached_albums;
+            for (const auto& alb : m_child_display_items) {
+                m_child_list->add_item(create_row_item(alb, "󰀥", true));
+            }
+        } else if (m_current_index == 3) { // Playlists
+            m_child_display_items = m_cached_playlists;
+            for (const auto& pl : m_child_display_items) {
+                m_child_list->add_item(create_row_item(pl, "󰲸", true));
+            }
+        } else if (m_current_index == 4) { // Library
+            m_child_display_songs = m_cached_all_songs;
+            for (size_t i = 0; i < m_child_display_songs.size(); ++i) {
+                m_child_list->add_item(create_song_row_item(i, m_child_display_songs[i], false));
+            }
+        } else if (m_current_index == 5) { // Visualizer
+            m_child_list->set_visibility(Visibility::Gone);
+            m_full_visualizer->set_visibility(Visibility::Visible);
+        }
+        m_child_list->request_redraw();
+        return;
+    }
+
+    // 4. Depth 1
+    if (m_path.size() == 1) {
+        if (m_active_category == MusicCategory::Artists) {
+            // Pillar 2 shows artists. Pillar 3 shows Albums of focused artist!
+            if (m_current_index >= 0 && m_current_index < static_cast<int>(m_cached_artists.size())) {
+                const std::string& art = m_cached_artists[m_current_index];
+                std::set<std::string> artist_albums;
+                for (const auto& s : m_cached_all_songs) {
+                    if (s.artist == art && !s.album.empty()) {
+                        artist_albums.insert(s.album);
+                    }
+                }
+                m_child_display_items.assign(artist_albums.begin(), artist_albums.end());
+                m_leaf_preview->set_visibility(Visibility::Gone);
+                m_child_list->set_visibility(Visibility::Visible);
+                m_child_list->clear_items();
+                for (const auto& alb : m_child_display_items) {
+                    m_child_list->add_item(create_row_item(alb, "󰀥", true));
+                }
+                m_child_list->request_redraw();
+            }
+            return;
+        }
+
+        if (m_active_category == MusicCategory::Albums) {
+            // Pillar 2 shows albums. Pillar 3 shows Tracks of focused album!
+            if (m_current_index >= 0 && m_current_index < static_cast<int>(m_cached_albums.size())) {
+                const std::string& alb = m_cached_albums[m_current_index];
+                m_child_display_songs.clear();
+                for (const auto& s : m_cached_all_songs) {
+                    if (s.album == alb) m_child_display_songs.push_back(s);
+                }
+                m_leaf_preview->set_visibility(Visibility::Gone);
+                m_child_list->set_visibility(Visibility::Visible);
+                m_child_list->clear_items();
+                for (size_t i = 0; i < m_child_display_songs.size(); ++i) {
+                    m_child_list->add_item(create_song_row_item(i, m_child_display_songs[i], false));
+                }
+                m_child_list->request_redraw();
+            }
+            return;
+        }
+
+        if (m_active_category == MusicCategory::Playlists) {
+            // Pillar 2 shows playlists. Pillar 3 shows Tracks of focused playlist!
+            if (m_current_index >= 0 && m_current_index < static_cast<int>(m_cached_playlists.size())) {
+                const std::string& pl = m_cached_playlists[m_current_index];
+                if (m_client) {
+                    m_child_display_songs = m_client->get_playlist_songs(pl);
+                }
+                m_leaf_preview->set_visibility(Visibility::Gone);
+                m_child_list->set_visibility(Visibility::Visible);
+                m_child_list->clear_items();
+                for (size_t i = 0; i < m_child_display_songs.size(); ++i) {
+                    m_child_list->add_item(create_song_row_item(i, m_child_display_songs[i], false));
+                }
+                m_child_list->request_redraw();
+            }
+            return;
+        }
+
+        // Queue / Database: Pillar 2 shows songs, Pillar 3 shows Leaf Preview for highlighted song!
+        if (m_current_index >= 0 && m_current_index < static_cast<int>(m_current_display_songs.size())) {
+            m_child_list->set_visibility(Visibility::Gone);
+            m_leaf_preview->set_visibility(Visibility::Visible);
+            update_leaf_preview(m_current_display_songs[m_current_index]);
+            return;
+        }
+    }
+
+    // 5. Depth 2
+    if (m_path.size() == 2) {
+        if (m_active_category == MusicCategory::Artists) {
+            // Pillar 2 shows Albums of m_selected_artist. Pillar 3 shows Tracks of focused album!
+            std::set<std::string> artist_albums;
+            for (const auto& s : m_cached_all_songs) {
+                if (s.artist == m_selected_artist && !s.album.empty()) {
+                    artist_albums.insert(s.album);
+                }
+            }
+            std::vector<std::string> alb_vec(artist_albums.begin(), artist_albums.end());
+            if (m_current_index >= 0 && m_current_index < static_cast<int>(alb_vec.size())) {
+                const std::string& cur_alb = alb_vec[m_current_index];
+                m_child_display_songs.clear();
+                for (const auto& s : m_cached_all_songs) {
+                    if (s.artist == m_selected_artist && s.album == cur_alb) {
+                        m_child_display_songs.push_back(s);
+                    }
+                }
+                m_leaf_preview->set_visibility(Visibility::Gone);
+                m_child_list->set_visibility(Visibility::Visible);
+                m_child_list->clear_items();
+                for (size_t i = 0; i < m_child_display_songs.size(); ++i) {
+                    m_child_list->add_item(create_song_row_item(i, m_child_display_songs[i], false));
+                }
+                m_child_list->request_redraw();
+            }
+            return;
+        }
+
+        // Albums / Playlists: Pillar 2 shows songs of that album/playlist. Pillar 3 shows Leaf Preview for highlighted song!
+        if (m_current_index >= 0 && m_current_index < static_cast<int>(m_current_display_songs.size())) {
+            m_child_list->set_visibility(Visibility::Gone);
+            m_leaf_preview->set_visibility(Visibility::Visible);
+            update_leaf_preview(m_current_display_songs[m_current_index]);
+            return;
+        }
+    }
+
+    // 6. Depth 3: Artists › Artist › Album. Pillar 2 shows songs. Pillar 3 shows Leaf Preview!
+    if (m_path.size() == 3) {
+        if (m_current_index >= 0 && m_current_index < static_cast<int>(m_current_display_songs.size())) {
+            m_child_list->set_visibility(Visibility::Gone);
+            m_leaf_preview->set_visibility(Visibility::Visible);
+            update_leaf_preview(m_current_display_songs[m_current_index]);
+            return;
+        }
+    }
+
+    // Default fallback:
+    m_child_list->set_visibility(Visibility::Gone);
+    m_leaf_preview->set_visibility(Visibility::Gone);
+}
+
+void MusicMillerView::update_leaf_preview(const Song& song) {
+    m_preview_song = song;
+    auto config = Config::get();
+
+    if (m_preview_title) {
+        m_preview_title->set_text(song.display_title());
+    }
+    if (m_preview_artist) {
+        m_preview_artist->set_text(song.display_artist());
+    }
+    if (m_preview_album) {
+        m_preview_album->set_text(song.display_album() + (song.date.empty() ? "" : " (" + song.date + ")"));
+    }
+    if (m_preview_details) {
+        std::string det = song.formatted_duration();
+        if (!song.genre.empty()) det += " • " + song.genre;
+        m_preview_details->set_text(det);
+    }
+
+    if (m_preview_play_btn) {
+        m_preview_play_btn->set_on_click_listener([this, uri = song.uri]() {
+            if (m_client) m_client->add_and_play(uri);
+        });
+    }
+
+    if (!m_client || song.uri.empty()) {
+        if (m_preview_art_image) m_preview_art_image->set_image_resource("");
+    } else {
+        std::string art_path = ArtLoader::get_art_for_song(song, *m_client);
+        if (!art_path.empty() && m_preview_art_image) {
+            m_preview_art_image->set_image_resource(art_path);
+        } else if (m_preview_art_image) {
+            m_preview_art_image->set_image_resource("");
+        }
+    }
+}
+
+void MusicMillerView::handle_child_item_click(size_t idx) {
+    // 1. Root Depth 0: Clicking an item in Pillar 3 enters that child directly!
+    if (m_path.empty()) {
+        if (m_current_index == 0) { // Queue: play song
+            if (idx < m_cached_queue.size() && m_client) {
+                m_client->play_pos(static_cast<unsigned int>(idx));
+            }
+            return;
+        }
+        if (m_current_index == 1) { // Artists: enter selected artist
+            if (idx < m_cached_artists.size()) {
+                m_active_category = MusicCategory::Artists;
+                m_selected_artist = m_cached_artists[idx];
+                m_path.push_back({"Artists", "category"});
+                m_path.push_back({m_selected_artist, "artist"});
+                m_history_indices = {1, static_cast<int>(idx)};
+                m_current_index = 0;
+                rebuild_columns();
+                if (m_on_state_changed) m_on_state_changed();
+            }
+            return;
+        }
+        if (m_current_index == 2) { // Albums: enter selected album
+            if (idx < m_cached_albums.size()) {
+                m_active_category = MusicCategory::Albums;
+                m_selected_album = m_cached_albums[idx];
+                m_path.push_back({"Albums", "category"});
+                m_path.push_back({m_selected_album, "album"});
+                m_history_indices = {2, static_cast<int>(idx)};
+                m_current_index = 0;
+                rebuild_columns();
+                if (m_on_state_changed) m_on_state_changed();
+            }
+            return;
+        }
+        if (m_current_index == 3) { // Playlists: enter selected playlist
+            if (idx < m_cached_playlists.size()) {
+                m_active_category = MusicCategory::Playlists;
+                m_selected_playlist = m_cached_playlists[idx];
+                m_path.push_back({"Playlists", "category"});
+                m_path.push_back({m_selected_playlist, "playlist"});
+                m_history_indices = {3, static_cast<int>(idx)};
+                m_current_index = 0;
+                rebuild_columns();
+                if (m_on_state_changed) m_on_state_changed();
+            }
+            return;
+        }
+        if (m_current_index == 4) { // Library: play song
+            if (idx < m_cached_all_songs.size() && m_client) {
+                m_client->add_and_play(m_cached_all_songs[idx].uri);
+            }
+            return;
+        }
+        return;
+    }
+
+    // 2. Depth 1
+    if (m_path.size() == 1) {
+        if (m_active_category == MusicCategory::Artists) {
+            // Clicked an album in Pillar 3 for focused artist!
+            if (idx < m_child_display_items.size()) {
+                m_selected_artist = m_cached_artists[m_current_index];
+                m_selected_album = m_child_display_items[idx];
+                m_path.push_back({m_selected_artist, "artist"});
+                m_path.push_back({m_selected_album, "album"});
+                m_history_indices.push_back(m_current_index);
+                m_history_indices.push_back(static_cast<int>(idx));
+                m_current_index = 0;
+                rebuild_columns();
+                if (m_on_state_changed) m_on_state_changed();
+            }
+            return;
+        }
+
+        if (m_active_category == MusicCategory::Albums) {
+            // Clicked a track in Pillar 3 for focused album: play it!
+            if (idx < m_child_display_songs.size() && m_client) {
+                m_client->add_and_play(m_child_display_songs[idx].uri);
+            }
+            return;
+        }
+
+        if (m_active_category == MusicCategory::Playlists) {
+            // Clicked a track in Pillar 3 for focused playlist: play it!
+            if (idx < m_child_display_songs.size() && m_client) {
+                m_client->add_and_play(m_child_display_songs[idx].uri);
+            }
+            return;
+        }
+        return;
+    }
+
+    // 3. Depth 2
+    if (m_path.size() == 2) {
+        if (m_active_category == MusicCategory::Artists) {
+            // Clicked a track of album in Pillar 3: play it!
+            if (idx < m_child_display_songs.size() && m_client) {
+                m_client->add_and_play(m_child_display_songs[idx].uri);
+            }
+            return;
+        }
     }
 }
 
@@ -703,9 +1114,6 @@ void MusicMillerView::tick(double delta_time) {
 void MusicMillerView::update_playback(const MpdStatus& status, const Song& song) {
     m_last_status = status;
     m_last_song = song;
-    if (m_player_card) {
-        m_player_card->update_state(status, song);
-    }
     if (m_full_visualizer) {
         m_full_visualizer->set_playing(status.state == PlaybackState::Playing);
     }
@@ -726,6 +1134,7 @@ bool MusicMillerView::navigate_up() {
     m_current_index = std::max(0, m_current_index - 1);
     m_current_list->set_selected_index(m_current_index);
     m_current_list->request_redraw();
+    rebuild_child_column();
     return true;
 }
 
@@ -737,6 +1146,7 @@ bool MusicMillerView::navigate_down() {
     m_current_index = std::min(count - 1, m_current_index + 1);
     m_current_list->set_selected_index(m_current_index);
     m_current_list->request_redraw();
+    rebuild_child_column();
     return true;
 }
 
@@ -889,11 +1299,6 @@ bool MusicMillerView::navigate_back() {
         return true;
     }
 
-    if (m_preview_expanded) {
-        set_preview_expanded(false);
-        return true;
-    }
-
     if (!m_path.empty()) {
         m_path.pop_back();
 
@@ -925,7 +1330,7 @@ bool MusicMillerView::navigate_back() {
 }
 
 bool MusicMillerView::can_navigate_back() const {
-    return is_searching() || m_preview_expanded || !m_path.empty();
+    return is_searching() || !m_path.empty();
 }
 
 void MusicMillerView::navigate_to_depth(size_t depth) {
@@ -959,16 +1364,6 @@ void MusicMillerView::navigate_to_depth(size_t depth) {
 
     rebuild_columns();
     if (m_on_state_changed) m_on_state_changed();
-}
-
-void MusicMillerView::set_preview_expanded(bool expanded) {
-    if (m_preview_expanded != expanded) {
-        m_preview_expanded = expanded;
-        if (m_parent_pillar) m_parent_pillar->set_visibility(expanded ? Visibility::Gone : Visibility::Visible);
-        if (m_current_pillar) m_current_pillar->set_visibility(expanded ? Visibility::Gone : Visibility::Visible);
-        request_redraw();
-        if (m_on_state_changed) m_on_state_changed();
-    }
 }
 
 std::string MusicMillerView::get_current_leaf_title() const {
@@ -1010,8 +1405,17 @@ void MusicMillerView::set_search_query(const std::string& query) {
 void MusicMillerView::sync_theme() {
     update_pillar_styles();
     rebuild_columns();
-    if (m_player_card) m_player_card->sync_theme();
     request_redraw();
+}
+
+void MusicMillerView::set_preview_expanded(bool expanded) {
+    if (m_preview_expanded != expanded) {
+        m_preview_expanded = expanded;
+        if (m_parent_pillar) m_parent_pillar->set_visibility(expanded ? Visibility::Gone : Visibility::Visible);
+        if (m_current_pillar) m_current_pillar->set_visibility(expanded ? Visibility::Gone : Visibility::Visible);
+        request_redraw();
+        if (m_on_state_changed) m_on_state_changed();
+    }
 }
 
 bool MusicMillerView::on_mouse_move(int lx, int ly, const Rect& bounds) {
@@ -1024,6 +1428,9 @@ bool MusicMillerView::on_scroll(double delta) {
     if (!is_visible() || !is_enabled()) return false;
     Point pt(m_last_mouse_x, m_last_mouse_y);
 
+    if (m_child_pillar && m_child_pillar->get_bounds().contains(pt)) {
+        return m_child_list && m_child_list->is_visible() && m_child_list->on_scroll(delta);
+    }
     if (m_current_pillar && m_current_pillar->get_bounds().contains(pt)) {
         return m_current_list && m_current_list->is_visible() && m_current_list->on_scroll(delta);
     }

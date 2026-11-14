@@ -3,6 +3,7 @@
 #include "mpd_client.hpp"
 #include "mpd_types.hpp"
 #include "music_miller_view.hpp"
+#include "bottom_player_bar.hpp"
 #include <miqutoolkit/miqutoolkit.hpp>
 #include <memory>
 #include <string>
@@ -46,6 +47,7 @@ private:
     std::shared_ptr<miqu::LinearLayout> m_breadcrumb_container;
     std::shared_ptr<miqu::SearchView> m_search_view;
     std::shared_ptr<MusicMillerView> m_miller_view;
+    std::shared_ptr<BottomPlayerBar> m_player_bar;
 
     std::mutex m_status_mutex;
     MpdStatus m_status;

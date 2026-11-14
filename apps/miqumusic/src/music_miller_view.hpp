@@ -2,7 +2,6 @@
 
 #include "mpd_client.hpp"
 #include "mpd_types.hpp"
-#include "player_card_view.hpp"
 #include "visualizer_view.hpp"
 #include <miqutoolkit/miqutoolkit.hpp>
 #include <memory>
@@ -49,7 +48,7 @@ public:
     bool navigate_back();
     void navigate_to_depth(size_t depth);
 
-    // Expanded / Immersion mode (F11)
+    // Immersion mode (F11)
     bool is_preview_expanded() const { return m_preview_expanded; }
     void set_preview_expanded(bool expanded);
 
@@ -63,16 +62,17 @@ public:
 
     void set_on_state_changed(std::function<void()> cb) { m_on_state_changed = std::move(cb); }
 
-    std::shared_ptr<PlayerCardView> get_player_card() const { return m_player_card; }
-
 private:
     void setup_columns();
     void rebuild_columns();
     void update_pillar_styles();
     void rebuild_parent_column();
     void rebuild_current_column();
-    void update_right_pillar();
+    void rebuild_child_column();
+    void update_leaf_preview(const Song& song);
+
     void handle_parent_item_click(size_t idx);
+    void handle_child_item_click(size_t idx);
 
     std::shared_ptr<miqu::View> create_parent_hero_box(const std::shared_ptr<miqu::Config>& config);
     std::shared_ptr<miqu::View> create_row_item(const std::string& title, const std::string& icon = "", bool has_children = true);
@@ -80,16 +80,28 @@ private:
 
     std::shared_ptr<MpdClient> m_client;
 
-    // Pillars
+    // 3 Dynamic Columns
     std::shared_ptr<miqu::LinearLayout> m_parent_pillar;
     std::shared_ptr<miqu::LinearLayout> m_current_pillar;
-    std::shared_ptr<miqu::LinearLayout> m_right_pillar;
+    std::shared_ptr<miqu::LinearLayout> m_child_pillar;
 
+    // Pillar 1 views
     std::shared_ptr<miqu::View> m_parent_hero;
     std::shared_ptr<miqu::ListView> m_parent_list;
+
+    // Pillar 2 views
     std::shared_ptr<miqu::ListView> m_current_list;
 
-    std::shared_ptr<PlayerCardView> m_player_card;
+    // Pillar 3 views (Dynamic Subcategories, Leaf Preview, or Visualizer)
+    std::shared_ptr<miqu::ListView> m_child_list;
+    std::shared_ptr<miqu::LinearLayout> m_leaf_preview;
+    std::shared_ptr<miqu::CardView> m_preview_art_card;
+    std::shared_ptr<miqu::ImageView> m_preview_art_image;
+    std::shared_ptr<miqu::TextView> m_preview_title;
+    std::shared_ptr<miqu::TextView> m_preview_artist;
+    std::shared_ptr<miqu::TextView> m_preview_album;
+    std::shared_ptr<miqu::TextView> m_preview_details;
+    std::shared_ptr<miqu::Button> m_preview_play_btn;
     std::shared_ptr<VisualizerView> m_full_visualizer;
 
     // Navigation State
@@ -109,6 +121,11 @@ private:
     std::vector<std::string> m_cached_albums;
     std::vector<std::string> m_cached_playlists;
     std::vector<Song> m_current_display_songs;
+
+    // Pillar 3 dynamic cache
+    std::vector<std::string> m_child_display_items;
+    std::vector<Song> m_child_display_songs;
+    Song m_preview_song;
 
     std::string m_search_query;
     std::vector<Song> m_search_results;

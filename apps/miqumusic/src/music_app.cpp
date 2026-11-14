@@ -77,6 +77,9 @@ bool MusicApp::init() {
                 m_miller_view->update_playback(st, song);
                 m_miller_view->update_queue(q);
             }
+            if (m_player_bar) {
+                m_player_bar->update_state(st, song);
+            }
         }
 
         m_client->start_idle_listener();
@@ -226,6 +229,15 @@ void MusicApp::setup_ui() {
     miller_lp.height = static_cast<int>(LayoutDimension::MatchParent);
     miller_lp.weight = 1.0f;
     m_root_layout->add_view(m_miller_view, miller_lp);
+
+    // 4. Bottom Player Bar (Persistent Audio Player Dock)
+    auto divider = std::make_shared<DividerView>(Orientation::Horizontal, 1);
+    divider->set_color(config->colors.outline_variant.with_alpha(0.2f));
+    m_root_layout->add_view(divider, LayoutParams(static_cast<int>(LayoutDimension::MatchParent), 1));
+
+    m_player_bar = std::make_shared<BottomPlayerBar>(m_client);
+    LayoutParams bar_lp(static_cast<int>(LayoutDimension::MatchParent), 68);
+    m_root_layout->add_view(m_player_bar, bar_lp);
 }
 
 void MusicApp::update_header() {
@@ -337,6 +349,9 @@ void MusicApp::setup_mpd_callbacks() {
                 }
                 if (m_miller_view) {
                     m_miller_view->update_playback(st, song);
+                }
+                if (m_player_bar) {
+                    m_player_bar->update_state(st, song);
                 }
                 if (m_toolbar) {
                     std::string state_str = (st.state == PlaybackState::Playing) ? "Playing" :
@@ -514,6 +529,9 @@ void MusicApp::sync_theme() {
 
     if (m_miller_view) {
         m_miller_view->sync_theme();
+    }
+    if (m_player_bar) {
+        m_player_bar->sync_theme();
     }
 
     update_header();

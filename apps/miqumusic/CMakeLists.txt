@@ -20,7 +20,7 @@ add_executable(miqumusic
     src/main.cpp
     src/music_app.cpp
     src/music_miller_view.cpp
-    src/player_card_view.cpp
+    src/bottom_player_bar.cpp
     src/visualizer_view.cpp
     src/mpd_client.cpp
     src/art_loader.cpp
