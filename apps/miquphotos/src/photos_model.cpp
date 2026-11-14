@@ -1,4 +1,5 @@
 #include "photos_model.hpp"
+#include <miqutoolkit/core/fs_utils.hpp>
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -211,10 +212,15 @@ std::vector<std::shared_ptr<FileItem>> PhotosModel::build_default_tree(const std
     // 1. If start_path was explicitly provided, scan it first
     if (!start_path.empty()) {
         std::error_code ec;
-        fs::path sp(start_path);
-        if (fs::exists(sp, ec) && fs::is_directory(sp, ec)) {
-            inspect_and_add(sp);
-            scan_subdirs_recursive(sp, 3);
+        fs::path sp = FsUtils::expand_user_path(start_path);
+        if (fs::exists(sp, ec)) {
+            if (fs::is_directory(sp, ec)) {
+                inspect_and_add(sp);
+                scan_subdirs_recursive(sp, 3);
+            } else if (fs::is_regular_file(sp, ec)) {
+                inspect_and_add(sp.parent_path());
+                scan_subdirs_recursive(sp.parent_path(), 3);
+            }
         }
     }
 
