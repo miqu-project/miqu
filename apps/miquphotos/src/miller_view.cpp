@@ -418,9 +418,7 @@ bool MillerView::on_scroll(double delta) {
 
     if (m_preview_pillar && m_preview_pillar->get_bounds().contains(pt)) {
         if (m_category_list && m_category_list->is_visible()) return m_category_list->on_scroll(delta);
-        if (delta > 0) return navigate_down();
-        if (delta < 0) return navigate_up();
-        return true;
+        return false;
     }
 
     if (m_current_pillar && m_current_pillar->get_bounds().contains(pt)) {
@@ -800,7 +798,8 @@ void MillerView::rebuild_preview_column() {
 }
 
 bool MillerView::navigate_up() {
-    if (m_preview_focused && !m_preview_expanded) {
+    if (m_preview_expanded) return false;
+    if (m_preview_focused) {
         return focus_first_preview_control();
     }
     const auto& list = get_current_list();
@@ -819,7 +818,8 @@ bool MillerView::navigate_up() {
 }
 
 bool MillerView::navigate_down() {
-    if (m_preview_focused && !m_preview_expanded) {
+    if (m_preview_expanded) return false;
+    if (m_preview_focused) {
         return focus_first_preview_control();
     }
     const auto& list = get_current_list();
