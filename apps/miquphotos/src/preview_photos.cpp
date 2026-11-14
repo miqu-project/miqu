@@ -103,9 +103,6 @@ void MillerView::render_category_children_preview(const std::shared_ptr<FileItem
             m_category_list->add_item(create_list_row_item(child, config));
         }
     }
-    if (m_preview_scroll) {
-        m_preview_scroll->set_visibility(Visibility::Gone);
-    }
     if (m_preview_frame) {
         m_preview_frame->set_visibility(Visibility::Gone);
     }

@@ -265,19 +265,15 @@ void MillerView::init(const std::string& start_path) {
     });
     m_preview_pillar->add_view(m_category_list, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
-    // 3c. Photo Preview & Detail Container (FrameLayout wrapped in ScrollView for strict focus containment)
+    // 3c. Photo Preview & Detail Container (Native Focus Scope layout)
     m_preview_frame = FrameLayoutBuilder::create()
         ->backgroundColor(Color::transparent())
         ->padding(4, 2, 4, 4)
+        ->focusScope(true)
         ->build();
-    m_preview_frame->set_layout_params(LayoutParams(MATCH_PARENT, MATCH_PARENT));
+    m_preview_frame->set_layout_params(LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
-    m_preview_scroll = ScrollViewBuilder::create()
-        ->contentView(m_preview_frame)
-        ->scrollbar(false)
-        ->build();
-
-    m_preview_pillar->add_view(m_preview_scroll, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
+    m_preview_pillar->add_view(m_preview_frame, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
     add_view(m_preview_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
     // On launch: left pillar shows Photos Label Icon.
@@ -410,7 +406,7 @@ bool MillerView::on_mouse_button(int lx, int ly, MouseButton button, bool presse
 
     if (button == MouseButton::Left && pressed) {
         bool in_preview_form = m_preview_pillar && m_preview_pillar->get_bounds().contains(Point(lx, ly))
-                               && m_preview_scroll && m_preview_scroll->is_visible();
+                               && m_preview_frame && m_preview_frame->is_visible();
         if (in_preview_form != m_preview_focused) {
             set_preview_focused(in_preview_form);
         }
@@ -747,7 +743,6 @@ void MillerView::rebuild_preview_column() {
 
     if (!item) {
         if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
-        if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
         if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Visible);
         if (!m_path.empty()) {
             render_empty_folder_preview(m_path.back(), config);
@@ -761,7 +756,6 @@ void MillerView::rebuild_preview_column() {
         item->ensure_children();
         if (item->children.empty()) {
             if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
-            if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
             if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Visible);
             render_empty_folder_preview(item, config);
         } else {
@@ -772,7 +766,6 @@ void MillerView::rebuild_preview_column() {
 
     // Leaf photo preview
     if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
-    if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
     if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Visible);
 
     render_photo_preview(item, config);

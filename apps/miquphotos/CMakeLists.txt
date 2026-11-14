@@ -36,8 +36,10 @@ target_link_libraries(miquphotos PRIVATE
 # Local in-tree dev tree fallback
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build/libmiqutoolkit.so")
     target_link_libraries(miquphotos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build/libmiqutoolkit.so")
+    set_target_properties(miquphotos PROPERTIES INSTALL_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build;${CMAKE_INSTALL_PREFIX}/lib;$ORIGIN/../lib")
 elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/build/libmiqutoolkit.so")
     target_link_libraries(miquphotos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/build/libmiqutoolkit.so")
+    set_target_properties(miquphotos PROPERTIES INSTALL_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/build;${CMAKE_INSTALL_PREFIX}/lib;$ORIGIN/../lib")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/include")
