@@ -782,6 +782,13 @@ void MusicMillerView::rebuild_child_column() {
         m_child_list->set_visibility(Visibility::Gone);
         m_leaf_preview->set_visibility(Visibility::Gone);
         m_full_visualizer->set_visibility(Visibility::Visible);
+
+        if (m_current_index == 0) m_full_visualizer->set_mode(VisualizerMode::SpectrumBars);
+        else if (m_current_index == 1) m_full_visualizer->set_mode(VisualizerMode::WaveformScope);
+        else if (m_current_index == 2) m_full_visualizer->set_mode(VisualizerMode::GlowPeaks);
+
+        m_full_visualizer->request_redraw();
+        request_redraw();
         return;
     }
     m_full_visualizer->set_visibility(Visibility::Gone);
@@ -834,6 +841,7 @@ void MusicMillerView::rebuild_child_column() {
         } else if (m_current_index == 5) { // Visualizer
             m_child_list->set_visibility(Visibility::Gone);
             m_full_visualizer->set_visibility(Visibility::Visible);
+            m_full_visualizer->set_mode(VisualizerMode::SpectrumBars);
         }
         m_child_list->request_redraw();
         return;
@@ -1135,6 +1143,7 @@ bool MusicMillerView::navigate_up() {
     m_current_list->set_selected_index(m_current_index);
     m_current_list->request_redraw();
     rebuild_child_column();
+    request_redraw();
     return true;
 }
 
@@ -1147,6 +1156,7 @@ bool MusicMillerView::navigate_down() {
     m_current_list->set_selected_index(m_current_index);
     m_current_list->request_redraw();
     rebuild_child_column();
+    request_redraw();
     return true;
 }
 

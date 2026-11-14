@@ -506,6 +506,10 @@ void MusicApp::handle_key_press(const KeyPressEvent& event) {
         default:
             break;
     }
+
+    if (m_window) {
+        m_window->schedule_redraw();
+    }
 }
 
 void MusicApp::sync_theme() {
