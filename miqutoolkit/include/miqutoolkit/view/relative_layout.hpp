@@ -70,6 +70,11 @@ public:
         return shared_from_this();
     }
 
+    std::shared_ptr<RelativeLayoutBuilder> focusScope(bool scope = true) {
+        m_layout->set_focus_scope(scope);
+        return shared_from_this();
+    }
+
     std::shared_ptr<RelativeLayout> build() {
         return m_layout;
     }

@@ -36,6 +36,9 @@ public:
     void set_corner_radius(int radius) { m_corner_radius = radius; }
     int get_corner_radius() const { return m_corner_radius; }
 
+    void set_focus_scope(bool scope) { m_is_focus_scope = scope; }
+    bool is_focus_scope() const { return m_is_focus_scope; }
+
     static void draw_rounded_rect(cairo_t* cr, double x, double y, double w, double h, double r);
 
     bool on_mouse_move(int lx, int ly, const Rect& bounds) override;
@@ -66,6 +69,7 @@ protected:
     Color m_stroke_color = Color::transparent();
     int m_corner_radius = 0;
     bool m_pressed = false;
+    bool m_is_focus_scope = false;
 
     std::shared_ptr<View> m_touch_target;
     Rect m_touch_target_bounds;

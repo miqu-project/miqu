@@ -1138,21 +1138,27 @@ bool Window::focus_direction(FocusDirection dir) {
 
     if (!m_focused_view) return focus_next();
 
-    // Check if focused view is inside a ScrollView container
+    // Check if focused view is inside an enclosing focus scope or ScrollView container
+    ViewGroup* enclosing_scope = nullptr;
     ScrollView* enclosing_sv = nullptr;
     ViewGroup* p = m_focused_view->get_parent();
     while (p) {
-        if (auto sv = dynamic_cast<ScrollView*>(p)) {
-            enclosing_sv = sv;
+        if (!enclosing_sv) {
+            if (auto sv = dynamic_cast<ScrollView*>(p)) {
+                enclosing_sv = sv;
+            }
+        }
+        if (p->is_focus_scope() || dynamic_cast<ScrollView*>(p)) {
+            enclosing_scope = p;
             break;
         }
         p = p->get_parent();
     }
 
     std::vector<View*> focusable;
-    if (enclosing_sv) {
-        // Confine spatial navigation strictly to the ScrollView container
-        enclosing_sv->collect_focusable_views(focusable);
+    if (enclosing_scope) {
+        // Confine spatial navigation strictly to the enclosing focus scope or ScrollView
+        enclosing_scope->collect_focusable_views(focusable);
     } else if (auto group = std::dynamic_pointer_cast<ViewGroup>(m_root_view)) {
         group->collect_focusable_views(focusable);
     } else if (m_root_view && m_root_view->is_focusable()) {

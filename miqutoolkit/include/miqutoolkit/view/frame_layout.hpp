@@ -86,6 +86,11 @@ public:
         return shared_from_this();
     }
 
+    std::shared_ptr<FrameLayoutBuilder> focusScope(bool scope = true) {
+        m_layout->set_focus_scope(scope);
+        return shared_from_this();
+    }
+
     std::shared_ptr<FrameLayout> build() {
         return m_layout;
     }

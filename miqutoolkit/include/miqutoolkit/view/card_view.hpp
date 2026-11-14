@@ -167,6 +167,11 @@ public:
         return shared_from_this();
     }
 
+    std::shared_ptr<CardViewBuilder> focusScope(bool scope = true) {
+        m_view->set_focus_scope(scope);
+        return shared_from_this();
+    }
+
     std::shared_ptr<CardView> build() {
         return m_view;
     }
