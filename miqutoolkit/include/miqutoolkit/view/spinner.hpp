@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <vector>
 #include <string>
 #include <functional>
@@ -108,9 +108,9 @@ private:
     std::function<void(int, const std::string&)> m_on_item_selected;
 };
 
-class SpinnerBuilder : public std::enable_shared_from_this<SpinnerBuilder> {
+class SpinnerBuilder : public ViewBuilder<SpinnerBuilder, Spinner> {
 public:
-    SpinnerBuilder() : m_view(std::make_shared<Spinner>()) {}
+    SpinnerBuilder() : ViewBuilder<SpinnerBuilder, Spinner>() {}
 
     static std::shared_ptr<SpinnerBuilder> create() {
         return std::make_shared<SpinnerBuilder>();
@@ -180,53 +180,6 @@ public:
         m_view->set_on_item_selected_listener(std::move(listener));
         return shared_from_this();
     }
-
-    std::shared_ptr<SpinnerBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SpinnerBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SpinnerBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SpinnerBuilder> padding(int l, int t, int r, int b) {
-        m_view->set_padding(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SpinnerBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SpinnerBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SpinnerBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SpinnerBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<Spinner> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<Spinner> m_view;
 };
 
 } // namespace miqu

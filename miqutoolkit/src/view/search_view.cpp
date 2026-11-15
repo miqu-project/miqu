@@ -9,8 +9,15 @@
 namespace miqu {
 
 SearchView::SearchView() {
+    set_focusable(true);
+    set_draw_focus_ring(true);
+
     m_title_view = TextViewBuilder::create()->bold(true)->textSize(12)->build();
+    m_title_view->set_focusable(false);
+
     m_edit_text = EditTextBuilder::create()->focused(false)->padding(0, 0)->drawBackground(false)->build();
+    m_edit_text->set_focusable(false);
+    m_edit_text->set_draw_focus_ring(false);
 
     m_edit_text->set_on_text_changed_listener([this](auto, const std::string& text) {
         if (m_on_text_change) {
@@ -52,13 +59,36 @@ const std::string& SearchView::get_query() const {
 }
 
 void SearchView::set_focused(bool focus) {
-    if (m_edit_text) {
-        m_edit_text->set_focused(focus);
+    if (focus) {
+        if (is_focusable()) {
+            if (auto* w = get_window()) {
+                w->set_focused_view(this);
+            }
+            if (m_edit_text) {
+                m_edit_text->set_focused(true);
+            }
+        }
+    } else {
+        if (has_focus()) {
+            clear_focus();
+        }
+        if (m_edit_text) {
+            m_edit_text->set_focused(false);
+        }
     }
+    request_redraw();
 }
 
 bool SearchView::is_focused() const {
-    return m_edit_text ? m_edit_text->is_focused() : false;
+    return has_focus() || (m_edit_text && m_edit_text->is_focused());
+}
+
+void SearchView::on_focus_changed(bool focused) {
+    ViewGroup::on_focus_changed(focused);
+    if (m_edit_text) {
+        m_edit_text->set_focused(focused);
+    }
+    request_redraw();
 }
 
 void SearchView::set_on_query_text_listener(std::function<void(const std::string&)> on_change,
@@ -75,8 +105,8 @@ void SearchView::set_on_query_text_listener(std::function<void(const std::string
 }
 
 Size SearchView::measure_size() const {
-    int pad_h = m_padding.left + m_padding.right;
-    int pad_v = m_padding.top + m_padding.bottom;
+    int pad_h = (m_padding.left > 0 || m_padding.right > 0) ? (m_padding.left + m_padding.right) : 44;
+    int pad_v = (m_padding.top > 0 || m_padding.bottom > 0) ? (m_padding.top + m_padding.bottom) : 16;
     return Size(m_bounds.width > 0 ? m_bounds.width : 200 + pad_h, 24 + pad_v);
 }
 
@@ -116,15 +146,9 @@ void SearchView::draw(cairo_t* cr, const Rect& bounds) {
     }
     cairo_fill(cr);
 
-    // 3. Focused Outline
-    if (is_focused() && m_focus_border) {
-        CardView::draw_rounded_rect(cr, draw_x + 0.5, draw_y + 0.5, draw_w - 1.0, draw_h - 1.0, radius);
-        cairo_set_source_rgba(cr, config->colors.primary.r,
-                                  config->colors.primary.g,
-                                  config->colors.primary.b,
-                                  0.9f);
-        cairo_set_line_width(cr, 1.5);
-        cairo_stroke(cr);
+    // 3. Focused Outline / Stroke
+    if (is_focused() && m_focus_border && should_draw_focus_ring()) {
+        draw_focus_ring(cr, bounds);
     } else if (m_stroke_width > 0 && m_stroke_color.a > 0.0f) {
         double offset = m_stroke_width / 2.0;
         CardView::draw_rounded_rect(cr, draw_x + offset, draw_y + offset, draw_w - m_stroke_width, draw_h - m_stroke_width, std::max(0.0, radius - offset));
@@ -136,10 +160,10 @@ void SearchView::draw(cairo_t* cr, const Rect& bounds) {
     cairo_restore(cr);
 
     // 4. Inset by Padding
-    int pad_l = m_padding.left > 0 ? m_padding.left : 16;
-    int pad_r = m_padding.right > 0 ? m_padding.right : 16;
-    int pad_t = m_padding.top;
-    int pad_b = m_padding.bottom;
+    int pad_l = m_padding.left > 0 ? m_padding.left : 22;
+    int pad_r = m_padding.right > 0 ? m_padding.right : 22;
+    int pad_t = m_padding.top > 0 ? m_padding.top : 8;
+    int pad_b = m_padding.bottom > 0 ? m_padding.bottom : 8;
 
     int content_x = draw_x + pad_l;
     int content_y = draw_y + pad_t;
@@ -162,7 +186,7 @@ void SearchView::draw(cairo_t* cr, const Rect& bounds) {
         m_child_entries.push_back({m_title_view, title_rect});
         m_title_view->draw(cr, title_rect);
 
-        current_x += title_w + 12; // Gap between title and input field
+        current_x += title_w + 14; // Generous breathing gap between title and input field
     }
 
     // 6. Draw Inner EditText spanning the rest of the right side
@@ -176,7 +200,7 @@ void SearchView::draw(cairo_t* cr, const Rect& bounds) {
 }
 
 void SearchView::draw_focus_ring(cairo_t* cr, const Rect& bounds) {
-    if (!should_draw_focus_ring() || !cr || bounds.width <= 0 || bounds.height <= 0) return;
+    if (!should_draw_focus_ring() || !m_focus_border || !cr || bounds.width <= 0 || bounds.height <= 0) return;
     auto config = Config::get();
     Color focus_color = config ? config->colors.primary : Color(0.2f, 0.6f, 1.0f);
 
@@ -184,12 +208,14 @@ void SearchView::draw_focus_ring(cairo_t* cr, const Rect& bounds) {
     cairo_set_source_rgba(cr, focus_color.r, focus_color.g, focus_color.b, 0.90f);
     cairo_set_line_width(cr, 2.0);
 
-    double offset = 1.0;
-    double x = bounds.x + offset;
-    double y = bounds.y + offset;
-    double w = bounds.width - (offset * 2.0);
-    double h = bounds.height - (offset * 2.0);
-    double r = (m_corner_radius >= 0) ? m_corner_radius : (h / 2.0);
+    // Floating focus ring with 2.5px outset breathing gap outside the search pill
+    double gap = 2.5;
+    double x = bounds.x - gap;
+    double y = bounds.y - gap;
+    double w = bounds.width + (gap * 2.0);
+    double h = bounds.height + (gap * 2.0);
+    double base_r = (m_corner_radius >= 0) ? static_cast<double>(m_corner_radius) : (bounds.height / 2.0);
+    double r = base_r + gap;
 
     CardView::draw_rounded_rect(cr, x, y, w, h, r);
     cairo_stroke(cr);
@@ -201,13 +227,13 @@ void SearchView::draw_focus_ring(cairo_t* cr, const Rect& bounds) {
 }
 
 bool SearchView::on_key(const KeyPressEvent& event) {
-    if (!is_visible() || !event.pressed) return false;
-    bool has_any_focus = (has_focus() || is_focused() || (m_edit_text && (m_edit_text->has_focus() || m_edit_text->is_focused())));
+    if (!is_visible() || !is_enabled()) return false;
+    bool has_any_focus = (has_focus() || is_focused() || (m_edit_text && m_edit_text->is_focused()));
     if (!has_any_focus) {
         return false;
     }
 
-    if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
+    if (event.pressed && (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter)) {
         if (m_on_text_submit && m_edit_text) {
             m_on_text_submit(m_edit_text->get_text());
             return true;
@@ -221,7 +247,7 @@ bool SearchView::on_key(const KeyPressEvent& event) {
 }
 
 bool SearchView::on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) {
-    if (!is_visible()) return false;
+    if (!is_visible() || !is_enabled()) return false;
 
     int draw_x = bounds.x;
     int draw_y = bounds.y;
@@ -231,17 +257,32 @@ bool SearchView::on_mouse_button(int lx, int ly, MouseButton button, bool presse
 
     if (button == MouseButton::Left && pressed) {
         if (pill_rect.contains(lx, ly)) {
-            set_focused(true);
-            if (m_edit_text) {
-                for (const auto& entry : m_child_entries) {
-                    if (entry.view == m_edit_text) {
-                        return m_edit_text->on_mouse_button(lx, ly, button, pressed, entry.allocated_bounds);
+            if (is_focusable()) {
+                if (auto* w = get_window()) {
+                    w->set_focused_view(this);
+                } else {
+                    set_focused(true);
+                }
+                if (m_edit_text) {
+                    for (const auto& entry : m_child_entries) {
+                        if (entry.view == m_edit_text) {
+                            if (entry.allocated_bounds.contains(lx, ly)) {
+                                m_edit_text->on_mouse_button(lx, ly, button, pressed, entry.allocated_bounds);
+                            } else if (lx < entry.allocated_bounds.x) {
+                                m_edit_text->on_mouse_button(entry.allocated_bounds.x, entry.allocated_bounds.y + 1, button, pressed, entry.allocated_bounds);
+                            } else {
+                                m_edit_text->on_mouse_button(entry.allocated_bounds.x + entry.allocated_bounds.width - 1, entry.allocated_bounds.y + 1, button, pressed, entry.allocated_bounds);
+                            }
+                            break;
+                        }
                     }
                 }
             }
             return true;
         } else {
-            set_focused(false);
+            if (has_focus()) {
+                clear_focus();
+            }
         }
     }
     return false;
@@ -249,6 +290,23 @@ bool SearchView::on_mouse_button(int lx, int ly, MouseButton button, bool presse
 
 bool SearchView::on_mouse_move(int lx, int ly, const Rect& bounds) {
     return ViewGroup::on_mouse_move(lx, ly, bounds);
+}
+
+void SearchView::set_focusable(bool focusable) {
+    View::set_focusable(focusable);
+    if (!focusable) {
+        if (has_focus()) {
+            clear_focus();
+        }
+        if (m_edit_text) {
+            m_edit_text->set_focused(false);
+        }
+    }
+}
+
+void SearchView::collect_focusable_views(std::vector<View*>& out) {
+    if (!is_visible() || !is_enabled() || !is_focusable()) return;
+    out.push_back(this);
 }
 
 } // namespace miqu

@@ -52,6 +52,7 @@ void ControlPanelApp::setup_ui() {
     // 1. Top Toolbar (Centered Title "Settings", power button on right)
     m_toolbar = ToolbarBuilder::create()
         ->title("Settings")
+        ->iconResource("preferences-system")
         ->titleAlignment(TitleAlignment::Center)
         ->showDivider(false)
         ->onClose([this]() {
@@ -92,6 +93,8 @@ void ControlPanelApp::setup_ui() {
         ->style(CardStyle::Filled)
         ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
         ->elevation(0)
+        ->tooltip("Back")
+        ->tooltipShortcut("Left / Backspace")
         ->addView(back_content)
         ->build();
 
@@ -418,7 +421,8 @@ void ControlPanelApp::handle_key_press(const KeyPressEvent& event) {
             }
         } else {
             // In standard 3-pillar mode: Left, Backspace, or Escape exits to middle pillar
-            if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
+            if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_h ||
+                event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
                 if (m_window) m_window->clear_focus();
                 m_miller_view->set_preview_focused(false);
                 return;
@@ -428,6 +432,7 @@ void ControlPanelApp::handle_key_press(const KeyPressEvent& event) {
         // If right pillar is active but no control has focus yet (e.g. empty space clicked)
         if (!m_window || !m_window->get_focused_view() || !m_window->get_focused_view()->has_focus()) {
             if (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_Up ||
+                event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_k ||
                 event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
                 m_miller_view->focus_first_preview_control();
                 return;
@@ -438,20 +443,24 @@ void ControlPanelApp::handle_key_press(const KeyPressEvent& event) {
 
     // 5. State 3: List Mode (Middle Pillar Active)
     switch (event.keysym) {
+        case XKB_KEY_k:
         case XKB_KEY_Up:
             m_miller_view->navigate_up();
             break;
 
+        case XKB_KEY_j:
         case XKB_KEY_Down:
             m_miller_view->navigate_down();
             break;
 
+        case XKB_KEY_l:
         case XKB_KEY_Right:
         case XKB_KEY_Return:
         case XKB_KEY_KP_Enter:
             m_miller_view->navigate_enter();
             break;
 
+        case XKB_KEY_h:
         case XKB_KEY_Left:
         case XKB_KEY_BackSpace:
             m_miller_view->navigate_back();

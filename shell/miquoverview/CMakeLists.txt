@@ -48,6 +48,7 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/../../miquland/src
         ${CMAKE_CURRENT_SOURCE_DIR}/../../miquland/subprojects/scenefx/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../miquland/build
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../build/miquland
     )
 endif()
 

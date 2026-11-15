@@ -315,6 +315,4 @@ void TabBar::draw(cairo_t* cr, const Rect& bounds) {
     }
 }
 
-TabBarBuilder::TabBarBuilder() : m_view(std::make_shared<TabBar>()) {}
-
 } // namespace miqu

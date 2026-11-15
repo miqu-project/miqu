@@ -123,6 +123,4 @@ bool ViewPager::on_touch(const TouchEvent& event, const Rect& bounds) {
     return false;
 }
 
-ViewPagerBuilder::ViewPagerBuilder() : m_view(std::make_shared<ViewPager>()) {}
-
 } // namespace miqu

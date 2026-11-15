@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <string>
 #include <vector>
 #include <functional>
@@ -72,9 +72,9 @@ private:
     int get_item_index_at(int lx, int ly, const Rect& bounds) const;
 };
 
-class BottomNavigationViewBuilder : public std::enable_shared_from_this<BottomNavigationViewBuilder> {
+class BottomNavigationViewBuilder : public ViewBuilder<BottomNavigationViewBuilder, BottomNavigationView> {
 public:
-    BottomNavigationViewBuilder();
+    BottomNavigationViewBuilder() : ViewBuilder<BottomNavigationViewBuilder, BottomNavigationView>() {}
 
     static std::shared_ptr<BottomNavigationViewBuilder> create() {
         return std::make_shared<BottomNavigationViewBuilder>();
@@ -129,43 +129,6 @@ public:
         m_view->set_pill_size(w, h);
         return shared_from_this();
     }
-
-    std::shared_ptr<BottomNavigationViewBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<BottomNavigationViewBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<BottomNavigationViewBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<BottomNavigationViewBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<BottomNavigationViewBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<BottomNavigationViewBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<BottomNavigationView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<BottomNavigationView> m_view;
 };
 
 } // namespace miqu

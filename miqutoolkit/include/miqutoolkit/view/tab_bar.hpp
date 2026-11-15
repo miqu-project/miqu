@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view_group.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <string>
 #include <vector>
 #include <functional>
@@ -97,9 +97,9 @@ private:
     std::function<void(int)> m_on_tab_selected;
 };
 
-class TabBarBuilder : public std::enable_shared_from_this<TabBarBuilder> {
+class TabBarBuilder : public ViewGroupBuilder<TabBarBuilder, TabBar> {
 public:
-    TabBarBuilder();
+    TabBarBuilder() : ViewGroupBuilder<TabBarBuilder, TabBar>() {}
 
     static std::shared_ptr<TabBarBuilder> create() {
         return std::make_shared<TabBarBuilder>();
@@ -145,37 +145,10 @@ public:
         return shared_from_this();
     }
 
-    std::shared_ptr<TabBarBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TabBarBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TabBarBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TabBarBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
     std::shared_ptr<TabBarBuilder> onTabSelected(std::function<void(int)> cb) {
         m_view->set_on_tab_selected_listener(std::move(cb));
         return shared_from_this();
     }
-
-    std::shared_ptr<TabBar> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<TabBar> m_view;
 };
 
 } // namespace miqu

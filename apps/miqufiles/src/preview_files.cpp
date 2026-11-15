@@ -23,13 +23,13 @@ void MillerView::render_empty_preview(const std::shared_ptr<Config>& config) {
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text("󰉖")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.5f))
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.5f))
-        ->center(true)
+    auto icon = ImageViewBuilder::create()
+        ->source("system-file-manager")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.5f)
         ->build();
-    card->add_view(icon);
+    card->add_view(icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto text = TextViewBuilder::create()
         ->text("No File Selected")
@@ -80,13 +80,12 @@ void MillerView::render_empty_folder_preview(const std::shared_ptr<FileItem>& it
         ->cornerRadius(get_inner_radius(config))
         ->build();
 
-    auto folder_icon = TextViewBuilder::create()
-        ->text(item->icon.empty() ? "󰉖" : item->icon)
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.2f))
-        ->textColor(config->colors.primary.with_alpha(0.85f))
-        ->center(true)
+    auto folder_icon = ImageViewBuilder::create()
+        ->source(item->icon.empty() ? "folder" : item->icon)
+        ->targetSize(56)
+        ->fitMode(FitMode::Contain)
         ->build();
-    icon_box->add_view(folder_icon);
+    icon_box->add_view(folder_icon, LayoutParams(56, 56, Gravity::Center));
     header_row->add_view(icon_box, LayoutParams(80, 80));
 
     // Info Column
@@ -139,7 +138,8 @@ void MillerView::render_empty_folder_preview(const std::shared_ptr<FileItem>& it
         ->build();
 
     auto term_btn = ButtonBuilder::create()
-        ->text("󰆍 Terminal Here")
+        ->icon("utilities-terminal")
+        ->text("Terminal")
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
         ->textSize(config->metrics.font_size)
@@ -153,7 +153,8 @@ void MillerView::render_empty_folder_preview(const std::shared_ptr<FileItem>& it
     action_row->add_view(term_btn, LayoutParams(WRAP_CONTENT, 32));
 
     auto copy_btn = ButtonBuilder::create()
-        ->text("󰅍 Copy Path")
+        ->icon("edit-copy")
+        ->text("Copy Path")
         ->flat(true)
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
@@ -256,13 +257,12 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
             ->cornerRadius(get_inner_radius(config))
             ->build();
 
-        auto file_icon = TextViewBuilder::create()
-            ->text(item->icon.empty() ? "󰈔" : item->icon)
-            ->textSize(static_cast<int>(config->metrics.font_size * 2.2f))
-            ->textColor(config->colors.primary.with_alpha(0.8f))
-            ->center(true)
+        auto file_icon = ImageViewBuilder::create()
+            ->source(item->icon.empty() ? "text-x-generic" : item->icon)
+            ->targetSize(64)
+            ->fitMode(FitMode::Contain)
             ->build();
-        icon_box->add_view(file_icon);
+        icon_box->add_view(file_icon, LayoutParams(64, 64, Gravity::Center));
         header_row->add_view(icon_box, LayoutParams(96, 96));
     }
 
@@ -321,7 +321,8 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
         ->build();
 
     auto open_btn = ButtonBuilder::create()
-        ->text("▶ Open")
+        ->icon("media-playback-start")
+        ->text("Open")
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
         ->textSize(config->metrics.font_size)
@@ -335,7 +336,8 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
     action_row->add_view(open_btn, LayoutParams(WRAP_CONTENT, 32));
 
     auto term_btn = ButtonBuilder::create()
-        ->text("󰆍 Terminal Here")
+        ->icon("utilities-terminal")
+        ->text("Terminal")
         ->flat(true)
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
@@ -351,7 +353,8 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
     action_row->add_view(term_btn, LayoutParams(WRAP_CONTENT, 32));
 
     auto copy_btn = ButtonBuilder::create()
-        ->text("󰅍 Copy Path")
+        ->icon("edit-copy")
+        ->text("Copy Path")
         ->flat(true)
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
@@ -487,13 +490,12 @@ void MillerView::render_multi_selection_preview(const std::vector<std::shared_pt
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto hero_icon = TextViewBuilder::create()
-        ->text("󰚰")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.4f))
-        ->textColor(config->colors.primary)
-        ->center(true)
+    auto hero_icon = ImageViewBuilder::create()
+        ->source("emblem-documents")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
         ->build();
-    hero_card->add_view(hero_icon);
+    hero_card->add_view(hero_icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto hero_title = TextViewBuilder::create()
         ->text(std::to_string(items.size()) + " Items Selected")
@@ -563,12 +565,12 @@ void MillerView::render_multi_selection_preview(const std::vector<std::shared_pt
             ->padding(4, 3)
             ->build();
 
-        auto icon = TextViewBuilder::create()
-            ->text(it->icon.empty() ? (it->is_category ? "󰉋" : "󰈙") : it->icon)
-            ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
-            ->textColor(it->is_category ? config->colors.primary : config->colors.on_surface_variant)
+        auto icon = ImageViewBuilder::create()
+            ->source(it->icon.empty() ? (it->is_category ? "folder" : "text-x-generic") : it->icon)
+            ->targetSize(18)
+            ->fitMode(FitMode::Contain)
             ->build();
-        row->add_view(icon, LayoutParams(20, WRAP_CONTENT));
+        row->add_view(icon, LayoutParams(18, 18, Gravity::CenterVertical));
 
         auto name = TextViewBuilder::create()
             ->text(it->title)

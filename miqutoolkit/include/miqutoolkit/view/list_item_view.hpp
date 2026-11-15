@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include "miqutoolkit/view/image_view.hpp"
 #include <string>
 #include <memory>
@@ -58,13 +59,13 @@ private:
     bool m_highlight_trailing = false;
 };
 
-class ListItemViewBuilder : public std::enable_shared_from_this<ListItemViewBuilder> {
+class ListItemViewBuilder : public ViewBuilder<ListItemViewBuilder, ListItemView> {
 public:
+    using ViewBuilder<ListItemViewBuilder, ListItemView>::ViewBuilder;
+
     static std::shared_ptr<ListItemViewBuilder> create() {
         return std::make_shared<ListItemViewBuilder>();
     }
-
-    ListItemViewBuilder() : m_view(std::make_shared<ListItemView>()) {}
 
     std::shared_ptr<ListItemViewBuilder> title(std::string title) {
         m_view->set_title(std::move(title));
@@ -115,13 +116,6 @@ public:
         m_view->set_highlight_trailing(hl);
         return shared_from_this();
     }
-
-    std::shared_ptr<ListItemView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<ListItemView> m_view;
 };
 
 } // namespace miqu

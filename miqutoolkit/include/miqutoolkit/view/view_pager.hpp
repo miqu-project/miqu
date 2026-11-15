@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view_group.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <vector>
 #include <memory>
 #include <functional>
@@ -36,9 +37,9 @@ private:
     std::function<void(int, int)> m_on_page_changed;
 };
 
-class ViewPagerBuilder : public std::enable_shared_from_this<ViewPagerBuilder> {
+class ViewPagerBuilder : public ViewGroupBuilder<ViewPagerBuilder, ViewPager> {
 public:
-    ViewPagerBuilder();
+    using ViewGroupBuilder<ViewPagerBuilder, ViewPager>::ViewGroupBuilder;
 
     static std::shared_ptr<ViewPagerBuilder> create() {
         return std::make_shared<ViewPagerBuilder>();
@@ -58,43 +59,6 @@ public:
         m_view->set_on_page_changed_listener(std::move(cb));
         return shared_from_this();
     }
-
-    std::shared_ptr<ViewPagerBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ViewPagerBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ViewPagerBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ViewPagerBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ViewPagerBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ViewPagerBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ViewPager> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<ViewPager> m_view;
 };
 
 } // namespace miqu

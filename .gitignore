@@ -35,3 +35,6 @@ mobile/recitation/tools/quran-wbw-pipeline/data/
 **/tools/quran-wbw-pipeline/**/*.pdf
 mobile/recitation/tools/quran-wbw-pipeline/studio/pages/
 mobile/recitation/tools/quran-wbw-pipeline/studio/modified/
+
+# Scratch & development test artifacts
+scratch/

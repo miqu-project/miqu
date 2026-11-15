@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include "miqutoolkit/view/image_view.hpp"
 #include <string>
 #include <memory>
@@ -66,13 +67,13 @@ private:
     ImageView m_icon_view;
 };
 
-class GridItemViewBuilder : public std::enable_shared_from_this<GridItemViewBuilder> {
+class GridItemViewBuilder : public ViewBuilder<GridItemViewBuilder, GridItemView> {
 public:
+    using ViewBuilder<GridItemViewBuilder, GridItemView>::ViewBuilder;
+
     static std::shared_ptr<GridItemViewBuilder> create() {
         return std::make_shared<GridItemViewBuilder>();
     }
-
-    GridItemViewBuilder() : m_view(std::make_shared<GridItemView>()) {}
 
     std::shared_ptr<GridItemViewBuilder> title(std::string title) {
         m_view->set_title(std::move(title));
@@ -118,13 +119,6 @@ public:
         m_view->set_highlight_subtitle(hl);
         return shared_from_this();
     }
-
-    std::shared_ptr<GridItemView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<GridItemView> m_view;
 };
 
 } // namespace miqu

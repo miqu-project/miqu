@@ -13,6 +13,10 @@
 
 // Android-Style Layout System & Views
 #include "miqutoolkit/view/layout_params.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
+#include "miqutoolkit/view/selection_model.hpp"
+#include "miqutoolkit/view/tooltip_view.hpp"
+#include "miqutoolkit/view/tooltip_manager.hpp"
 #include "miqutoolkit/view/view.hpp"
 #include "miqutoolkit/view/view_group.hpp"
 #include "miqutoolkit/view/linear_layout.hpp"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <algorithm>
 
 namespace miqu {
@@ -67,110 +67,63 @@ private:
     Color m_progress_color;
 };
 
-class ProgressBarBuilder : public std::enable_shared_from_this<ProgressBarBuilder> {
+class ProgressBarBuilder : public ViewBuilder<ProgressBarBuilder, ProgressBar> {
 public:
-    ProgressBarBuilder() : m_bar(std::make_shared<ProgressBar>()) {}
+    ProgressBarBuilder() : ViewBuilder<ProgressBarBuilder, ProgressBar>() {}
 
     static std::shared_ptr<ProgressBarBuilder> create() {
         return std::make_shared<ProgressBarBuilder>();
     }
 
     std::shared_ptr<ProgressBarBuilder> progress(float p) {
-        m_bar->set_progress(p);
+        m_view->set_progress(p);
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> indeterminate(bool ind = true) {
-        m_bar->set_indeterminate(ind);
+        m_view->set_indeterminate(ind);
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> style(ProgressBarStyle s) {
-        m_bar->set_style(s);
+        m_view->set_style(s);
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> circular(bool circ = true) {
-        m_bar->set_circular(circ);
+        m_view->set_circular(circ);
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> size(int w, int h) {
-        m_bar->set_layout_params(LayoutParams(w, h));
+        m_view->set_layout_params(LayoutParams(w, h));
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> trackHeight(int h) {
-        m_bar->set_track_height(h);
+        m_view->set_track_height(h);
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> strokeWidth(int w) {
-        m_bar->set_stroke_width(w);
+        m_view->set_stroke_width(w);
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> cornerRadius(int r) {
-        m_bar->set_corner_radius(r);
+        m_view->set_corner_radius(r);
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> trackColor(const Color& c) {
-        m_bar->set_track_color(c);
+        m_view->set_track_color(c);
         return shared_from_this();
     }
 
     std::shared_ptr<ProgressBarBuilder> progressColor(const Color& c) {
-        m_bar->set_progress_color(c);
+        m_view->set_progress_color(c);
         return shared_from_this();
     }
-
-    std::shared_ptr<ProgressBarBuilder> padding(const Padding& p) {
-        m_bar->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ProgressBarBuilder> padding(int uniform) {
-        m_bar->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ProgressBarBuilder> padding(int h, int v) {
-        m_bar->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ProgressBarBuilder> padding(int l, int t, int r, int b) {
-        m_bar->set_padding(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ProgressBarBuilder> margin(const Margin& m) {
-        m_bar->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ProgressBarBuilder> margin(int uniform) {
-        m_bar->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ProgressBarBuilder> margin(int h, int v) {
-        m_bar->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ProgressBarBuilder> margin(int l, int t, int r, int b) {
-        m_bar->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ProgressBar> build() {
-        return m_bar;
-    }
-
-private:
-    std::shared_ptr<ProgressBar> m_bar;
 };
 
 } // namespace miqu

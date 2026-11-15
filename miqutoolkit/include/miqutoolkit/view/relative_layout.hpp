@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view_group.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 
 namespace miqu {
 
@@ -12,75 +13,13 @@ public:
     Size measure_size() const override;
 };
 
-class RelativeLayoutBuilder : public std::enable_shared_from_this<RelativeLayoutBuilder> {
+class RelativeLayoutBuilder : public ViewGroupBuilder<RelativeLayoutBuilder, RelativeLayout> {
 public:
-    RelativeLayoutBuilder() : m_layout(std::make_shared<RelativeLayout>()) {}
+    using ViewGroupBuilder<RelativeLayoutBuilder, RelativeLayout>::ViewGroupBuilder;
 
     static std::shared_ptr<RelativeLayoutBuilder> create() {
         return std::make_shared<RelativeLayoutBuilder>();
     }
-
-    std::shared_ptr<RelativeLayoutBuilder> addView(std::shared_ptr<View> child) {
-        m_layout->add_view(std::move(child));
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> addView(std::shared_ptr<View> child, const LayoutParams& params) {
-        m_layout->add_view(std::move(child), params);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> padding(const Padding& p) {
-        m_layout->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> padding(int uniform) {
-        m_layout->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> padding(int h, int v) {
-        m_layout->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> padding(int l, int t, int r, int b) {
-        m_layout->set_padding(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> margin(const Margin& m) {
-        m_layout->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> margin(int uniform) {
-        m_layout->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> margin(int h, int v) {
-        m_layout->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> margin(int l, int t, int r, int b) {
-        m_layout->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayoutBuilder> focusScope(bool scope = true) {
-        m_layout->set_focus_scope(scope);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<RelativeLayout> build() {
-        return m_layout;
-    }
-
-private:
-    std::shared_ptr<RelativeLayout> m_layout;
 };
 
 } // namespace miqu

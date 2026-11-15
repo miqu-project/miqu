@@ -35,12 +35,12 @@ std::shared_ptr<View> create_input_hero_card(
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text(icon_str)
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.2f))
-        ->textColor(config->colors.primary)
+    auto icon = ImageViewBuilder::create()
+        ->source(icon_str)
+        ->targetSize(36)
+        ->fitMode(FitMode::Contain)
         ->build();
-    row->add_view(icon, LayoutParams(42, WRAP_CONTENT, Gravity::CenterVertical));
+    row->add_view(icon, LayoutParams(36, 36, Gravity::CenterVertical));
 
     auto col = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
@@ -111,12 +111,13 @@ std::shared_ptr<View> create_keyboards_list_card(
             ->cornerRadius(get_inner_radius(config))
             ->build();
 
-        auto kb_icon = TextViewBuilder::create()
-            ->text(kb.is_primary ? "󰌌" : "󰌏")
-            ->textSize(config->metrics.font_size + 2)
-            ->textColor(kb.is_primary ? config->colors.primary : config->colors.on_surface_variant)
+        auto kb_icon = ImageViewBuilder::create()
+            ->source("input-keyboard")
+            ->targetSize(20)
+            ->fitMode(FitMode::Contain)
+            ->alpha(kb.is_primary ? 1.0f : 0.6f)
             ->build();
-        row_card->add_view(kb_icon, LayoutParams(24, WRAP_CONTENT, Gravity::CenterVertical));
+        row_card->add_view(kb_icon, LayoutParams(20, 20, Gravity::CenterVertical));
 
         auto text_col = LinearLayoutBuilder::create()
             ->orientation(Orientation::Vertical)
@@ -670,13 +671,13 @@ std::shared_ptr<View> create_pointers_list_card(
             ->cornerRadius(get_inner_radius(config))
             ->build();
 
-        std::string icon_str = ptr.is_touchpad ? "󰟸" : (ptr.is_trackpoint ? "󰍽" : "󰍽");
-        auto icon = TextViewBuilder::create()
-            ->text(icon_str)
-            ->textSize(config->metrics.font_size + 2)
-            ->textColor(config->colors.primary)
+        std::string icon_str = ptr.is_touchpad ? "input-touchpad" : "input-mouse";
+        auto icon = ImageViewBuilder::create()
+            ->source(icon_str)
+            ->targetSize(20)
+            ->fitMode(FitMode::Contain)
             ->build();
-        row->add_view(icon, LayoutParams(24, WRAP_CONTENT, Gravity::CenterVertical));
+        row->add_view(icon, LayoutParams(20, 20, Gravity::CenterVertical));
 
         auto text_col = LinearLayoutBuilder::create()
             ->orientation(Orientation::Vertical)
@@ -747,12 +748,12 @@ std::shared_ptr<View> create_touch_devices_card(
                 ->cornerRadius(get_inner_radius(config))
                 ->build();
 
-            auto icon = TextViewBuilder::create()
-                ->text("󰟸")
-                ->textSize(config->metrics.font_size + 2)
-                ->textColor(config->colors.primary)
+            auto icon = ImageViewBuilder::create()
+                ->source("input-touchpad")
+                ->targetSize(20)
+                ->fitMode(FitMode::Contain)
                 ->build();
-            row->add_view(icon, LayoutParams(24, WRAP_CONTENT, Gravity::CenterVertical));
+            row->add_view(icon, LayoutParams(20, 20, Gravity::CenterVertical));
 
             auto col = LinearLayoutBuilder::create()
                 ->orientation(Orientation::Vertical)
@@ -889,7 +890,7 @@ void MillerView::render_keyboards_preview(const std::shared_ptr<SettingItem>& it
     std::string sub = std::to_string(count) + " hardware keyboard" + (count == 1 ? "" : "s") + " detected · wlroots libinput Introspection ✓";
     std::string badge = "Active Keymap: English (US) [" + state.active_layout + "]";
 
-    add_preview_card(create_input_hero_card("󰌌", "Keyboards & Keymap", sub, badge, config));
+    add_preview_card(create_input_hero_card("input-keyboard", "Keyboards & Keymap", sub, badge, config));
     add_preview_card(create_keyboards_list_card(state.keyboards, config));
 
     add_preview_card(create_layout_selector_card(
@@ -923,7 +924,7 @@ void MillerView::render_repeat_preview(const std::shared_ptr<SettingItem>& item,
     auto state = InputBackend::get_state();
 
     std::string sub = "Repeat Delay: " + std::to_string(state.repeat_delay) + " ms  •  Repeat Rate: " + std::to_string(state.repeat_rate) + " char/s";
-    add_preview_card(create_input_hero_card("󰁯", "Typing & Repeat Speed", sub, "libinput Key Repeat Solver ✓", config));
+    add_preview_card(create_input_hero_card("preferences-desktop-keyboard", "Typing & Repeat Speed", sub, "libinput Key Repeat Solver ✓", config));
 
     add_preview_card(create_repeat_delay_card(
         state.repeat_delay,
@@ -963,7 +964,7 @@ void MillerView::render_pointers_preview(const std::shared_ptr<SettingItem>& ite
 
     size_t count = state.pointers.size();
     std::string sub = std::to_string(count) + " pointing device" + (count == 1 ? "" : "s") + " detected · libinput acceleration active";
-    add_preview_card(create_input_hero_card("󰍽", "Pointers & Touchpad", sub, "Precision Touchpad & Pointer Introspection ✓", config));
+    add_preview_card(create_input_hero_card("input-mouse", "Pointers & Touchpad", sub, "Precision Touchpad & Pointer Introspection ✓", config));
 
     add_preview_card(create_touchpad_ergonomics_card(
         state.tap_to_click,
@@ -1009,7 +1010,7 @@ void MillerView::render_touch_preview(const std::shared_ptr<SettingItem>& item, 
 
     size_t count = state.touch_devices.size();
     std::string sub = std::to_string(count) + " touch digitizer" + (count == 1 ? "" : "s") + " active · Wayland touch protocol";
-    add_preview_card(create_input_hero_card("󰟸", "Touchscreen & Gestures", sub, "Hardware Multi-Touch Introspection ✓", config));
+    add_preview_card(create_input_hero_card("input-touchpad", "Touchscreen & Gestures", sub, "Hardware Multi-Touch Introspection ✓", config));
 
     add_preview_card(create_touch_devices_card(state.touch_devices, config));
 

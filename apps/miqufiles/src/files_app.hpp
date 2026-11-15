@@ -36,6 +36,7 @@ private:
     std::shared_ptr<LinearLayout> m_breadcrumb_container;
     std::shared_ptr<SearchView> m_search_view;
     std::shared_ptr<CardView> m_hidden_btn;
+    std::shared_ptr<ImageView> m_hidden_icon;
     std::shared_ptr<TextView> m_hidden_label;
     std::shared_ptr<MillerView> m_miller_view;
 };

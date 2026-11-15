@@ -273,32 +273,32 @@ std::string XdgBackend::get_app_icon(const std::string& desktop_id, const std::s
     std::string lower = desktop_id + " " + name + " " + categories;
     for (char& c : lower) c = static_cast<char>(std::tolower(c));
 
-    if (lower.find("firefox") != std::string::npos) return "󰈹";
+    if (lower.find("firefox") != std::string::npos) return "firefox";
     if (lower.find("chrome") != std::string::npos || lower.find("chromium") != std::string::npos ||
         lower.find("brave") != std::string::npos || lower.find("mullvad") != std::string::npos ||
-        lower.find("librewolf") != std::string::npos || lower.find("webbrowser") != std::string::npos) return "󰖟";
+        lower.find("librewolf") != std::string::npos || lower.find("webbrowser") != std::string::npos) return "web-browser";
     if (lower.find("kitty") != std::string::npos || lower.find("foot") != std::string::npos ||
-        lower.find("alacritty") != std::string::npos || lower.find("terminal") != std::string::npos) return "󰄛";
+        lower.find("alacritty") != std::string::npos || lower.find("terminal") != std::string::npos) return "utilities-terminal";
     if (lower.find("code") != std::string::npos || lower.find("neovim") != std::string::npos ||
         lower.find("nvim") != std::string::npos || lower.find("geany") != std::string::npos ||
-        lower.find("kate") != std::string::npos || lower.find("texteditor") != std::string::npos) return "󰨞";
+        lower.find("kate") != std::string::npos || lower.find("texteditor") != std::string::npos) return "accessories-text-editor";
     if (lower.find("evince") != std::string::npos || lower.find("pdf") != std::string::npos ||
         lower.find("mupdf") != std::string::npos || lower.find("okular") != std::string::npos ||
-        lower.find("zathura") != std::string::npos) return "󰈦";
+        lower.find("zathura") != std::string::npos) return "application-pdf";
     if (lower.find("gallery") != std::string::npos || lower.find("image") != std::string::npos ||
         lower.find("photo") != std::string::npos || lower.find("viewer") != std::string::npos ||
-        lower.find("loupe") != std::string::npos || lower.find("feh") != std::string::npos) return "󰋩";
-    if (lower.find("gimp") != std::string::npos || lower.find("inkscape") != std::string::npos) return "󰽉";
+        lower.find("loupe") != std::string::npos || lower.find("feh") != std::string::npos) return "image-x-generic";
+    if (lower.find("gimp") != std::string::npos || lower.find("inkscape") != std::string::npos) return "image-x-generic";
     if (lower.find("vlc") != std::string::npos || lower.find("celluloid") != std::string::npos ||
-        lower.find("mpv") != std::string::npos || lower.find("video") != std::string::npos) return "󰕼";
+        lower.find("mpv") != std::string::npos || lower.find("video") != std::string::npos) return "video-x-generic";
     if (lower.find("music") != std::string::npos || lower.find("audio") != std::string::npos ||
-        lower.find("amberol") != std::string::npos || lower.find("spotify") != std::string::npos) return "󰝚";
-    if (lower.find("thunderbird") != std::string::npos || lower.find("mail") != std::string::npos) return "󰇮";
+        lower.find("amberol") != std::string::npos || lower.find("spotify") != std::string::npos) return "audio-x-generic";
+    if (lower.find("thunderbird") != std::string::npos || lower.find("mail") != std::string::npos) return "internet-mail";
     if (lower.find("nemo") != std::string::npos || lower.find("nautilus") != std::string::npos ||
         lower.find("thunar") != std::string::npos || lower.find("dolphin") != std::string::npos ||
         lower.find("files") != std::string::npos || lower.find("yazi") != std::string::npos ||
-        lower.find("filemanager") != std::string::npos) return "󰉋";
-    return "󰀻";
+        lower.find("filemanager") != std::string::npos) return "system-file-manager";
+    return "application-x-executable";
 }
 
 void XdgBackend::populate_role_candidates(DefaultAppRole& role) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include "miqutoolkit/view/image_view.hpp"
 #include <string>
 #include <functional>
@@ -35,6 +36,7 @@ public:
     int get_corner_radius() const { return m_corner_radius; }
 
     void draw(cairo_t* cr, const Rect& bounds) override;
+    void draw_focus_ring(cairo_t* cr, const Rect& bounds) override;
     Size measure_size() const override;
 
     bool on_mouse_move(int lx, int ly, const Rect& bounds) override;
@@ -63,9 +65,9 @@ private:
     ImageView m_image_view;
 };
 
-class ImageButtonBuilder : public std::enable_shared_from_this<ImageButtonBuilder> {
+class ImageButtonBuilder : public ViewBuilder<ImageButtonBuilder, ImageButton> {
 public:
-    ImageButtonBuilder() : m_view(std::make_shared<ImageButton>()) {}
+    using ViewBuilder<ImageButtonBuilder, ImageButton>::ViewBuilder;
 
     static std::shared_ptr<ImageButtonBuilder> create() {
         return std::make_shared<ImageButtonBuilder>();
@@ -115,18 +117,6 @@ public:
         m_view->set_corner_radius(radius);
         return shared_from_this();
     }
-
-    std::shared_ptr<ImageButtonBuilder> onClick(std::function<void()> listener) {
-        m_view->set_on_click_listener(std::move(listener));
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageButton> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<ImageButton> m_view;
 };
 
 } // namespace miqu

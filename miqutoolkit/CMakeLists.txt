@@ -121,6 +121,7 @@ add_library(miqutoolkit SHARED
     src/view/progress_bar.cpp
     src/view/image_button.cpp
     src/view/grid_item_view.cpp
+    src/view/selection_model.cpp
     src/view/list_view.cpp
     src/view/list_item_view.cpp
     src/view/divider_view.cpp

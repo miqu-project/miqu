@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view_group.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include "miqutoolkit/view/text_view.hpp"
 #include "miqutoolkit/view/edit_text.hpp"
 #include "miqutoolkit/view/image_view.hpp"
@@ -25,7 +26,10 @@ public:
     void set_focused(bool focus);
     bool is_focused() const;
 
-    void set_focus_border(bool enable) { m_focus_border = enable; }
+    void set_focus_border(bool enable) {
+        m_focus_border = enable;
+        set_draw_focus_ring(enable);
+    }
     bool has_focus_border() const { return m_focus_border; }
 
     void set_radius(int radius) {
@@ -50,6 +54,10 @@ public:
     bool on_key(const KeyPressEvent& event) override;
     bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
     bool on_mouse_move(int lx, int ly, const Rect& bounds) override;
+    void on_focus_changed(bool focused) override;
+
+    void set_focusable(bool focusable) override;
+    void collect_focusable_views(std::vector<View*>& out) override;
 
     std::shared_ptr<EditText> get_edit_text() const { return m_edit_text; }
     std::shared_ptr<TextView> get_title_view() const { return m_title_view; }
@@ -71,9 +79,9 @@ private:
     std::function<void(const std::string&)> m_on_text_submit;
 };
 
-class SearchViewBuilder : public std::enable_shared_from_this<SearchViewBuilder> {
+class SearchViewBuilder : public ViewGroupBuilder<SearchViewBuilder, SearchView> {
 public:
-    SearchViewBuilder() : m_view(std::make_shared<SearchView>()) {}
+    using ViewGroupBuilder<SearchViewBuilder, SearchView>::ViewGroupBuilder;
 
     static std::shared_ptr<SearchViewBuilder> create() {
         return std::make_shared<SearchViewBuilder>();
@@ -114,68 +122,11 @@ public:
         return shared_from_this();
     }
 
-    std::shared_ptr<SearchViewBuilder> backgroundColor(const Color& bg) {
-        m_view->set_background_color(bg);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchViewBuilder> stroke(int width, const Color& stroke) {
-        m_view->set_stroke(width, stroke);
-        return shared_from_this();
-    }
-
     std::shared_ptr<SearchViewBuilder> onQueryTextListener(std::function<void(const std::string&)> on_change,
                                                           std::function<void(const std::string&)> on_submit = nullptr) {
         m_view->set_on_query_text_listener(std::move(on_change), std::move(on_submit));
         return shared_from_this();
     }
-
-    std::shared_ptr<SearchViewBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchViewBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchViewBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchViewBuilder> padding(int l, int t, int r, int b) {
-        m_view->set_padding(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchViewBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchViewBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchViewBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchViewBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SearchView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<SearchView> m_view;
 };
 
 } // namespace miqu

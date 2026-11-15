@@ -157,12 +157,15 @@ void MillerView::init(const std::string& start_path) {
         ->spacing(4)
         ->itemCornerRadius(inner_rad)
         ->scrollbar(false)
-        ->selectionMode(ListViewSelectionMode::Multiple)
+        ->selectionMode(SelectionMode::Multiple)
         ->build();
     m_current_list->set_on_selection_changed([this](const std::unordered_set<int>&) {
-        m_current_index = m_current_list->get_selected_index();
-        rebuild_preview_column();
-        notify_state_changed();
+        int sel = m_current_list->get_selected_index();
+        if (sel >= 0) {
+            m_current_index = sel;
+            rebuild_preview_column();
+            notify_state_changed();
+        }
     });
     m_current_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
         if (!check_and_update_click_debounce()) return;
@@ -179,12 +182,11 @@ void MillerView::init(const std::string& start_path) {
             rebuild_preview_column();
             notify_state_changed();
         } else {
-            auto item = get_current_selected_item();
-            if (item) {
-                if (item->is_category) {
+            bool has_modifier = m_window && (m_window->has_shift() || m_window->has_ctrl());
+            if (!has_modifier) {
+                auto item = get_current_selected_item();
+                if (item && item->is_category) {
                     navigate_enter();
-                } else {
-                    focus_first_preview_control();
                 }
             }
         }
@@ -225,6 +227,7 @@ void MillerView::init(const std::string& start_path) {
         ->style(CardStyle::Filled)
         ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
         ->elevation(0)
+        ->tooltip("Expand full width")
         ->addView(icon_box)
         ->build();
     m_preview_toggle_btn->set_on_click_listener([this]() {
@@ -257,6 +260,14 @@ void MillerView::init(const std::string& start_path) {
         if (!check_and_update_click_debounce()) return;
         auto item = get_current_selected_item();
         if (!item || !item->is_category) return;
+
+        item->ensure_children();
+        if (idx >= item->children.size()) return;
+
+        if (!m_search_query.empty()) {
+            m_search_query.clear();
+            m_search_results.clear();
+        }
 
         m_path.push_back(item);
         m_history_indices.push_back(m_current_index);
@@ -353,6 +364,8 @@ void MillerView::update_preview_ribbon() {
 
     if (m_preview_toggle_btn) {
         m_preview_toggle_btn->set_visibility(Visibility::Visible);
+        m_preview_toggle_btn->set_tooltip(m_preview_expanded ? "Collapse to 3 pillars" : "Expand full width");
+        m_preview_toggle_btn->set_tooltip_shortcut(m_preview_expanded ? "Esc" : "");
     }
 
     auto item = get_current_selected_item();
@@ -477,7 +490,7 @@ std::shared_ptr<FileItem> MillerView::get_current_selected_item() const {
 }
 
 bool MillerView::is_multi_selected() const {
-    return m_current_list && m_current_list->get_selected_count() > 1;
+    return m_current_list && !m_current_list->get_selected_indices().empty();
 }
 
 size_t MillerView::get_selected_count() const {
@@ -489,16 +502,15 @@ std::vector<std::shared_ptr<FileItem>> MillerView::get_selected_items() const {
     std::vector<std::shared_ptr<FileItem>> result;
     if (!m_current_list) return result;
     const auto& list = get_current_list();
-    if (m_current_list->is_multi_select()) {
-        const auto& indices = m_current_list->get_selected_indices();
-        for (int i = 0; i < static_cast<int>(list.size()); ++i) {
-            if (indices.find(i) != indices.end()) {
-                result.push_back(list[i]);
-            }
+    auto model = m_current_list->get_selection_model();
+    if (!model) return result;
+
+    auto indices = model->effective_indices();
+    result.reserve(indices.size());
+    for (int idx : indices) {
+        if (idx >= 0 && idx < static_cast<int>(list.size())) {
+            result.push_back(list[idx]);
         }
-    } else {
-        auto item = get_current_selected_item();
-        if (item) result.push_back(item);
     }
     return result;
 }
@@ -506,48 +518,14 @@ std::vector<std::shared_ptr<FileItem>> MillerView::get_selected_items() const {
 bool MillerView::handle_list_key(const KeyPressEvent& event) {
     if (m_preview_focused || m_preview_expanded) return false;
     if (!m_current_list || !m_current_list->is_visible()) return false;
+    // Enter / Return is handled by the window/app level (navigate_enter)
+    if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) return false;
 
-    // Ctrl+A: Select All
-    if (event.has_ctrl() && (event.keysym == XKB_KEY_a || event.keysym == XKB_KEY_A)) {
-        m_current_list->select_all();
-        rebuild_preview_column();
-        notify_state_changed();
-        return true;
-    }
-
-    // Escape: If multiple items selected, collapse back to 1 item at cursor
-    if (event.keysym == XKB_KEY_Escape) {
-        if (m_current_list->get_selected_count() > 1) {
-            m_current_list->on_key(event);
-            m_current_index = m_current_list->get_selected_index();
-            rebuild_preview_column();
-            notify_state_changed();
-            return true;
-        }
-        return false;
-    }
-
-    // Space: Sporadic toggle current item & step down
-    if (event.keysym == XKB_KEY_space) {
-        m_current_list->on_key(event);
+    if (m_current_list->on_key(event)) {
         m_current_index = m_current_list->get_selected_index();
         rebuild_preview_column();
         notify_state_changed();
         return true;
-    }
-
-    // Shift + Up/Down range navigation
-    if (event.has_shift()) {
-        if (event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_k || event.keysym == XKB_KEY_K ||
-            event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_J ||
-            event.keysym == XKB_KEY_Page_Up || event.keysym == XKB_KEY_Page_Down ||
-            event.keysym == XKB_KEY_Home || event.keysym == XKB_KEY_End) {
-            m_current_list->on_key(event);
-            m_current_index = m_current_list->get_selected_index();
-            rebuild_preview_column();
-            notify_state_changed();
-            return true;
-        }
     }
 
     return false;
@@ -577,13 +555,13 @@ std::shared_ptr<View> MillerView::create_parent_hero_box(const std::shared_ptr<C
         ->spacing(10)
         ->build();
 
-    auto hero_icon = TextViewBuilder::create()
-        ->text("󰋩")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.8f))
-        ->textColor(config->colors.primary.with_alpha(0.6f))
-        ->center(true)
+    auto hero_icon = ImageViewBuilder::create()
+        ->source("folder-pictures")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.85f)
         ->build();
-    hero_box->add_view(hero_icon);
+    hero_box->add_view(hero_icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto hero_title = TextViewBuilder::create()
         ->text("Photos")
@@ -613,12 +591,13 @@ std::shared_ptr<View> MillerView::create_empty_search_box(const std::shared_ptr<
         ->spacing(8)
         ->build();
 
-    auto empty_icon = TextViewBuilder::create()
-        ->text("🔍")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2))
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.5f))
+    auto empty_icon = ImageViewBuilder::create()
+        ->source("system-search")
+        ->targetSize(40)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.5f)
         ->build();
-    empty_box->add_view(empty_icon);
+    empty_box->add_view(empty_icon, LayoutParams(40, 40, Gravity::CenterHorizontal));
 
     auto empty_text = TextViewBuilder::create()
         ->text("No photos found")
@@ -645,13 +624,13 @@ std::shared_ptr<View> MillerView::create_empty_folder_box(const std::shared_ptr<
         ->spacing(8)
         ->build();
 
-    auto empty_icon = TextViewBuilder::create()
-        ->text("󰋩")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.4f))
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.45f))
-        ->center(true)
+    auto empty_icon = ImageViewBuilder::create()
+        ->source("folder-pictures")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.5f)
         ->build();
-    empty_box->add_view(empty_icon);
+    empty_box->add_view(empty_icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto empty_text = TextViewBuilder::create()
         ->text("No photos found")
@@ -683,12 +662,12 @@ std::shared_ptr<View> MillerView::create_list_row_item(const std::shared_ptr<Fil
         ->backgroundColor(Color::transparent())
         ->build();
 
-    auto icon_view = TextViewBuilder::create()
-        ->text(item->icon.empty() ? "󰈟" : item->icon)
-        ->textSize(config->metrics.font_size)
-        ->textColor(item->is_category ? config->colors.primary : config->colors.on_surface_variant)
+    auto icon_view = ImageViewBuilder::create()
+        ->source(item->icon.empty() ? (item->is_category ? "folder-pictures" : "image-x-generic") : item->icon)
+        ->targetSize(20)
+        ->fitMode(FitMode::Contain)
         ->build();
-    item_row->add_view(icon_view, LayoutParams(24, WRAP_CONTENT, Gravity::CenterVertical));
+    item_row->add_view(icon_view, LayoutParams(20, 20, Gravity::CenterVertical));
 
     auto title_view = TextViewBuilder::create()
         ->text(item->title)
@@ -784,9 +763,10 @@ void MillerView::rebuild_current_column() {
     if (m_empty_folder_box) m_empty_folder_box->set_visibility(Visibility::Gone);
     if (m_current_list) {
         m_current_list->set_visibility(Visibility::Visible);
+        int target_index = m_current_index;
         m_current_list->clear_items();
 
-        m_current_index = std::clamp(m_current_index, 0, static_cast<int>(list.size()) - 1);
+        m_current_index = std::clamp(target_index, 0, static_cast<int>(list.size()) - 1);
 
         for (size_t i = 0; i < list.size(); ++i) {
             const auto& item = list[i];
@@ -965,6 +945,10 @@ bool MillerView::navigate_enter() {
     m_last_navigate_enter_time_ms = now_ms;
 
     if (item->is_category) {
+        if (!m_search_query.empty()) {
+            m_search_query.clear();
+            m_search_results.clear();
+        }
         m_path.push_back(item);
         m_history_indices.push_back(m_current_index);
         m_current_index = 0;

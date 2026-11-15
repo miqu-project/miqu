@@ -1,8 +1,10 @@
 #pragma once
 
 #include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include "miqutoolkit/core/color.hpp"
 #include <string>
+#include <memory>
 
 namespace miqu {
 
@@ -36,9 +38,37 @@ public:
 private:
     std::string m_text;
     std::string m_shortcut;
-    Padding m_padding{10, 5, 10, 5};
     int m_corner_radius = 6;
     double m_elevation = -1.0;
+};
+
+class TooltipViewBuilder : public ViewBuilder<TooltipViewBuilder, TooltipView> {
+public:
+    using ViewBuilder<TooltipViewBuilder, TooltipView>::ViewBuilder;
+
+    static std::shared_ptr<TooltipViewBuilder> create() {
+        return std::make_shared<TooltipViewBuilder>();
+    }
+
+    std::shared_ptr<TooltipViewBuilder> text(std::string text) {
+        m_view->set_text(std::move(text));
+        return shared_from_this();
+    }
+
+    std::shared_ptr<TooltipViewBuilder> shortcut(std::string shortcut) {
+        m_view->set_shortcut(std::move(shortcut));
+        return shared_from_this();
+    }
+
+    std::shared_ptr<TooltipViewBuilder> cornerRadius(int radius) {
+        m_view->set_corner_radius(radius);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<TooltipViewBuilder> elevation(double elevation) {
+        m_view->set_elevation(elevation);
+        return shared_from_this();
+    }
 };
 
 } // namespace miqu

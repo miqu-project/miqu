@@ -9,7 +9,7 @@ namespace miqu {
 
 void EditText::set_window(Window* win) {
     View::set_window(win);
-    if (win && m_focused && !win->get_focused_view()) {
+    if (win && m_focused && is_focusable() && !win->get_focused_view()) {
         win->set_focused_view(this);
     }
 }
@@ -26,13 +26,18 @@ void EditText::set_editable(bool editable) {
 
 void EditText::set_focused(bool focus) {
     if (focus && !m_editable) return;
-    m_focused = focus;
-    if (focus) {
-        request_focus();
-    } else {
-        if (has_focus()) {
-            clear_focus();
+    if (m_focused != focus) {
+        m_focused = focus;
+        if (focus) {
+            if (is_focusable()) {
+                request_focus();
+            }
+        } else {
+            if (has_focus()) {
+                clear_focus();
+            }
         }
+        request_redraw();
     }
 }
 
@@ -93,7 +98,7 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
                                       0.2f);
             cairo_set_line_width(cr, 1.0);
             cairo_stroke(cr);
-        } else if (m_focused) {
+        } else if (m_focused && should_draw_focus_ring()) {
             CardView::draw_rounded_rect(cr, draw_x + 0.5, draw_y + 0.5, draw_w - 1.0, draw_h - 1.0, radius);
             cairo_set_source_rgba(cr, config->colors.primary.r,
                                       config->colors.primary.g,
@@ -101,6 +106,7 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
                                       0.9f);
             cairo_set_line_width(cr, 1.5);
             cairo_stroke(cr);
+            if (m_window) m_window->notify_focus_ring_drawn();
         }
     }
 
@@ -131,8 +137,8 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
     pango_layout_set_font_description(layout, desc);
     pango_font_description_free(desc);
 
-    int pad_left = m_padding.left > 0 ? m_padding.left : 14;
-    int pad_right = m_padding.right > 0 ? m_padding.right : 14;
+    int pad_left = m_padding.left > 0 ? m_padding.left : (m_draw_background ? 14 : 0);
+    int pad_right = m_padding.right > 0 ? m_padding.right : (m_draw_background ? 14 : 0);
     int pad_top = m_padding.top;
     int pad_bottom = m_padding.bottom;
     int avail_text_w = std::max(0, draw_w - pad_left - pad_right);
@@ -213,7 +219,7 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
     g_object_unref(layout);
     cairo_restore(cr);
 
-    if (has_focus() && should_draw_focus_ring()) {
+    if (has_focus() && should_draw_focus_ring() && !m_draw_background) {
         draw_focus_ring(cr, bounds);
     }
 }
@@ -310,8 +316,10 @@ bool EditText::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
         Rect pill_rect(draw_x, draw_y, draw_w, draw_h);
 
         if (pill_rect.contains(lx, ly)) {
-            request_focus();
-            int pad_left = m_padding.left > 0 ? m_padding.left : 14;
+            if (is_focusable()) {
+                request_focus();
+            }
+            int pad_left = m_padding.left > 0 ? m_padding.left : (m_draw_background ? 14 : 0);
             int rel_x = lx - (draw_x + pad_left);
 
             if (rel_x <= 0) {

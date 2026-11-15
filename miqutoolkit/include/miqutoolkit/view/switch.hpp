@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <functional>
 
 namespace miqu {
@@ -57,9 +58,9 @@ private:
     std::function<void(bool)> m_on_checked_changed;
 };
 
-class SwitchBuilder : public std::enable_shared_from_this<SwitchBuilder> {
+class SwitchBuilder : public ViewBuilder<SwitchBuilder, Switch> {
 public:
-    SwitchBuilder();
+    using ViewBuilder<SwitchBuilder, Switch>::ViewBuilder;
 
     static std::shared_ptr<SwitchBuilder> create() {
         return std::make_shared<SwitchBuilder>();
@@ -94,48 +95,6 @@ public:
         m_view->set_thumb_inactive_color(c);
         return shared_from_this();
     }
-
-    std::shared_ptr<SwitchBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SwitchBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SwitchBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SwitchBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SwitchBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SwitchBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SwitchBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<Switch> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<Switch> m_view;
 };
 
 } // namespace miqu

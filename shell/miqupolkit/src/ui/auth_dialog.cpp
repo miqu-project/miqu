@@ -158,7 +158,7 @@ void AuthDialogManager::show_dialog(
 
     auto contentLayout = contentLayoutBuilder
         ->addView(m_error_view, LayoutParams(static_cast<int>(LayoutDimension::MatchParent), 16, Gravity::CenterHorizontal))
-        ->addView(m_password_input, LayoutParams(static_cast<int>(LayoutDimension::MatchParent), 40))
+        ->addView(m_password_input, LayoutParams(static_cast<int>(LayoutDimension::MatchParent), 42))
         ->addView(buttonLayout, LayoutParams(static_cast<int>(LayoutDimension::WrapContent), 38, Gravity::CenterHorizontal))
         ->build();
 
@@ -168,7 +168,7 @@ void AuthDialogManager::show_dialog(
     int pad_t = 22;
     int pad_b = 32;
     int identity_h = polkit_cfg.show_user_identity ? (26 + 10) : 0;
-    int card_h = pad_t + pad_b + icon_sz + 10 + 22 + 10 + msg_h + identity_h + 10 + 16 + 10 + 40 + 10 + 38;
+    int card_h = pad_t + pad_b + icon_sz + 10 + 22 + 10 + msg_h + identity_h + 10 + 16 + 10 + 42 + 10 + 38;
 
     // Since layer surface drop shadow and blur are handled by miquland.conf layer rules,
     // and rootCard fills the window bounds, disable CardView internal software elevation
@@ -184,13 +184,17 @@ void AuthDialogManager::show_dialog(
 
     rootCard->set_on_click_listener([this]() {
         if (m_password_input) {
-            m_password_input->set_focused(true);
+            if (m_window) {
+                m_window->set_focused_view(m_password_input.get());
+            } else {
+                m_password_input->set_focused(true);
+            }
             if (m_window) m_window->schedule_redraw();
         }
     });
 
-    // 9. Layer overlay Window (matching miqulauncher)
-    auto builder = WindowBuilder::create()
+    // 9. Layer overlay Window (matching modern miqutoolkit pre-dispatch architecture)
+    m_window = WindowBuilder::create()
         ->role(WindowRole::LayerOverlay)
         ->appId("miqupolkit")
         ->keyboardInteractive(true)
@@ -199,27 +203,25 @@ void AuthDialogManager::show_dialog(
         ->closeOnClickOutside(polkit_cfg.close_on_click_outside)
         ->closeOnEscape(true)
         ->contentView(rootCard)
-        ->onClose([this]() {
-            cancel_current();
-        });
-
-    m_window = builder
         ->anchors(0)
         ->transparent(true)
-        ->onKey([this](const KeyPressEvent& event) {
-            if (!event.pressed) return;
+        ->onClose([this]() {
+            cancel_current();
+        })
+        ->onShortcut([this](const KeyPressEvent& event) -> bool {
+            if (!event.pressed) return false;
             if (event.keysym == XKB_KEY_Escape) {
                 cancel_current();
-                return;
+                return true;
             }
-            if (m_password_input && !m_password_input->is_focused()) {
-                m_password_input->set_focused(true);
-                if (m_window) m_window->schedule_redraw();
-            }
+            return false;
         })
         ->build();
 
     if (m_window) {
+        if (m_password_input) {
+            m_window->set_focused_view(m_password_input.get());
+        }
         m_window->schedule_redraw();
     }
 }
@@ -230,7 +232,11 @@ void AuthDialogManager::show_error(const std::string& error_text) {
     }
     if (m_password_input) {
         m_password_input->clear();
-        m_password_input->set_focused(true);
+        if (m_window) {
+            m_window->set_focused_view(m_password_input.get());
+        } else {
+            m_password_input->set_focused(true);
+        }
     }
     if (m_window) {
         m_window->schedule_redraw();

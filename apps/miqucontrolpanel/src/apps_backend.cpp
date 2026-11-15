@@ -205,23 +205,23 @@ std::string AppsBackend::get_icon_for_app(const std::string& categories, const s
     std::string lower = categories + " " + name + " " + id;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
-    if (lower.find("firefox") != std::string::npos) return "󰈹";
+    if (lower.find("firefox") != std::string::npos) return "firefox";
     if (lower.find("chrome") != std::string::npos || lower.find("chromium") != std::string::npos ||
-        lower.find("brave") != std::string::npos || lower.find("webbrowser") != std::string::npos) return "󰖟";
-    if (lower.find("kitty") != std::string::npos || lower.find("terminal") != std::string::npos) return "󰄛";
+        lower.find("brave") != std::string::npos || lower.find("webbrowser") != std::string::npos) return "web-browser";
+    if (lower.find("kitty") != std::string::npos || lower.find("terminal") != std::string::npos) return "utilities-terminal";
     if (lower.find("code") != std::string::npos || lower.find("development") != std::string::npos ||
-        lower.find("ide") != std::string::npos) return "󰨞";
-    if (lower.find("music") != std::string::npos || lower.find("audioplayer") != std::string::npos) return "󰝚";
+        lower.find("ide") != std::string::npos) return "applications-development";
+    if (lower.find("music") != std::string::npos || lower.find("audioplayer") != std::string::npos) return "audio-x-generic";
     if (lower.find("player") != std::string::npos || lower.find("video") != std::string::npos ||
-        lower.find("vlc") != std::string::npos) return "󰕼";
+        lower.find("vlc") != std::string::npos) return "video-x-generic";
     if (lower.find("gimp") != std::string::npos || lower.find("image") != std::string::npos ||
-        lower.find("graphics") != std::string::npos || lower.find("photo") != std::string::npos) return "󰽉";
-    if (lower.find("filemanager") != std::string::npos || lower.find("files") != std::string::npos) return "󰉋";
-    if (lower.find("settings") != std::string::npos || lower.find("preferences") != std::string::npos) return "󰒓";
-    if (lower.find("security") != std::string::npos || lower.find("firewall") != std::string::npos) return "󰒍";
-    if (lower.find("monitor") != std::string::npos || lower.find("system") != std::string::npos) return "󰍹";
-    if (lower.find("office") != std::string::npos || lower.find("texteditor") != std::string::npos) return "󰏫";
-    return "󰏖";
+        lower.find("graphics") != std::string::npos || lower.find("photo") != std::string::npos) return "image-x-generic";
+    if (lower.find("filemanager") != std::string::npos || lower.find("files") != std::string::npos) return "system-file-manager";
+    if (lower.find("settings") != std::string::npos || lower.find("preferences") != std::string::npos) return "preferences-system";
+    if (lower.find("security") != std::string::npos || lower.find("firewall") != std::string::npos) return "security-high";
+    if (lower.find("monitor") != std::string::npos || lower.find("system") != std::string::npos) return "video-display";
+    if (lower.find("office") != std::string::npos || lower.find("texteditor") != std::string::npos) return "x-office-document";
+    return "application-x-executable";
 }
 
 std::string AppsBackend::get_icon_for_pkg(const std::string& pkg_name) {
@@ -230,18 +230,18 @@ std::string AppsBackend::get_icon_for_pkg(const std::string& pkg_name) {
 
     if (lower.find("git") != std::string::npos || lower.find("clang") != std::string::npos ||
         lower.find("gcc") != std::string::npos || lower.find("cmake") != std::string::npos ||
-        lower.find("python") != std::string::npos || lower.find("rust") != std::string::npos) return "󰘦";
+        lower.find("python") != std::string::npos || lower.find("rust") != std::string::npos) return "applications-development";
     if (lower.find("zsh") != std::string::npos || lower.find("bash") != std::string::npos ||
-        lower.find("tmux") != std::string::npos || lower.find("fish") != std::string::npos) return "󰆍";
+        lower.find("tmux") != std::string::npos || lower.find("fish") != std::string::npos) return "utilities-terminal";
     if (lower.find("bluez") != std::string::npos || lower.find("network") != std::string::npos ||
         lower.find("curl") != std::string::npos || lower.find("wget") != std::string::npos ||
-        lower.find("opensnitch") != std::string::npos || lower.find("ssh") != std::string::npos) return "󰒍";
+        lower.find("opensnitch") != std::string::npos || lower.find("ssh") != std::string::npos) return "network-wired";
     if (lower.find("alsa") != std::string::npos || lower.find("audio") != std::string::npos ||
-        lower.find("pipewire") != std::string::npos || lower.find("sound") != std::string::npos) return "󰝚";
+        lower.find("pipewire") != std::string::npos || lower.find("sound") != std::string::npos) return "audio-x-generic";
     if (lower.find("acpi") != std::string::npos || lower.find("systemd") != std::string::npos ||
         lower.find("brightness") != std::string::npos || lower.find("btop") != std::string::npos ||
-        lower.find("htop") != std::string::npos) return "󰍹";
-    return "󰏖";
+        lower.find("htop") != std::string::npos) return "utilities-system-monitor";
+    return "package-x-generic";
 }
 
 std::vector<std::shared_ptr<SettingItem>> AppsBackend::get_desktop_app_items(bool force_refresh) {

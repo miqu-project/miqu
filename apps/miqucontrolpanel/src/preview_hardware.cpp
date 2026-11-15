@@ -39,22 +39,23 @@ std::shared_ptr<View> MillerView::create_sound_volume_card(
         ->build();
 
     auto get_icon_str = [is_speaker, is_muted, current_pct]() -> std::string {
-        if (is_muted) return is_speaker ? "󰝟" : "󰍭";
+        if (is_muted) return is_speaker ? "audio-volume-muted" : "audio-input-microphone-muted";
         if (is_speaker) {
-            if (current_pct >= 70) return "󰕾";
-            if (current_pct >= 30) return "󰖀";
-            return "󰕿";
+            if (current_pct >= 70) return "audio-volume-high";
+            if (current_pct >= 30) return "audio-volume-medium";
+            return "audio-volume-low";
         }
-        return "󰍬";
+        return "audio-input-microphone";
     };
 
-    auto icon = TextViewBuilder::create()
-        ->text(get_icon_str())
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(is_muted ? config->colors.on_surface_variant : config->colors.primary)
+    auto icon = ImageViewBuilder::create()
+        ->source(get_icon_str())
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams icon_lp;
-    icon_lp.width = 30;
+    icon_lp.width = 24;
+    icon_lp.height = 24;
     icon_lp.gravity = Gravity::CenterVertical;
     header_row->add_view(icon, icon_lp);
 
@@ -106,13 +107,15 @@ std::shared_ptr<View> MillerView::create_sound_volume_card(
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto icon_dim = TextViewBuilder::create()
-        ->text(is_speaker ? "󰕿" : "󰍬")
-        ->textSize(config->metrics.font_size - 2)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+    auto icon_dim = ImageViewBuilder::create()
+        ->source(is_speaker ? "audio-volume-low" : "audio-input-microphone")
+        ->targetSize(16)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.6f)
         ->build();
     LayoutParams idim_lp;
-    idim_lp.width = 20;
+    idim_lp.width = 16;
+    idim_lp.height = 16;
     idim_lp.gravity = Gravity::CenterVertical;
     slider_row->add_view(icon_dim, idim_lp);
 
@@ -132,9 +135,9 @@ std::shared_ptr<View> MillerView::create_sound_volume_card(
 
             if (icon && !item->switch_val) {
                 if (is_speaker) {
-                    if (pct >= 70) icon->set_text("󰕾");
-                    else if (pct >= 30) icon->set_text("󰖀");
-                    else icon->set_text("󰕿");
+                    if (pct >= 70) icon->set_image_resource("audio-volume-high");
+                    else if (pct >= 30) icon->set_image_resource("audio-volume-medium");
+                    else icon->set_image_resource("audio-volume-low");
                 }
                 icon->request_redraw();
             }
@@ -155,13 +158,14 @@ std::shared_ptr<View> MillerView::create_sound_volume_card(
     sl_lp.gravity = Gravity::CenterVertical;
     slider_row->add_view(m_active_slider, sl_lp);
 
-    auto icon_bright = TextViewBuilder::create()
-        ->text(is_speaker ? "󰕾" : "󰍬")
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.primary)
+    auto icon_bright = ImageViewBuilder::create()
+        ->source(is_speaker ? "audio-volume-high" : "audio-input-microphone")
+        ->targetSize(20)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams ibright_lp;
     ibright_lp.width = 20;
+    ibright_lp.height = 20;
     ibright_lp.gravity = Gravity::CenterVertical;
     slider_row->add_view(icon_bright, ibright_lp);
 
@@ -257,13 +261,15 @@ std::shared_ptr<View> MillerView::create_sound_mute_card(
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text(is_muted ? (is_speaker ? "󰝟" : "󰍭") : (is_speaker ? "󰕾" : "󰍬"))
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(is_muted ? config->colors.primary : config->colors.on_surface_variant)
+    std::string mute_icon_str = is_muted ? (is_speaker ? "audio-volume-muted" : "audio-input-microphone-muted") : (is_speaker ? "audio-volume-high" : "audio-input-microphone");
+    auto icon = ImageViewBuilder::create()
+        ->source(mute_icon_str)
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams icon_lp;
-    icon_lp.width = 30;
+    icon_lp.width = 24;
+    icon_lp.height = 24;
     icon_lp.gravity = Gravity::CenterVertical;
     card->add_view(icon, icon_lp);
 
@@ -360,20 +366,22 @@ std::shared_ptr<View> MillerView::create_sound_devices_card(
             ->padding(6, 4)
             ->build();
 
-        std::string dev_icon_str = is_speaker ? "󰕾" : "󰍬";
+        std::string dev_icon_str = is_speaker ? "audio-volume-high" : "audio-input-microphone";
         if (dev.name.find("Headphone") != std::string::npos || dev.name.find("Headset") != std::string::npos) {
-            dev_icon_str = is_speaker ? "󰋋" : "󰋎";
+            dev_icon_str = "audio-headphones";
         } else if (dev.name.find("HDMI") != std::string::npos || dev.name.find("DisplayPort") != std::string::npos) {
-            dev_icon_str = "󰡁";
+            dev_icon_str = "video-display";
         }
 
-        auto d_icon = TextViewBuilder::create()
-            ->text(dev_icon_str)
-            ->textSize(config->metrics.font_size + 2)
-            ->textColor(dev.is_default ? config->colors.primary : config->colors.on_surface_variant)
+        auto d_icon = ImageViewBuilder::create()
+            ->source(dev_icon_str)
+            ->targetSize(20)
+            ->fitMode(FitMode::Contain)
+            ->alpha(dev.is_default ? 1.0f : 0.7f)
             ->build();
         LayoutParams d_icon_lp;
-        d_icon_lp.width = 24;
+        d_icon_lp.width = 20;
+        d_icon_lp.height = 20;
         d_icon_lp.gravity = Gravity::CenterVertical;
         dev_row->add_view(d_icon, d_icon_lp);
 
@@ -475,9 +483,6 @@ void MillerView::render_brightness_preview(const std::shared_ptr<SettingItem>& i
 
     int current_pct = static_cast<int>(std::round(item->brightness_val * 100.0f));
 
-    // Dynamic icon based on brightness level
-    std::string bright_icon_str = (current_pct >= 75) ? "󰃠" : ((current_pct >= 40) ? "󰃟" : "󰃞");
-
     // 1. Brightness Adjustment Card
     auto bright_card = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
@@ -493,13 +498,14 @@ void MillerView::render_brightness_preview(const std::shared_ptr<SettingItem>& i
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text(bright_icon_str)
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(config->colors.primary)
+    auto icon = ImageViewBuilder::create()
+        ->source("display-brightness")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams icon_lp;
-    icon_lp.width = 30;
+    icon_lp.width = 24;
+    icon_lp.height = 24;
     icon_lp.gravity = Gravity::CenterVertical;
     header_row->add_view(icon, icon_lp);
 
@@ -553,31 +559,27 @@ void MillerView::render_brightness_preview(const std::shared_ptr<SettingItem>& i
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto icon_dim = TextViewBuilder::create()
-        ->text("󰃞")
-        ->textSize(config->metrics.font_size - 2)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+    auto icon_dim = ImageViewBuilder::create()
+        ->source("display-brightness")
+        ->targetSize(16)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.6f)
         ->build();
     LayoutParams idim_lp;
-    idim_lp.width = 20;
+    idim_lp.width = 16;
+    idim_lp.height = 16;
     idim_lp.gravity = Gravity::CenterVertical;
     slider_row->add_view(icon_dim, idim_lp);
 
     auto slider = SliderBuilder::create()
         ->value(item->brightness_val)
-        ->onValueChanged([this, item, val_label, icon, hint, b_info](float val, bool user) {
+        ->onValueChanged([this, item, val_label, hint, b_info](float val, bool user) {
             (void)user;
             float clamped = std::clamp(val, 0.01f, 1.0f);
             item->brightness_val = clamped;
             int pct = static_cast<int>(std::round(clamped * 100.0f));
             val_label->set_text(std::to_string(pct) + "%");
             val_label->request_redraw();
-
-            // Dynamically update icon and hint string
-            if (pct >= 75) icon->set_text("󰃠");
-            else if (pct >= 40) icon->set_text("󰃟");
-            else icon->set_text("󰃞");
-            icon->request_redraw();
 
             if (b_info.available) {
                 hint->set_text("Backlight level: " + std::to_string(pct) + "% · " + b_info.device_name);
@@ -597,13 +599,14 @@ void MillerView::render_brightness_preview(const std::shared_ptr<SettingItem>& i
     sl_lp.gravity = Gravity::CenterVertical;
     slider_row->add_view(slider, sl_lp);
 
-    auto icon_bright = TextViewBuilder::create()
-        ->text("󰃠")
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.primary)
+    auto icon_bright = ImageViewBuilder::create()
+        ->source("display-brightness")
+        ->targetSize(20)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams ibright_lp;
     ibright_lp.width = 20;
+    ibright_lp.height = 20;
     ibright_lp.gravity = Gravity::CenterVertical;
     slider_row->add_view(icon_bright, ibright_lp);
 
@@ -697,13 +700,14 @@ void MillerView::render_night_light_preview(const std::shared_ptr<SettingItem>& 
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto nl_icon = TextViewBuilder::create()
-        ->text("󰃟")
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(is_nl_on ? config->colors.primary : config->colors.on_surface_variant)
+    auto nl_icon = ImageViewBuilder::create()
+        ->source("preferences-desktop-display")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams nlicon_lp;
-    nlicon_lp.width = 30;
+    nlicon_lp.width = 24;
+    nlicon_lp.height = 24;
     nlicon_lp.gravity = Gravity::CenterVertical;
     hero_sw_card->add_view(nl_icon, nlicon_lp);
 
@@ -1065,13 +1069,14 @@ void MillerView::render_monitors_preview(const std::shared_ptr<SettingItem>& ite
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto mon_icon = TextViewBuilder::create()
-        ->text("󰍹")
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.primary)
+    auto mon_icon = ImageViewBuilder::create()
+        ->source("video-display")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams micon_lp;
     micon_lp.width = 24;
+    micon_lp.height = 24;
     micon_lp.gravity = Gravity::CenterVertical;
     mon_card->add_view(mon_icon, micon_lp);
 

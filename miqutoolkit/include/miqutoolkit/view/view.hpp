@@ -141,7 +141,7 @@ public:
     bool is_enabled() const { return m_enabled; }
 
     // Focusability
-    void set_focusable(bool focusable) { m_focusable = focusable; }
+    virtual void set_focusable(bool focusable) { m_focusable = focusable; }
     bool is_focusable() const { return m_focusable && is_visible() && is_enabled(); }
 
     // Focus Ring Customization

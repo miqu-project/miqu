@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view_group.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <memory>
 
 namespace miqu {
@@ -54,9 +55,9 @@ private:
     bool m_child_touch_target = false;
 };
 
-class ScrollViewBuilder : public std::enable_shared_from_this<ScrollViewBuilder> {
+class ScrollViewBuilder : public ViewGroupBuilder<ScrollViewBuilder, ScrollView> {
 public:
-    ScrollViewBuilder() : m_view(std::make_shared<ScrollView>()) {}
+    using ViewGroupBuilder<ScrollViewBuilder, ScrollView>::ViewGroupBuilder;
 
     static std::shared_ptr<ScrollViewBuilder> create() {
         return std::make_shared<ScrollViewBuilder>();
@@ -71,48 +72,6 @@ public:
         m_view->set_scrollbar_visible(show);
         return shared_from_this();
     }
-
-    std::shared_ptr<ScrollViewBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ScrollViewBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ScrollViewBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ScrollViewBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ScrollViewBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ScrollViewBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ScrollViewBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ScrollView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<ScrollView> m_view;
 };
 
 } // namespace miqu

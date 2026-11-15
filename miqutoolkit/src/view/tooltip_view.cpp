@@ -30,10 +30,14 @@ using UniquePangoFontDesc = std::unique_ptr<PangoFontDescription, PangoFontDescD
 
 } // anonymous namespace
 
-TooltipView::TooltipView() = default;
+TooltipView::TooltipView() {
+    m_padding = Padding(10, 5, 10, 5);
+}
 
 TooltipView::TooltipView(std::string text, std::string shortcut)
-    : m_text(std::move(text)), m_shortcut(std::move(shortcut)) {}
+    : m_text(std::move(text)), m_shortcut(std::move(shortcut)) {
+    m_padding = Padding(10, 5, 10, 5);
+}
 
 void TooltipView::set_text(std::string text) {
     if (m_text != text) {

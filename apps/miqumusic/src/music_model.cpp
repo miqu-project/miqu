@@ -14,7 +14,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
         item->id = prefix + (!song.uri.empty() ? song.uri : std::to_string(song.id));
         item->title = song.display_title();
         item->subtitle = song.display_artist();
-        item->icon = "󰎆";
+        item->icon = "audio-x-generic";
         item->is_category = false;
         item->is_song = true;
         item->song_data = song;
@@ -25,7 +25,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
     auto queue_cat = std::make_shared<MusicItem>();
     queue_cat->id = "cat_queue";
     queue_cat->title = "Queue";
-    queue_cat->icon = "󰒺";
+    queue_cat->icon = "media-playlist-normal";
     queue_cat->is_category = true;
     queue_cat->provider = [client, make_song_leaf](MusicItem* self) {
         self->children.clear();
@@ -42,7 +42,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
     auto artists_cat = std::make_shared<MusicItem>();
     artists_cat->id = "cat_artists";
     artists_cat->title = "Artists";
-    artists_cat->icon = "󰠃";
+    artists_cat->icon = "view-media-artist";
     artists_cat->is_category = true;
     artists_cat->provider = [client, make_song_leaf](MusicItem* self) {
         self->children.clear();
@@ -61,7 +61,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
             auto artist_item = std::make_shared<MusicItem>();
             artist_item->id = "artist_" + artist_name;
             artist_item->title = artist_name;
-            artist_item->icon = "󰠃";
+            artist_item->icon = "view-media-artist";
             artist_item->is_category = true;
             artist_item->provider = [songs, make_song_leaf](MusicItem* a_self) {
                 a_self->children.clear();
@@ -80,7 +80,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
                         auto alb_item = std::make_shared<MusicItem>();
                         alb_item->id = "artist_alb_" + alb_name;
                         alb_item->title = alb_name;
-                        alb_item->icon = "󰀥";
+                        alb_item->icon = "media-album-cover";
                         alb_item->is_category = true;
                         alb_item->provider = [alb_songs, make_song_leaf](MusicItem* alb_self) {
                             alb_self->children.clear();
@@ -101,7 +101,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
     auto albums_cat = std::make_shared<MusicItem>();
     albums_cat->id = "cat_albums";
     albums_cat->title = "Albums";
-    albums_cat->icon = "󰀥";
+    albums_cat->icon = "media-album-cover";
     albums_cat->is_category = true;
     albums_cat->provider = [client, make_song_leaf](MusicItem* self) {
         self->children.clear();
@@ -120,7 +120,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
             auto alb_item = std::make_shared<MusicItem>();
             alb_item->id = "album_" + alb_name;
             alb_item->title = alb_name;
-            alb_item->icon = "󰀥";
+            alb_item->icon = "media-album-cover";
             alb_item->is_category = true;
             alb_item->provider = [songs, make_song_leaf](MusicItem* alb_self) {
                 alb_self->children.clear();
@@ -137,7 +137,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
     auto playlists_cat = std::make_shared<MusicItem>();
     playlists_cat->id = "cat_playlists";
     playlists_cat->title = "Playlists";
-    playlists_cat->icon = "󰲸";
+    playlists_cat->icon = "playlist";
     playlists_cat->is_category = true;
     playlists_cat->provider = [client, make_song_leaf](MusicItem* self) {
         self->children.clear();
@@ -147,7 +147,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
             auto pl_item = std::make_shared<MusicItem>();
             pl_item->id = "playlist_" + pl;
             pl_item->title = pl;
-            pl_item->icon = "󰲸";
+            pl_item->icon = "playlist";
             pl_item->is_category = true;
             pl_item->provider = [client, pl, make_song_leaf](MusicItem* pl_self) {
                 pl_self->children.clear();
@@ -166,7 +166,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
     auto library_cat = std::make_shared<MusicItem>();
     library_cat->id = "cat_library";
     library_cat->title = "Library";
-    library_cat->icon = "󰉋";
+    library_cat->icon = "folder-music";
     library_cat->is_category = true;
     library_cat->provider = [client, make_song_leaf](MusicItem* self) {
         self->children.clear();
@@ -185,14 +185,14 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
     auto visualizer_cat = std::make_shared<MusicItem>();
     visualizer_cat->id = "cat_visualizer";
     visualizer_cat->title = "Visualizer";
-    visualizer_cat->icon = "󰓃";
+    visualizer_cat->icon = "multimedia-audio-player";
     visualizer_cat->is_category = true;
 
     auto vis_spectrum = std::make_shared<MusicItem>();
     vis_spectrum->id = "vis_spectrum";
     vis_spectrum->title = "Frequency Spectrum";
     vis_spectrum->subtitle = "Real-time 36-band audio spectrum analyzer";
-    vis_spectrum->icon = "󰓃";
+    vis_spectrum->icon = "multimedia-audio-player";
     vis_spectrum->is_category = false;
     vis_spectrum->is_visualizer = true;
     vis_spectrum->visualizer_mode = miqumusic::VisualizerMode::SpectrumBars;
@@ -201,7 +201,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
     vis_waveform->id = "vis_waveform";
     vis_waveform->title = "Waveform Scope";
     vis_waveform->subtitle = "Oscilloscope waveform display";
-    vis_waveform->icon = "󰓃";
+    vis_waveform->icon = "multimedia-audio-player";
     vis_waveform->is_category = false;
     vis_waveform->is_visualizer = true;
     vis_waveform->visualizer_mode = miqumusic::VisualizerMode::WaveformScope;
@@ -210,7 +210,7 @@ std::vector<std::shared_ptr<MusicItem>> MusicModel::build_default_tree(std::shar
     vis_glow->id = "vis_glow";
     vis_glow->title = "Neon Peak Glow";
     vis_glow->subtitle = "Ambient peak frequency glow";
-    vis_glow->icon = "󰓃";
+    vis_glow->icon = "multimedia-audio-player";
     vis_glow->is_category = false;
     vis_glow->is_visualizer = true;
     vis_glow->visualizer_mode = miqumusic::VisualizerMode::GlowPeaks;

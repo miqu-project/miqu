@@ -16,7 +16,7 @@ struct TelemetryEntry {
 struct WifiNetwork {
     std::string ssid;
     std::string status = "Connect"; // "Connected", "Saved", "Connect", "Connecting..."
-    std::string icon = "󰤨";
+    std::string icon = "network-wireless";
     bool secured = true;
 
     // Detailed link fields (displayed on 3rd line and modals)
@@ -32,7 +32,7 @@ struct WifiNetwork {
 struct BluetoothDevice {
     std::string name;
     std::string status = "Paired"; // "Connected", "Paired", "Tap to pair", "Ready to pair"
-    std::string icon = "󰂯";
+    std::string icon = "bluetooth";
     std::string battery = "";
     std::string mac = "";
     bool is_connected = false;

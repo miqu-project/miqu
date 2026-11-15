@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <string>
 #include <functional>
 
@@ -171,9 +172,9 @@ private:
     double m_border_width = -1.0;
 };
 
-class ButtonBuilder : public std::enable_shared_from_this<ButtonBuilder> {
+class ButtonBuilder : public ViewBuilder<ButtonBuilder, Button> {
 public:
-    ButtonBuilder() : m_view(std::make_shared<Button>()) {}
+    using ViewBuilder<ButtonBuilder, Button>::ViewBuilder;
 
     static std::shared_ptr<ButtonBuilder> create() {
         return std::make_shared<ButtonBuilder>();
@@ -274,57 +275,10 @@ public:
         return shared_from_this();
     }
 
-    std::shared_ptr<ButtonBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
+    std::shared_ptr<ButtonBuilder> selected(bool b = true) {
+        m_view->set_selected(b);
         return shared_from_this();
     }
-
-    std::shared_ptr<ButtonBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ButtonBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ButtonBuilder> padding(int l, int t, int r, int b) {
-        m_view->set_padding(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ButtonBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ButtonBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ButtonBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ButtonBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ButtonBuilder> onClick(std::function<void()> cb) {
-        m_view->set_on_click_listener(std::move(cb));
-        return shared_from_this();
-    }
-
-    std::shared_ptr<Button> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<Button> m_view;
 };
 
 } // namespace miqu

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <string>
 #include <functional>
 
@@ -75,9 +76,9 @@ private:
     std::function<void(const std::string&)> m_on_submit;
 };
 
-class EditTextBuilder : public std::enable_shared_from_this<EditTextBuilder> {
+class EditTextBuilder : public ViewBuilder<EditTextBuilder, EditText> {
 public:
-    EditTextBuilder() : m_view(std::make_shared<EditText>()) {}
+    using ViewBuilder<EditTextBuilder, EditText>::ViewBuilder;
 
     static std::shared_ptr<EditTextBuilder> create() {
         return std::make_shared<EditTextBuilder>();
@@ -137,53 +138,6 @@ public:
         m_view->set_on_submit_listener(std::move(cb));
         return shared_from_this();
     }
-
-    std::shared_ptr<EditTextBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<EditTextBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<EditTextBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<EditTextBuilder> padding(int l, int t, int r, int b) {
-        m_view->set_padding(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<EditTextBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<EditTextBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<EditTextBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<EditTextBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<EditText> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<EditText> m_view;
 };
 
 } // namespace miqu

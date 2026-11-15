@@ -247,17 +247,18 @@ void GreeterApp::setup_ui() {
     // Password input
     m_password_input = EditTextBuilder::create()
         ->hint("Password")
+        ->passwordMode(true)
+        ->padding(18, 11)
+        ->onSubmit([this](const std::string&) {
+            do_login();
+        })
         ->build();
-    m_password_input->set_password_mode(true);
     m_password_input->set_layout_params(LayoutParams(
         static_cast<int>(LayoutDimension::MatchParent),
         44,
         Gravity::CenterHorizontal
     ));
     m_password_input->set_margin(0, 0, 0, 8);
-    m_password_input->set_on_submit_listener([this](const std::string&) {
-        do_login();
-    });
     card_content->add_view(m_password_input);
 
     // Status / Error message
@@ -321,23 +322,23 @@ void GreeterApp::setup_ui() {
         ->preferredSize(win_w, win_h)
         ->contentView(root)
         ->closeOnEscape(false)
-        ->onKey([this](const KeyPressEvent& ev) {
-            if (!ev.pressed) return;
-            if (ev.keysym == XKB_KEY_Escape && m_test_mode) {
-                m_engine->quit();
-            } else if (ev.keysym == XKB_KEY_Return || ev.keysym == XKB_KEY_KP_Enter) {
-                do_login();
-            }
-        })
         ->onClose([this]() {
             m_engine->quit();
+        })
+        ->onShortcut([this](const KeyPressEvent& ev) -> bool {
+            if (!ev.pressed) return false;
+            if (ev.keysym == XKB_KEY_Escape && m_test_mode) {
+                m_engine->quit();
+                return true;
+            }
+            return false;
         })
         ->build();
 
     if (m_window) {
         m_window->show();
         if (m_password_input) {
-            m_password_input->request_focus();
+            m_window->set_focused_view(m_password_input.get());
         }
     }
 
@@ -420,7 +421,11 @@ void GreeterApp::on_initial_data(const std::vector<UserInfo>& users,
     on_session_selected(target_sess_idx);
 
     if (m_password_input) {
-        m_password_input->request_focus();
+        if (m_window) {
+            m_window->set_focused_view(m_password_input.get());
+        } else {
+            m_password_input->request_focus();
+        }
     }
     if (m_window) {
         m_window->schedule_redraw();
@@ -448,7 +453,11 @@ void GreeterApp::on_user_selected(int index) {
 
     if (m_password_input) {
         m_password_input->clear();
-        m_password_input->request_focus();
+        if (m_window) {
+            m_window->set_focused_view(m_password_input.get());
+        } else {
+            m_password_input->request_focus();
+        }
     }
     set_status("");
 

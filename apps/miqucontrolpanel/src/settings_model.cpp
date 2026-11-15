@@ -47,16 +47,16 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // ==============================================================================
     {
         // 1.1 Wi-Fi (Direct Leaf node with interactive UI)
-        auto wifi = SettingItem::create_leaf("net_wifi", "Wi-Fi", "", "󰖩");
+        auto wifi = SettingItem::create_leaf("net_wifi", "Wi-Fi", "", "network-wireless");
         wifi->has_switch = true;
         wifi->switch_val = true;
         wifi->switch_label = "Wi-Fi";
         wifi->wifi_networks = {
-            {"Miqu-Fiber-5G", "Connected", "󰤨", true, "E4:70:B8:52:2F:BF", 92, "5 GHz", "36", "WPA3", "1200 Mbit/s", "WPA3 • 5 GHz (Ch 36) • 92% • 1200 Mbit/s • E4:70:B8:52:2F:BF"},
-            {"Home-Mesh-Office", "Saved", "󰤥", true, "A0:B1:C2:D3:E4:F5", 78, "5 GHz", "44", "WPA2", "866 Mbit/s", "WPA2 • 5 GHz (Ch 44) • 78% • 866 Mbit/s • A0:B1:C2:D3:E4:F5"},
-            {"Miqu-Lab-Secure", "Saved", "󰤢", true, "12:34:56:78:9A:BC", 60, "5 GHz", "149", "WPA2 Enterprise", "540 Mbit/s", "WPA2 Enterprise • 5 GHz (Ch 149) • 60% • 540 Mbit/s • 12:34:56:78:9A:BC"},
-            {"Cafe-Express-WiFi", "Connect", "󰤨", false, "FE:DC:BA:98:76:54", 85, "2.4 GHz", "6", "Open", "144 Mbit/s", "Open • 2.4 GHz (Ch 6) • 85% • 144 Mbit/s • FE:DC:BA:98:76:54"},
-            {"Airport-Free-5G", "Connect", "󰤢", false, "00:11:22:33:44:55", 52, "5 GHz", "157", "Open", "300 Mbit/s", "Open • 5 GHz (Ch 157) • 52% • 300 Mbit/s • 00:11:22:33:44:55"}
+            {"Miqu-Fiber-5G", "Connected", "network-wireless", true, "E4:70:B8:52:2F:BF", 92, "5 GHz", "36", "WPA3", "1200 Mbit/s", "WPA3 • 5 GHz (Ch 36) • 92% • 1200 Mbit/s • E4:70:B8:52:2F:BF"},
+            {"Home-Mesh-Office", "Saved", "network-wireless", true, "A0:B1:C2:D3:E4:F5", 78, "5 GHz", "44", "WPA2", "866 Mbit/s", "WPA2 • 5 GHz (Ch 44) • 78% • 866 Mbit/s • A0:B1:C2:D3:E4:F5"},
+            {"Miqu-Lab-Secure", "Saved", "network-wireless", true, "12:34:56:78:9A:BC", 60, "5 GHz", "149", "WPA2 Enterprise", "540 Mbit/s", "WPA2 Enterprise • 5 GHz (Ch 149) • 60% • 540 Mbit/s • 12:34:56:78:9A:BC"},
+            {"Cafe-Express-WiFi", "Connect", "network-wireless", false, "FE:DC:BA:98:76:54", 85, "2.4 GHz", "6", "Open", "144 Mbit/s", "Open • 2.4 GHz (Ch 6) • 85% • 144 Mbit/s • FE:DC:BA:98:76:54"},
+            {"Airport-Free-5G", "Connect", "network-wireless", false, "00:11:22:33:44:55", 52, "5 GHz", "157", "Open", "300 Mbit/s", "Open • 5 GHz (Ch 157) • 52% • 300 Mbit/s • 00:11:22:33:44:55"}
         };
         wifi->telemetry = {
             {"Interface", "wlan0 (Intel Wi-Fi 6 AX200)"},
@@ -67,15 +67,15 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 1.2 Bluetooth (Leaf)
-        auto bt = SettingItem::create_leaf("net_bluetooth", "Bluetooth", "", "󰂯");
+        auto bt = SettingItem::create_leaf("net_bluetooth", "Bluetooth", "", "bluetooth");
         bt->has_switch = true;
         bt->switch_val = true;
         bt->switch_label = "Bluetooth";
         bt->bt_devices = {
-            {"Sony WH-1000XM4", "Connected", "󰋋", "80%"},
-            {"Logitech MX Master 3S", "Paired", "󰍽", ""},
-            {"Keychron K2 Pro", "Paired", "󰌌", ""},
-            {"DualSense Wireless Controller", "Tap to pair", "󰊴", ""}
+            {"Sony WH-1000XM4", "Connected", "audio-headphones", "80%"},
+            {"Logitech MX Master 3S", "Paired", "input-mouse", ""},
+            {"Keychron K2 Pro", "Paired", "input-keyboard", ""},
+            {"DualSense Wireless Controller", "Tap to pair", "input-gaming", ""}
         };
         bt->telemetry = {
             {"Controller", "hci0 (Intel AX200 Bluetooth 5.2)"},
@@ -85,7 +85,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 1.3 Ethernet (Leaf)
-        auto eth = SettingItem::create_leaf("net_ethernet", "Ethernet", "", "󰈀");
+        auto eth = SettingItem::create_leaf("net_ethernet", "Ethernet", "", "network-wired");
         eth->eth_profile = {
             "Wired Connection 1",
             "Connected",
@@ -113,24 +113,24 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 1.4 VPN (Leaf)
-        auto vpn = SettingItem::create_leaf("net_vpn", "VPN", "", "󰖂");
+        auto vpn = SettingItem::create_leaf("net_vpn", "VPN", "", "network-vpn");
         vpn->is_vpn = true;
         vpn->has_switch = true;
         vpn->switch_label = "VPN Tunnel";
         vpn->telemetry_title = "VPN tunnel specifications";
 
         // 1.5 Airplane Mode (Leaf)
-        auto airplane = SettingItem::create_leaf("net_airplane", "Airplane Mode", "", "󰀝");
+        auto airplane = SettingItem::create_leaf("net_airplane", "Airplane Mode", "", "airplane-mode");
         airplane->has_switch = true;
         airplane->switch_label = "Airplane Mode";
 
         // 1.6 Private DNS (Leaf)
-        auto private_dns = SettingItem::create_leaf("net_private_dns", "Private DNS", "", "󰒍");
+        auto private_dns = SettingItem::create_leaf("net_private_dns", "Private DNS", "", "security-high");
         private_dns->is_private_dns = true;
         private_dns->telemetry_title = "DNS & encryption specifications";
 
         // 1.7 Firewall (Leaf)
-        auto firewall = SettingItem::create_leaf("net_firewall", "Firewall", "", "󰒃");
+        auto firewall = SettingItem::create_leaf("net_firewall", "Firewall", "", "security-high");
         firewall->is_firewall = true;
         firewall->firewall_cfg.enabled = true;
         firewall->firewall_cfg.incoming_policy = "Drop (Deny)";
@@ -143,11 +143,11 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         firewall->firewall_cfg.monitor_enabled = true;
 
         // 1.8 Per App Network Access (Leaf)
-        auto per_app_net = SettingItem::create_leaf("net_per_app", "Per App Network Access", "", "󰀻");
+        auto per_app_net = SettingItem::create_leaf("net_per_app", "Per App Network Access", "", "applications-system");
         per_app_net->is_per_app_network = true;
 
         root.push_back(SettingItem::create_category(
-            "cat_connectivity", "Connectivity", "󰖩",
+            "cat_connectivity", "Connectivity", "network-wireless",
             {wifi, bt, eth, vpn, airplane, private_dns, firewall, per_app_net}
         ));
     }
@@ -159,27 +159,27 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         auto shared_tiling = std::make_shared<TilingConfig>();
 
         // 2.1 Layout Mode
-        auto tile_mode = SettingItem::create_leaf("tile_mode", "Layout Mode", "", "󰕰");
+        auto tile_mode = SettingItem::create_leaf("tile_mode", "Layout Mode", "", "preferences-system-windows");
         tile_mode->is_tiling_config = true;
         tile_mode->tiling_cfg = shared_tiling;
 
         // 2.2 Windows
-        auto tile_windows = SettingItem::create_leaf("tile_windows", "Windows", "", "󰃟");
+        auto tile_windows = SettingItem::create_leaf("tile_windows", "Windows", "", "preferences-system-windows");
         tile_windows->is_tiling_config = true;
         tile_windows->tiling_cfg = shared_tiling;
 
         // 2.3 Dwindle (BSP) Tuning
-        auto tile_split = SettingItem::create_leaf("tile_split", "Dwindle (BSP) Tuning", "", "󰤻");
+        auto tile_split = SettingItem::create_leaf("tile_split", "Dwindle (BSP) Tuning", "", "view-split-left-right");
         tile_split->is_tiling_config = true;
         tile_split->tiling_cfg = shared_tiling;
 
         // 2.4 Focus Behaviour
-        auto tile_focus = SettingItem::create_leaf("tile_focus", "Focus Behaviour", "", "󰍽");
+        auto tile_focus = SettingItem::create_leaf("tile_focus", "Focus Behaviour", "", "input-mouse");
         tile_focus->is_tiling_config = true;
         tile_focus->tiling_cfg = shared_tiling;
 
         root.push_back(SettingItem::create_category(
-            "cat_tiling", "Window Management", "󰕰",
+            "cat_tiling", "Window Management", "preferences-system-windows",
             {tile_mode, tile_windows, tile_split, tile_focus}
         ));
     }
@@ -189,7 +189,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // ==============================================================================
     {
         // 3.1 System & Session
-        auto kb_system = SettingItem::create_leaf("kb_system", "System & Session", "", "󰐥");
+        auto kb_system = SettingItem::create_leaf("kb_system", "System & Session", "", "system-shutdown");
         kb_system->is_keybinding_group = true;
         kb_system->keybindings = {
             {"Power Menu", "Open system shutdown, restart and suspend dialog", {"Super", "Shift", "Q"}},
@@ -200,7 +200,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 3.2 Core Applications
-        auto kb_apps = SettingItem::create_leaf("kb_apps", "Applications", "", "󰀻");
+        auto kb_apps = SettingItem::create_leaf("kb_apps", "Applications", "", "applications-system");
         kb_apps->is_keybinding_group = true;
         kb_apps->keybindings = {
             {"Terminal", "Spawn default terminal emulator (Kitty)", {"Super", "T"}},
@@ -212,7 +212,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 3.3 Window Management
-        auto kb_windows = SettingItem::create_leaf("kb_windows", "Window Management", "", "󰕰");
+        auto kb_windows = SettingItem::create_leaf("kb_windows", "Window Management", "", "preferences-system-windows");
         kb_windows->is_keybinding_group = true;
         kb_windows->keybindings = {
             {"Close Window", "Gracefully close the currently active focused window", {"Super", "Q"}},
@@ -224,7 +224,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 3.4 Navigation & Workspaces
-        auto kb_nav = SettingItem::create_leaf("kb_nav", "Navigation & Workspaces", "", "󰍹");
+        auto kb_nav = SettingItem::create_leaf("kb_nav", "Navigation & Workspaces", "", "video-display");
         kb_nav->is_keybinding_group = true;
         kb_nav->keybindings = {
             {"Next Window", "Shift keyboard focus to next window in current workspace", {"Super", "J"}},
@@ -236,7 +236,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         root.push_back(SettingItem::create_category(
-            "cat_keybindings", "Keybindings", "󰌌",
+            "cat_keybindings", "Keybindings", "preferences-desktop-keyboard-shortcuts",
             {kb_system, kb_apps, kb_windows, kb_nav}
         ));
     }
@@ -245,20 +245,20 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // 3. Monitors & Displays (Depth 1)
     // ==============================================================================
     {
-        auto cat_monitors = SettingItem::create_category("cat_monitors", "Monitors", "󰍹");
+        auto cat_monitors = SettingItem::create_category("cat_monitors", "Monitors", "video-display");
         cat_monitors->children_provider = []() {
             std::vector<std::shared_ptr<SettingItem>> mon_items;
             auto connected_monitors = MonitorBackend::get_monitors();
             for (const auto& mon_info : connected_monitors) {
                 std::string id = "mon_" + mon_info.name;
                 std::string title = !mon_info.description.empty() ? mon_info.description : mon_info.name;
-                auto mon_item = SettingItem::create_leaf(id, title, "", "󰍹");
+                auto mon_item = SettingItem::create_leaf(id, title, "", "video-display");
                 MonitorBackend::sync_monitor_item(mon_item, mon_info);
                 mon_items.push_back(mon_item);
             }
 
             if (mon_items.empty()) {
-                auto def_item = SettingItem::create_leaf("mon_edp1", "eDP-1", "", "󰍹");
+                auto def_item = SettingItem::create_leaf("mon_edp1", "eDP-1", "", "video-display");
                 MonitorInfo def_info;
                 MonitorBackend::sync_monitor_item(def_item, def_info);
                 mon_items.push_back(def_item);
@@ -275,12 +275,12 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     {
         // 3.1 Desktop Applications (Category)
         auto cat_desktop_apps = SettingItem::create_category(
-            "cat_desktop_apps", "Desktop Applications", "󰀻"
+            "cat_desktop_apps", "Desktop Applications", "applications-system"
         );
         cat_desktop_apps->children_provider = []() {
             std::vector<std::shared_ptr<SettingItem>> desktop_items = AppsBackend::get_desktop_app_items();
             if (desktop_items.empty()) {
-                auto app_firefox = SettingItem::create_leaf("app_firefox", "Firefox Web Browser", "", "󰈹");
+                auto app_firefox = SettingItem::create_leaf("app_firefox", "Firefox Web Browser", "", "firefox");
                 app_firefox->is_installed_app = true;
                 app_firefox->app_info.app_name = "Firefox Web Browser";
                 app_firefox->app_info.desktop_file = "/usr/share/applications/firefox.desktop";
@@ -292,14 +292,14 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
 
         // 3.2 System Packages (Category)
         auto cat_system_packages = SettingItem::create_category(
-            "cat_system_packages", "System Packages", "󰒓"
+            "cat_system_packages", "System Packages", "system-software-install"
         );
         cat_system_packages->children_provider = []() {
             return AppsBackend::get_system_package_items();
         };
 
         // 3.2 Default Applications (Category)
-        auto def_browser = SettingItem::create_leaf("def_browser", "Web Browser", XdgBackend::get_default_app_name("text/html", "Firefox"), "󰈹");
+        auto def_browser = SettingItem::create_leaf("def_browser", "Web Browser", XdgBackend::get_default_app_name("text/html", "Firefox"), "web-browser");
         def_browser->is_default_app_role = true;
         def_browser->default_app_role = {
             "Web Browser", "text/html, x-scheme-handler/http, x-scheme-handler/https",
@@ -311,7 +311,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Specification", "XDG MIME Applications Specification v1.4"}
         };
 
-        auto def_filemanager = SettingItem::create_leaf("def_filemanager", "File Manager", XdgBackend::get_default_app_name("inode/directory", "Miqu Files"), "󰉋");
+        auto def_filemanager = SettingItem::create_leaf("def_filemanager", "File Manager", XdgBackend::get_default_app_name("inode/directory", "Miqu Files"), "system-file-manager");
         def_filemanager->is_default_app_role = true;
         def_filemanager->default_app_role = {
             "File Manager", "inode/directory",
@@ -323,7 +323,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Specification", "XDG MIME Applications Specification v1.4"}
         };
 
-        auto def_pdf = SettingItem::create_leaf("def_pdf", "PDF Reader", XdgBackend::get_default_app_name("application/pdf", "Document Viewer"), "󰈦");
+        auto def_pdf = SettingItem::create_leaf("def_pdf", "PDF Reader", XdgBackend::get_default_app_name("application/pdf", "Document Viewer"), "application-pdf");
         def_pdf->is_default_app_role = true;
         def_pdf->default_app_role = {
             "PDF Reader", "application/pdf",
@@ -335,7 +335,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Specification", "XDG MIME Applications Specification v1.4"}
         };
 
-        auto def_image = SettingItem::create_leaf("def_image", "Image Viewer", XdgBackend::get_default_app_name("image/png", "Gallery"), "󰋩");
+        auto def_image = SettingItem::create_leaf("def_image", "Image Viewer", XdgBackend::get_default_app_name("image/png", "Gallery"), "image-x-generic");
         def_image->is_default_app_role = true;
         def_image->default_app_role = {
             "Image Viewer", "image/png, image/jpeg, image/webp, image/gif, image/svg+xml",
@@ -347,7 +347,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Specification", "XDG MIME Applications Specification v1.4"}
         };
 
-        auto def_editor = SettingItem::create_leaf("def_editor", "Text Editor", XdgBackend::get_default_app_name("text/plain", "Geany"), "󰨞");
+        auto def_editor = SettingItem::create_leaf("def_editor", "Text Editor", XdgBackend::get_default_app_name("text/plain", "Geany"), "accessories-text-editor");
         def_editor->is_default_app_role = true;
         def_editor->default_app_role = {
             "Text Editor", "text/plain, text/markdown",
@@ -359,7 +359,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Specification", "XDG MIME Applications Specification v1.4"}
         };
 
-        auto def_video = SettingItem::create_leaf("def_video", "Video Player", XdgBackend::get_default_app_name("video/mp4", "Celluloid"), "󰕼");
+        auto def_video = SettingItem::create_leaf("def_video", "Video Player", XdgBackend::get_default_app_name("video/mp4", "Celluloid"), "video-x-generic");
         def_video->is_default_app_role = true;
         def_video->default_app_role = {
             "Video Player", "video/mp4, video/mkv, video/webm, video/x-matroska",
@@ -371,7 +371,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Specification", "XDG MIME Applications Specification v1.4"}
         };
 
-        auto def_music = SettingItem::create_leaf("def_music", "Music Player", XdgBackend::get_default_app_name("audio/mpeg", "Miqu Music"), "󰝚");
+        auto def_music = SettingItem::create_leaf("def_music", "Music Player", XdgBackend::get_default_app_name("audio/mpeg", "Miqu Music"), "audio-x-generic");
         def_music->is_default_app_role = true;
         def_music->default_app_role = {
             "Music Player", "audio/mpeg, audio/flac, audio/ogg, audio/wav",
@@ -383,7 +383,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Specification", "XDG MIME Applications Specification v1.4"}
         };
 
-        auto def_mail = SettingItem::create_leaf("def_mail", "Mail Reader", XdgBackend::get_default_app_name("x-scheme-handler/mailto", "Thunderbird"), "󰇮");
+        auto def_mail = SettingItem::create_leaf("def_mail", "Mail Reader", XdgBackend::get_default_app_name("x-scheme-handler/mailto", "Thunderbird"), "internet-mail");
         def_mail->is_default_app_role = true;
         def_mail->default_app_role = {
             "Mail Reader", "x-scheme-handler/mailto, message/rfc822",
@@ -395,7 +395,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Specification", "XDG MIME Applications Specification v1.4"}
         };
 
-        auto def_terminal = SettingItem::create_leaf("def_terminal", "Terminal Emulator", "Kitty", "󰄛");
+        auto def_terminal = SettingItem::create_leaf("def_terminal", "Terminal Emulator", "Kitty", "utilities-terminal");
         def_terminal->is_default_app_role = true;
         def_terminal->default_app_role = {
             "Terminal Emulator", "x-scheme-handler/terminal",
@@ -408,12 +408,12 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         auto cat_default_apps = SettingItem::create_category(
-            "cat_default_apps", "Default Applications", "󰆍",
+            "cat_default_apps", "Default Applications", "preferences-desktop-default-applications",
             {def_browser, def_filemanager, def_pdf, def_image, def_editor, def_video, def_music, def_mail, def_terminal}
         );
 
         root.push_back(SettingItem::create_category(
-            "cat_applications", "Applications", "󰀻",
+            "cat_applications", "Applications", "applications-system",
             {cat_desktop_apps, cat_system_packages, cat_default_apps}
         ));
     }
@@ -423,7 +423,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // ==============================================================================
     {
         // 5.1 Brightness
-        auto disp_bright = SettingItem::create_leaf("disp_bright", "Brightness", "", "󰃠");
+        auto disp_bright = SettingItem::create_leaf("disp_bright", "Brightness", "", "display-brightness");
         disp_bright->is_display_brightness = true;
         disp_bright->brightness_val = 0.85f;
         disp_bright->telemetry_title = "Backlight & panel specifications";
@@ -435,7 +435,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 5.2 Screen Timeout & Lock (Unified Inactivity & Security)
-        auto disp_timeout_lock = SettingItem::create_leaf("disp_timeout_lock", "Screen Timeout & Lock", "", "󰌾");
+        auto disp_timeout_lock = SettingItem::create_leaf("disp_timeout_lock", "Screen Timeout & Lock", "", "system-lock-screen");
         disp_timeout_lock->is_timeout_and_lock = true;
         disp_timeout_lock->timeout_lock_cfg.lock_timeout_minutes = 1;
         disp_timeout_lock->timeout_lock_cfg.display_off_minutes = 5;
@@ -468,12 +468,12 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 5.3 Night Light
-        auto disp_nightlight = SettingItem::create_leaf("disp_nightlight", "Night Light", "", "󰃟");
+        auto disp_nightlight = SettingItem::create_leaf("disp_nightlight", "Night Light", "", "preferences-desktop-display");
         disp_nightlight->is_display_nightlight = true;
         disp_nightlight->telemetry_title = "Gamma & color specifications";
 
         root.push_back(SettingItem::create_category(
-            "cat_display", "Display", "󰍹",
+            "cat_display", "Display", "video-display",
             {disp_bright, disp_timeout_lock, disp_nightlight}
         ));
     }
@@ -482,11 +482,11 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // 6. Appearance (Depth 1)
     // ==============================================================================
     {
-        auto ws_wallpaper = SettingItem::create_leaf("ws_wallpaper", "Wallpaper and Style", "", "󰸉");
+        auto ws_wallpaper = SettingItem::create_leaf("ws_wallpaper", "Wallpaper and Style", "", "preferences-desktop-wallpaper");
         ws_wallpaper->is_wallpaper = true;
 
         root.push_back(SettingItem::create_category(
-            "cat_appearance", "Appearance", "󰔎",
+            "cat_appearance", "Appearance", "preferences-desktop-theme",
             {ws_wallpaper}
         ));
     }
@@ -496,7 +496,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // ==============================================================================
     {
         // 3.1 Speaker (Leaf)
-        auto speaker = SettingItem::create_leaf("sound_speaker", "Speaker", "", "󰕾");
+        auto speaker = SettingItem::create_leaf("sound_speaker", "Speaker", "", "audio-volume-high");
         speaker->has_slider = true;
         speaker->slider_val = 0.70f;
         speaker->slider_label = "Volume";
@@ -514,7 +514,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         // 3.2 Mic (Leaf)
-        auto mic = SettingItem::create_leaf("sound_mic", "Mic", "", "󰍬");
+        auto mic = SettingItem::create_leaf("sound_mic", "Mic", "", "audio-input-microphone");
         mic->has_slider = true;
         mic->slider_val = 0.82f;
         mic->slider_label = "Gain";
@@ -532,7 +532,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         root.push_back(SettingItem::create_category(
-            "cat_audio", "Sound", "󰕾",
+            "cat_audio", "Sound", "audio-volume-high",
             {speaker, mic}
         ));
     }
@@ -542,27 +542,27 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // ==============================================================================
     {
         // 9.1 Keyboards & Layout (Leaf)
-        auto in_kb = SettingItem::create_leaf("input_keyboards", "Keyboards & Layout", "", "󰌌");
+        auto in_kb = SettingItem::create_leaf("input_keyboards", "Keyboards & Layout", "", "input-keyboard");
         in_kb->is_input_keyboards = true;
         in_kb->telemetry_title = "Hardware keyboard specifications";
 
         // 9.2 Typing & Repeat Speed (Leaf)
-        auto in_rep = SettingItem::create_leaf("input_repeat", "Typing & Repeat Speed", "", "󰁯");
+        auto in_rep = SettingItem::create_leaf("input_repeat", "Typing & Repeat Speed", "", "preferences-desktop-keyboard");
         in_rep->is_input_repeat = true;
         in_rep->telemetry_title = "Typing & repeat specifications";
 
         // 9.3 Pointers & Touchpad (Leaf)
-        auto in_ptr = SettingItem::create_leaf("input_pointers", "Pointers & Touchpad", "", "󰍽");
+        auto in_ptr = SettingItem::create_leaf("input_pointers", "Pointers & Touchpad", "", "input-mouse");
         in_ptr->is_input_pointers = true;
         in_ptr->telemetry_title = "Pointing device specifications";
 
         // 9.4 Touchscreen & Gestures (Leaf)
-        auto in_touch = SettingItem::create_leaf("input_touch", "Touchscreen & Gestures", "", "󰟸");
+        auto in_touch = SettingItem::create_leaf("input_touch", "Touchscreen & Gestures", "", "input-touchpad");
         in_touch->is_input_touch = true;
         in_touch->telemetry_title = "Digitizer & gesture specifications";
 
         root.push_back(SettingItem::create_category(
-            "cat_input", "Keyboard & Mouse", "󰌌",
+            "cat_input", "Keyboard & Mouse", "input-keyboard",
             {in_kb, in_rep, in_ptr, in_touch}
         ));
     }
@@ -571,7 +571,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // 8. Storage (Depth 1)
     // ==============================================================================
     {
-        auto stor_root = SettingItem::create_leaf("stor_root", "Root Filesystem (/)", "", "󰋊");
+        auto stor_root = SettingItem::create_leaf("stor_root", "Root Filesystem (/)", "", "drive-harddisk");
         stor_root->has_slider = true;
         stor_root->slider_val = 0.42f;
         stor_root->slider_label = "Storage Used (42% • 420.5 GB of 1.0 TB)";
@@ -595,7 +595,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"SMART Health Status", "PASSED (100% remaining lifetime)"}
         };
 
-        auto stor_home = SettingItem::create_leaf("stor_home", "User Data (~/)", "", "󰉋");
+        auto stor_home = SettingItem::create_leaf("stor_home", "User Data (~/)", "", "folder");
         stor_home->has_slider = true;
         stor_home->slider_val = 0.28f;
         stor_home->slider_label = "User Directory Space (280.4 GB)";
@@ -618,7 +618,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         root.push_back(SettingItem::create_category(
-            "cat_storage", "Storage", "󰋊",
+            "cat_storage", "Storage", "drive-harddisk",
             {stor_root, stor_home}
         ));
     }
@@ -632,19 +632,19 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         auto shared_battery_cfg = std::make_shared<BatteryConfig>();
 
         // 7.1 Battery Info (Leaf) - loaded lazily on visibility
-        auto battery_info = SettingItem::create_leaf("bat_info", "Battery Info", "", "󰁹");
+        auto battery_info = SettingItem::create_leaf("bat_info", "Battery Info", "", "battery");
         battery_info->is_battery_info = true;
         battery_info->battery_cfg = shared_battery_cfg;
         battery_info->telemetry_title = "Battery specifications";
 
         // 7.2 Power & Performance Mode (Leaf) - loaded lazily on visibility
-        auto power_mode = SettingItem::create_leaf("bat_power_mode", "Power & Performance Mode", "Balanced", "󰌪");
+        auto power_mode = SettingItem::create_leaf("bat_power_mode", "Power & Performance Mode", "Balanced", "preferences-system-power");
         power_mode->is_power_mode = true;
         power_mode->battery_cfg = shared_battery_cfg;
         power_mode->telemetry_title = "Power management specifications";
 
         auto cat_battery = SettingItem::create_category(
-            "cat_battery", "Battery", "󰁹",
+            "cat_battery", "Battery", "battery",
             {battery_info, power_mode}
         );
 
@@ -656,7 +656,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // ==============================================================================
     {
         // 10.1 About (Leaf)
-        auto sys_about = SettingItem::create_leaf("sys_about", "About", "", "󰋽");
+        auto sys_about = SettingItem::create_leaf("sys_about", "About", "", "help-about");
         sys_about->has_action = true;
         sys_about->action_label = "Check for Ecosystem Updates";
         sys_about->telemetry_title = "System specifications";
@@ -671,7 +671,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         };
 
         root.push_back(SettingItem::create_category(
-            "cat_system", "System", "󰒓",
+            "cat_system", "System", "preferences-system",
             {sys_about}
         ));
     }

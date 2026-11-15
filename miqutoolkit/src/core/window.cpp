@@ -1277,6 +1277,14 @@ void Window::dispatch_key_event(const KeyPressEvent& event) {
         return;
     }
 
+    // 3. Window Accelerators / Shortcuts (Pre-dispatch phase)
+    if (m_on_shortcut) {
+        if (m_on_shortcut(event)) {
+            schedule_redraw();
+            return;
+        }
+    }
+
     if (m_focused_view) {
         if (m_focused_view->on_key(event)) {
             schedule_redraw();
@@ -1285,6 +1293,20 @@ void Window::dispatch_key_event(const KeyPressEvent& event) {
 
         // When a view has focus and did not consume directional arrows, perform spatial navigation
         if (event.pressed && !event.has_ctrl() && !event.has_alt()) {
+            if (event.keysym == XKB_KEY_Tab || event.keysym == XKB_KEY_ISO_Left_Tab) {
+                if (event.has_shift()) {
+                    if (focus_prev()) {
+                        schedule_redraw();
+                        return;
+                    }
+                } else {
+                    if (focus_next()) {
+                        schedule_redraw();
+                        return;
+                    }
+                }
+            }
+
             bool is_down = (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_KP_Down ||
                             event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_J);
             bool is_up = (event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_KP_Up ||
@@ -1314,6 +1336,13 @@ void Window::dispatch_key_event(const KeyPressEvent& event) {
                     schedule_redraw();
                     return;
                 }
+            }
+        }
+    } else if (event.pressed && !event.has_ctrl() && !event.has_alt()) {
+        if (event.keysym == XKB_KEY_Tab || event.keysym == XKB_KEY_ISO_Left_Tab) {
+            if (focus_next()) {
+                schedule_redraw();
+                return;
             }
         }
     }

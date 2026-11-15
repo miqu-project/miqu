@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view_group.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <vector>
 #include <memory>
 #include <string>
@@ -78,9 +79,9 @@ private:
     static const std::string s_empty_str;
 };
 
-class NavigationViewBuilder : public std::enable_shared_from_this<NavigationViewBuilder> {
+class NavigationViewBuilder : public ViewGroupBuilder<NavigationViewBuilder, NavigationView> {
 public:
-    NavigationViewBuilder() : m_view(std::make_shared<NavigationView>()) {}
+    using ViewGroupBuilder<NavigationViewBuilder, NavigationView>::ViewGroupBuilder;
 
     static std::shared_ptr<NavigationViewBuilder> create() {
         return std::make_shared<NavigationViewBuilder>();
@@ -88,6 +89,11 @@ public:
 
     std::shared_ptr<NavigationViewBuilder> root(std::shared_ptr<View> view, const std::string& title = "", const std::string& tag = "") {
         m_view->push(std::move(view), title, tag);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<NavigationViewBuilder> root(std::shared_ptr<View> view, const std::string& title, const std::string& subtitle, const std::string& tag = "") {
+        m_view->push(std::move(view), title, subtitle, tag);
         return shared_from_this();
     }
 
@@ -105,13 +111,6 @@ public:
         m_view->set_on_navigation_listener(std::move(cb));
         return shared_from_this();
     }
-
-    std::shared_ptr<NavigationView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<NavigationView> m_view;
 };
 
 } // namespace miqu

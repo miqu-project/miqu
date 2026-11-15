@@ -26,7 +26,7 @@ public:
     std::string id;              // canonical path string
     std::string title;           // filename (e.g. "sunset.jpg" or "Wallpapers")
     std::string subtitle;        // e.g. "48 photos" or "1920 × 1080 • 2.4 MB"
-    std::string icon;            // icon (e.g. "󰋩", "󰈟", "󰉏")
+    std::string icon;            // Freedesktop icon theme name (e.g. "folder-pictures", "image-x-generic")
     bool is_category = false;    // true for photo album/folder
     std::filesystem::path path;
 

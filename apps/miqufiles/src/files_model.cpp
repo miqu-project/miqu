@@ -113,34 +113,86 @@ FileCategory FilesModel::detect_category(const fs::path& path, bool is_dir) {
 }
 
 std::string FilesModel::get_icon_for_category(FileCategory cat, const std::string& filename) {
+    if (cat == FileCategory::Directory) {
+        if (filename == "Downloads") return "folder-download";
+        if (filename == "Documents") return "folder-documents";
+        if (filename == "Pictures") return "folder-pictures";
+        if (filename == "Music") return "folder-music";
+        if (filename == "Videos") return "folder-videos";
+        if (filename == "Desktop") return "user-desktop";
+        if (filename == "Home" || filename == "~") return "user-home";
+        if (filename == "/" || filename == "File System") return "drive-harddisk";
+        if (filename == ".git") return "folder-git";
+        return "folder";
+    }
+
+    std::string ext = "";
+    auto dot_pos = filename.rfind('.');
+    if (dot_pos != std::string::npos) {
+        ext = filename.substr(dot_pos);
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+    }
+
+    std::string lower_fname = filename;
+    std::transform(lower_fname.begin(), lower_fname.end(), lower_fname.begin(), [](unsigned char c) { return std::tolower(c); });
+
     switch (cat) {
-        case FileCategory::Directory:
-            if (filename == "Downloads") return "󰉍";
-            if (filename == "Documents") return "󰈙";
-            if (filename == "Pictures") return "󰋩";
-            if (filename == "Music") return "󰎆";
-            if (filename == "Videos") return "󰕧";
-            if (filename == "Desktop") return "󰇄";
-            if (filename == "Home" || filename == "~") return "󰋜";
-            if (filename == "/" || filename == "File System") return "󰉖";
-            return "󰉋";
         case FileCategory::Image:
-            return "󰋩";
+            return "image-x-generic";
+
         case FileCategory::Video:
-            return "󰕧";
+            return "video-x-generic";
+
         case FileCategory::Audio:
-            return "󰎆";
+            return "audio-x-generic";
+
         case FileCategory::Document:
-            return "󰈦";
-        case FileCategory::CodeText:
-            return "󰅩";
+            if (ext == ".pdf") return "application-pdf";
+            if (ext == ".epub") return "application-epub+zip";
+            if (ext == ".xls" || ext == ".xlsx" || ext == ".ods" || ext == ".csv") return "x-office-spreadsheet";
+            if (ext == ".ppt" || ext == ".pptx" || ext == ".odp") return "x-office-presentation";
+            return "x-office-document";
+
         case FileCategory::Archive:
-            return "󰏗";
+            if (lower_fname.ends_with(".tar.gz") || lower_fname.ends_with(".tar.xz") ||
+                lower_fname.ends_with(".tar.bz2") || lower_fname.ends_with(".tar.zst") ||
+                ext == ".tar" || ext == ".tgz") {
+                return "application-x-tar";
+            }
+            if (ext == ".zip") return "application-zip";
+            if (ext == ".7z" || ext == ".rar") return "application-x-7z-compressed";
+            if (ext == ".gz" || ext == ".xz" || ext == ".bz2" || ext == ".zst") return "application-x-compressed-tar";
+            return "package-x-generic";
+
+        case FileCategory::CodeText:
+            if (ext == ".py") return "text-x-python";
+            if (ext == ".cpp" || ext == ".cxx" || ext == ".cc") return "text-x-c++src";
+            if (ext == ".hpp" || ext == ".hxx" || ext == ".hh") return "text-x-c++hdr";
+            if (ext == ".c") return "text-x-csrc";
+            if (ext == ".h") return "text-x-chdr";
+            if (ext == ".rs") return "text-x-rust";
+            if (ext == ".js" || ext == ".ts" || ext == ".mjs" || ext == ".cjs" || ext == ".tsx") return "text-x-javascript";
+            if (ext == ".json") return "application-json";
+            if (ext == ".html" || ext == ".htm") return "text-html";
+            if (ext == ".css" || ext == ".scss" || ext == ".sass" || ext == ".less") return "text-css";
+            if (ext == ".sh" || ext == ".bash" || ext == ".zsh" || ext == ".fish") return "application-x-shellscript";
+            if (ext == ".lua") return "text-x-lua";
+            if (ext == ".go") return "text-x-go";
+            if (ext == ".java") return "text-x-java";
+            if (ext == ".md" || ext == ".markdown") return "text-markdown";
+            if (ext == ".txt") return "text-plain";
+            if (ext == ".xml") return "application-xml";
+            if (ext == ".patch" || ext == ".diff") return "text-x-patch";
+            if (ext == ".service") return "system-run";
+            if (ext == ".desktop") return "application-x-desktop";
+            return "text-x-generic";
+
         case FileCategory::Executable:
-            return "󰚌";
+            return "application-x-executable";
+
         case FileCategory::Other:
         default:
-            return "󰈔";
+            return "text-x-generic";
     }
 }
 
@@ -216,7 +268,7 @@ std::shared_ptr<FileItem> FilesModel::create_file_item(const fs::path& p) {
     auto status = fs::symlink_status(p, ec);
     if (ec) {
         item->size_formatted = "Unknown";
-        item->icon = "󰈔";
+        item->icon = "text-x-generic";
         return item;
     }
 

@@ -52,6 +52,7 @@ void PhotosApp::setup_ui() {
     // 1. Top Toolbar (Centered Title "Photos", close button on right)
     m_toolbar = ToolbarBuilder::create()
         ->title("Photos")
+        ->iconResource("folder-pictures")
         ->titleAlignment(TitleAlignment::Center)
         ->showDivider(false)
         ->onClose([this]() {
@@ -92,6 +93,8 @@ void PhotosApp::setup_ui() {
         ->style(CardStyle::Filled)
         ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
         ->elevation(0)
+        ->tooltip("Back")
+        ->tooltipShortcut("Left / Backspace")
         ->addView(back_content)
         ->build();
 
@@ -427,7 +430,8 @@ void PhotosApp::handle_key_press(const KeyPressEvent& event) {
                 return;
             }
         } else {
-            if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
+            if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_h ||
+                event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
                 if (m_window) m_window->clear_focus();
                 m_miller_view->set_preview_focused(false);
                 return;
@@ -436,6 +440,7 @@ void PhotosApp::handle_key_press(const KeyPressEvent& event) {
 
         if (!m_window || !m_window->get_focused_view() || !m_window->get_focused_view()->has_focus()) {
             if (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_Up ||
+                event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_k ||
                 event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
                 m_miller_view->focus_first_preview_control();
                 return;

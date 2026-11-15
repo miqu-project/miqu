@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <string>
 
 namespace miqu {
@@ -178,12 +178,19 @@ private:
     float m_line_spacing = 1.0f;
 };
 
-class TextViewBuilder : public std::enable_shared_from_this<TextViewBuilder> {
+class TextViewBuilder : public ViewBuilder<TextViewBuilder, TextView> {
 public:
-    TextViewBuilder() : m_view(std::make_shared<TextView>()) {}
+    TextViewBuilder() : ViewBuilder<TextViewBuilder, TextView>() {}
+    explicit TextViewBuilder(std::string text) : ViewBuilder<TextViewBuilder, TextView>() {
+        m_view->set_text(std::move(text));
+    }
 
     static std::shared_ptr<TextViewBuilder> create() {
         return std::make_shared<TextViewBuilder>();
+    }
+
+    static std::shared_ptr<TextViewBuilder> create(std::string text) {
+        return std::make_shared<TextViewBuilder>(std::move(text));
     }
 
     std::shared_ptr<TextViewBuilder> text(std::string text) {
@@ -295,53 +302,6 @@ public:
         m_view->set_line_spacing(s);
         return shared_from_this();
     }
-
-    std::shared_ptr<TextViewBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TextViewBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TextViewBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TextViewBuilder> padding(int l, int t, int r, int b) {
-        m_view->set_padding(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TextViewBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TextViewBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TextViewBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TextViewBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<TextView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<TextView> m_view;
 };
 
 } // namespace miqu

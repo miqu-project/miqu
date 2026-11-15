@@ -1,6 +1,7 @@
 #pragma once
 
 #include "miqutoolkit/view/view_group.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <memory>
 
 namespace miqu {
@@ -44,40 +45,43 @@ private:
     Color m_active_color = Color::rgba(0.2f, 0.75f, 1.0f, 0.75f);
 };
 
-class ResizableContainerBuilder : public std::enable_shared_from_this<ResizableContainerBuilder> {
+class ResizableContainerBuilder : public ViewGroupBuilder<ResizableContainerBuilder, ResizableContainer> {
 public:
-    ResizableContainerBuilder() : m_container(std::make_shared<ResizableContainer>()) {}
+    using ViewGroupBuilder<ResizableContainerBuilder, ResizableContainer>::ViewGroupBuilder;
 
     static std::shared_ptr<ResizableContainerBuilder> create() {
         return std::make_shared<ResizableContainerBuilder>();
     }
 
     std::shared_ptr<ResizableContainerBuilder> content(std::shared_ptr<View> view) {
-        m_container->set_content(std::move(view));
+        m_view->set_content(std::move(view));
         return shared_from_this();
     }
 
     std::shared_ptr<ResizableContainerBuilder> resizable(bool r = true) {
-        m_container->set_resizable(r);
+        m_view->set_resizable(r);
         return shared_from_this();
     }
 
     std::shared_ptr<ResizableContainerBuilder> active(bool a = true) {
-        m_container->set_active(a);
+        m_view->set_active(a);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<ResizableContainerBuilder> hoverResize(bool hover = true) {
+        m_view->set_hover_resize(hover);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<ResizableContainerBuilder> gripSize(int size) {
+        m_view->set_grip_size(size);
         return shared_from_this();
     }
 
     std::shared_ptr<ResizableContainerBuilder> activeStrokeColor(const Color& c) {
-        m_container->set_active_stroke_color(c);
+        m_view->set_active_stroke_color(c);
         return shared_from_this();
     }
-
-    std::shared_ptr<ResizableContainer> build() {
-        return m_container;
-    }
-
-private:
-    std::shared_ptr<ResizableContainer> m_container;
 };
 
 } // namespace miqu

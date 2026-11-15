@@ -200,6 +200,4 @@ bool Switch::on_key(const KeyPressEvent& event) {
     return false;
 }
 
-SwitchBuilder::SwitchBuilder() : m_view(std::make_shared<Switch>()) {}
-
 } // namespace miqu

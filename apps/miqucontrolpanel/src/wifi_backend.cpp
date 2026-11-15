@@ -53,11 +53,11 @@ bool WifiBackend::is_wifi_available() {
 }
 
 std::string WifiBackend::resolve_signal_icon(int signal) {
-    if (signal >= 75) return "󰤨";
-    if (signal >= 50) return "󰤥";
-    if (signal >= 25) return "󰤢";
-    if (signal >= 1)  return "󰤟";
-    return "󰤮";
+    if (signal >= 75) return "network-wireless-signal-excellent";
+    if (signal >= 50) return "network-wireless-signal-good";
+    if (signal >= 25) return "network-wireless-signal-ok";
+    if (signal >= 1)  return "network-wireless-signal-weak";
+    return "network-wireless-signal-none";
 }
 
 WifiAdapterInfo WifiBackend::get_adapter_info() {

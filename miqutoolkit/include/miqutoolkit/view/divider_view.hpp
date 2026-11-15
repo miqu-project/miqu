@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <algorithm>
 
 namespace miqu {
@@ -28,16 +28,36 @@ private:
     Color m_color;
 };
 
-class DividerViewBuilder : public std::enable_shared_from_this<DividerViewBuilder> {
+class DividerViewBuilder : public ViewBuilder<DividerViewBuilder, DividerView> {
 public:
-    DividerViewBuilder() : m_view(std::make_shared<DividerView>()) {}
+    DividerViewBuilder() : ViewBuilder<DividerViewBuilder, DividerView>() {}
+    explicit DividerViewBuilder(Orientation o, int thickness = 1) : ViewBuilder<DividerViewBuilder, DividerView>() {
+        m_view->set_orientation(o);
+        m_view->set_thickness(thickness);
+    }
 
     static std::shared_ptr<DividerViewBuilder> create() {
         return std::make_shared<DividerViewBuilder>();
     }
 
+    static std::shared_ptr<DividerViewBuilder> create(Orientation o, int thickness = 1) {
+        return std::make_shared<DividerViewBuilder>(o, thickness);
+    }
+
     std::shared_ptr<DividerViewBuilder> orientation(Orientation o) {
         m_view->set_orientation(o);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<DividerViewBuilder> horizontal(int thickness = 1) {
+        m_view->set_orientation(Orientation::Horizontal);
+        m_view->set_thickness(thickness);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<DividerViewBuilder> vertical(int thickness = 1) {
+        m_view->set_orientation(Orientation::Vertical);
+        m_view->set_thickness(thickness);
         return shared_from_this();
     }
 
@@ -50,33 +70,6 @@ public:
         m_view->set_color(c);
         return shared_from_this();
     }
-
-    std::shared_ptr<DividerViewBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<DividerViewBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<DividerViewBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<DividerViewBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<DividerView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<DividerView> m_view;
 };
 
 } // namespace miqu

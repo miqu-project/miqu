@@ -26,7 +26,7 @@ public:
     std::string id;              // canonical path string
     std::string title;           // filename (e.g. "Documents" or "main.cpp")
     std::string subtitle;        // size / child count
-    std::string icon;            // Nerd font icon (e.g. "󰉋", "󰈙", "󰋩", etc.)
+    std::string icon;            // System Freedesktop icon theme name (e.g. "folder", "text-x-python", etc.)
     bool is_category = false;    // true for directory
     std::filesystem::path path;
 

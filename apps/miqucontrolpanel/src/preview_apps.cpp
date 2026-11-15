@@ -63,13 +63,14 @@ void MillerView::render_installed_app_preview(const std::shared_ptr<SettingItem>
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto app_icon = TextViewBuilder::create()
-        ->text(item->icon.empty() ? "󰏖" : item->icon)
-        ->textSize(config->metrics.font_size + 6)
-        ->textColor(config->colors.primary)
+    auto app_icon = ImageViewBuilder::create()
+        ->source(item->icon.empty() ? "application-x-executable" : item->icon)
+        ->targetSize(32)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams aicon_lp;
     aicon_lp.width = 32;
+    aicon_lp.height = 32;
     aicon_lp.gravity = Gravity::CenterVertical;
     top_row->add_view(app_icon, aicon_lp);
 
@@ -279,13 +280,14 @@ void MillerView::render_installed_app_preview(const std::shared_ptr<SettingItem>
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto net_icon = TextViewBuilder::create()
-        ->text("󰒍")
-        ->textSize(config->metrics.font_size + 3)
-        ->textColor(config->colors.primary)
+    auto net_icon = ImageViewBuilder::create()
+        ->source("security-high")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams nico_lp;
     nico_lp.width = 24;
+    nico_lp.height = 24;
     nico_lp.gravity = Gravity::CenterVertical;
     net_header->add_view(net_icon, nico_lp);
 
@@ -540,13 +542,14 @@ static std::shared_ptr<View> create_role_header_card(const std::shared_ptr<Setti
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto role_icon = TextViewBuilder::create()
-        ->text(item->icon.empty() ? "󰆍" : item->icon)
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(config->colors.primary)
+    auto role_icon = ImageViewBuilder::create()
+        ->source(item->icon.empty() ? "preferences-desktop-default-applications" : item->icon)
+        ->targetSize(30)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams ricon_lp;
     ricon_lp.width = 30;
+    ricon_lp.height = 30;
     ricon_lp.gravity = Gravity::CenterVertical;
     role_card->add_view(role_icon, ricon_lp);
 
@@ -612,13 +615,14 @@ static std::shared_ptr<View> create_candidate_row_card(const DefaultAppCandidate
         ->spacing(12)
         ->build();
 
-    auto c_icon = TextViewBuilder::create()
-        ->text(cand.icon.empty() ? "󰀻" : cand.icon)
-        ->textSize(config->metrics.font_size)
-        ->textColor(is_def ? config->colors.primary : config->colors.on_surface_variant)
+    auto c_icon = ImageViewBuilder::create()
+        ->source(cand.icon.empty() ? "application-x-executable" : cand.icon)
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams cicon_lp;
     cicon_lp.width = 24;
+    cicon_lp.height = 24;
     cicon_lp.gravity = Gravity::CenterVertical;
     row_content->add_view(c_icon, cicon_lp);
 

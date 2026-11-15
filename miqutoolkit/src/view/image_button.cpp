@@ -115,6 +115,30 @@ void ImageButton::draw(cairo_t* cr, const Rect& bounds) {
     }
 }
 
+void ImageButton::draw_focus_ring(cairo_t* cr, const Rect& bounds) {
+    if (!should_draw_focus_ring() || !cr || bounds.width <= 0 || bounds.height <= 0) return;
+    if (m_circle) {
+        auto config = Config::get();
+        Color focus_color = config ? config->colors.primary : Color(0.2f, 0.6f, 1.0f);
+        cairo_save(cr);
+        cairo_set_source_rgba(cr, focus_color.r, focus_color.g, focus_color.b, 0.90f);
+        cairo_set_line_width(cr, 2.0);
+        double cx = bounds.x + bounds.width / 2.0;
+        double cy = bounds.y + bounds.height / 2.0;
+        double r = (std::min(bounds.width, bounds.height) / 2.0) - 1.0;
+        if (r > 0.0) {
+            cairo_arc(cr, cx, cy, r, 0, 2.0 * M_PI);
+            cairo_stroke(cr);
+        }
+        cairo_restore(cr);
+        if (m_window) {
+            m_window->notify_focus_ring_drawn();
+        }
+    } else {
+        View::draw_focus_ring(cr, bounds);
+    }
+}
+
 bool ImageButton::on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) {
     bool contains = (lx >= bounds.x && lx <= bounds.x + bounds.width &&
                      ly >= bounds.y && ly <= bounds.y + bounds.height);

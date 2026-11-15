@@ -83,7 +83,7 @@ std::shared_ptr<FileItem> PhotosModel::create_album_item(const fs::path& dir, si
     item->subtitle = std::to_string(count) + (count == 1 ? " photo" : " photos");
     item->size_formatted = item->subtitle;
     item->photo_count = count;
-    item->icon = "󰋩";
+    item->icon = "folder-pictures";
     item->is_category = true;
     item->is_dir = true;
 
@@ -113,7 +113,7 @@ std::shared_ptr<FileItem> PhotosModel::create_photo_item(const fs::path& path) {
     if (!ext.empty() && ext[0] == '.') ext = ext.substr(1);
     if (!ext.empty()) item->category_label = ext + " Image";
 
-    item->icon = "󰈟";
+    item->icon = "image-x-generic";
 
     std::error_code ec;
     uintmax_t sz = fs::file_size(path, ec);

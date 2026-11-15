@@ -819,12 +819,12 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
         ->spacing(8)
         ->build();
 
-    auto style_icon = TextViewBuilder::create()
-        ->text("󰔎")
-        ->textSize(config->metrics.font_size + 2)
-        ->textColor(config->colors.primary)
+    auto style_icon = ImageViewBuilder::create()
+        ->source("preferences-desktop-theme")
+        ->targetSize(20)
+        ->fitMode(FitMode::Contain)
         ->build();
-    style_header->add_view(style_icon);
+    style_header->add_view(style_icon, LayoutParams(20, 20, Gravity::CenterVertical));
 
     auto style_title = TextViewBuilder::create()
         ->text("Style")
@@ -1450,13 +1450,14 @@ void MillerView::render_timeout_lock_preview(const std::shared_ptr<SettingItem>&
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto defs_icon = TextViewBuilder::create()
-        ->text("󰋼")
-        ->textSize(config->metrics.font_size + 2)
-        ->textColor(config->colors.primary)
+    auto defs_icon = ImageViewBuilder::create()
+        ->source("help-about")
+        ->targetSize(20)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams deficon_lp;
-    deficon_lp.width = 24;
+    deficon_lp.width = 20;
+    deficon_lp.height = 20;
     deficon_lp.gravity = Gravity::CenterVertical;
     defs_title_row->add_view(defs_icon, deficon_lp);
 

@@ -22,13 +22,13 @@ void MillerView::render_empty_preview(const std::shared_ptr<Config>& config) {
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text("󰎆")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.5f))
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.5f))
-        ->center(true)
+    auto icon = ImageViewBuilder::create()
+        ->source("folder-music")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.5f)
         ->build();
-    card->add_view(icon);
+    card->add_view(icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto text = TextViewBuilder::create()
         ->text("No Track Selected")
@@ -104,13 +104,12 @@ void MillerView::render_song_preview(const std::shared_ptr<MusicItem>& item, con
             ->cornerRadius(get_inner_radius(config))
             ->build();
 
-        auto note_icon = TextViewBuilder::create()
-            ->text("󰎆")
-            ->textSize(static_cast<int>(config->metrics.font_size * 2.2f))
-            ->textColor(config->colors.primary.with_alpha(0.6f))
-            ->center(true)
+        auto note_icon = ImageViewBuilder::create()
+            ->source("audio-x-generic")
+            ->targetSize(64)
+            ->fitMode(FitMode::Contain)
             ->build();
-        art_box->add_view(note_icon);
+        art_box->add_view(note_icon, LayoutParams(64, 64, Gravity::Center));
         header_row->add_view(art_box, LayoutParams(96, 96));
     }
 
@@ -187,7 +186,8 @@ void MillerView::render_song_preview(const std::shared_ptr<MusicItem>& item, con
     action_row->add_view(play_btn, LayoutParams(WRAP_CONTENT, 32));
 
     auto queue_btn = ButtonBuilder::create()
-        ->text("󰐊 Add to Queue")
+        ->icon("media-playlist-normal")
+        ->text("Add to Queue")
         ->flat(true)
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
@@ -309,7 +309,8 @@ void MillerView::render_visualizer_preview(const std::shared_ptr<MusicItem>& ite
         ->build();
 
     auto cycle_btn = ButtonBuilder::create()
-        ->text("󰓃 Cycle Mode")
+        ->icon("media-playlist-repeat")
+        ->text("Cycle Mode")
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
         ->textSize(config->metrics.font_size)
@@ -375,13 +376,12 @@ void MillerView::render_multi_selection_preview(const std::vector<std::shared_pt
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto hero_icon = TextViewBuilder::create()
-        ->text("󰎆")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.4f))
-        ->textColor(config->colors.primary)
-        ->center(true)
+    auto hero_icon = ImageViewBuilder::create()
+        ->source("audio-x-generic")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
         ->build();
-    hero_card->add_view(hero_icon);
+    hero_card->add_view(hero_icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto hero_title = TextViewBuilder::create()
         ->text(std::to_string(items.size()) + " Tracks Selected")
@@ -450,7 +450,8 @@ void MillerView::render_multi_selection_preview(const std::vector<std::shared_pt
     action_row->add_view(play_all_btn, LayoutParams(WRAP_CONTENT, 32));
 
     auto enqueue_btn = ButtonBuilder::create()
-        ->text("󰒺 Enqueue Selection")
+        ->icon("media-playlist-normal")
+        ->text("Enqueue Selection")
         ->flat(true)
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
@@ -501,12 +502,12 @@ void MillerView::render_multi_selection_preview(const std::vector<std::shared_pt
             ->padding(4, 3)
             ->build();
 
-        auto icon = TextViewBuilder::create()
-            ->text(it->icon.empty() ? (it->is_category ? "󰉋" : "󰎆") : it->icon)
-            ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
-            ->textColor(it->is_category ? config->colors.primary : config->colors.on_surface_variant)
+        auto icon = ImageViewBuilder::create()
+            ->source(it->icon.empty() ? (it->is_category ? "folder-music" : "audio-x-generic") : it->icon)
+            ->targetSize(18)
+            ->fitMode(FitMode::Contain)
             ->build();
-        row->add_view(icon, LayoutParams(20, WRAP_CONTENT));
+        row->add_view(icon, LayoutParams(18, 18, Gravity::CenterVertical));
 
         auto title_box = LinearLayoutBuilder::create()
             ->orientation(Orientation::Vertical)

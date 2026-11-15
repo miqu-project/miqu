@@ -87,7 +87,7 @@ void GridItemView::draw(cairo_t* cr, const Rect& bounds) {
     auto config = Config::get();
     std::string font_family = !config->metrics.font_family.empty() ? config->metrics.font_family : "Sans";
     int font_size = config->metrics.font_size > 0 ? config->metrics.font_size : 11;
-    int horiz_padding = 8;
+    int horiz_padding = (m_padding.left > 0 || m_padding.right > 0) ? std::max(m_padding.left, m_padding.right) : 8;
     int text_max_w = std::max(0, bounds.width - horiz_padding * 2);
 
     bool width_changed = (text_max_w != m_last_text_max_w);
@@ -144,9 +144,9 @@ void GridItemView::draw(cairo_t* cr, const Rect& bounds) {
 
     if (m_is_image) {
         // --- Image Thumbnail Mode ---
-        int pad_x = 8;
-        int pad_top = 8;
-        int pad_bottom = 6;
+        int pad_x = (m_padding.left > 0) ? m_padding.left : 8;
+        int pad_top = (m_padding.top > 0) ? m_padding.top : 8;
+        int pad_bottom = (m_padding.bottom > 0) ? m_padding.bottom : 6;
         int gap = 6;
 
         int img_w = bounds.width - pad_x * 2;

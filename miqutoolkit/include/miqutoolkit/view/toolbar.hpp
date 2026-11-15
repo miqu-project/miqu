@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view_group.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include "miqutoolkit/view/image_button.hpp"
 #include "miqutoolkit/view/text_view.hpp"
 #include "miqutoolkit/view/image_view.hpp"
@@ -143,115 +143,98 @@ private:
     int m_toolbar_height = 48;
 };
 
-class ToolbarBuilder : public std::enable_shared_from_this<ToolbarBuilder> {
+class ToolbarBuilder : public ViewGroupBuilder<ToolbarBuilder, Toolbar> {
 public:
-    ToolbarBuilder() : m_toolbar(std::make_shared<Toolbar>()) {}
+    ToolbarBuilder() : ViewGroupBuilder<ToolbarBuilder, Toolbar>() {}
 
     static std::shared_ptr<ToolbarBuilder> create() {
         return std::make_shared<ToolbarBuilder>();
     }
 
     std::shared_ptr<ToolbarBuilder> title(const std::string& title) {
-        m_toolbar->set_title(title);
+        m_view->set_title(title);
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> subtitle(const std::string& subtitle) {
-        m_toolbar->set_subtitle(subtitle);
+        m_view->set_subtitle(subtitle);
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> titleAlignment(TitleAlignment align) {
-        m_toolbar->set_title_alignment(align);
+        m_view->set_title_alignment(align);
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> iconText(const std::string& icon) {
-        m_toolbar->set_icon_text(icon);
+        m_view->set_icon_text(icon);
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> iconResource(const std::string& res) {
-        m_toolbar->set_icon_resource(res);
+        m_view->set_icon_resource(res);
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> backButton(bool enable, std::function<void()> on_back = nullptr) {
-        m_toolbar->set_back_button(enable, std::move(on_back));
+        m_view->set_back_button(enable, std::move(on_back));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> onBack(std::function<void()> on_back) {
-        m_toolbar->set_back_button(true, std::move(on_back));
+        m_view->set_back_button(true, std::move(on_back));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> leadingView(std::shared_ptr<View> view) {
-        m_toolbar->set_leading_view(std::move(view));
+        m_view->set_leading_view(std::move(view));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> centerView(std::shared_ptr<View> view) {
-        m_toolbar->set_center_view(std::move(view));
+        m_view->set_center_view(std::move(view));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> onRefresh(std::function<void()> on_refresh) {
-        m_toolbar->set_on_refresh(std::move(on_refresh));
+        m_view->set_on_refresh(std::move(on_refresh));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> onClose(std::function<void()> on_close) {
-        m_toolbar->set_on_close(std::move(on_close));
+        m_view->set_on_close(std::move(on_close));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> closeTooltip(const std::string& tip) {
-        m_toolbar->set_close_tooltip(tip);
+        m_view->set_close_tooltip(tip);
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> onMenu(std::function<void()> on_menu) {
-        m_toolbar->set_on_menu(std::move(on_menu));
+        m_view->set_on_menu(std::move(on_menu));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> addAction(const std::string& icon, std::function<void()> on_click) {
-        m_toolbar->add_action(icon, std::move(on_click));
+        m_view->add_action(icon, std::move(on_click));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> addActionView(std::shared_ptr<View> view) {
-        m_toolbar->add_action_view(std::move(view));
+        m_view->add_action_view(std::move(view));
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> showDivider(bool show) {
-        m_toolbar->set_show_divider(show);
+        m_view->set_show_divider(show);
         return shared_from_this();
     }
 
     std::shared_ptr<ToolbarBuilder> toolbarHeight(int h) {
-        m_toolbar->set_toolbar_height(h);
+        m_view->set_toolbar_height(h);
         return shared_from_this();
     }
-
-    std::shared_ptr<ToolbarBuilder> padding(int horizontal, int vertical) {
-        m_toolbar->set_padding(horizontal, vertical);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ToolbarBuilder> padding(int left, int top, int right, int bottom) {
-        m_toolbar->set_padding(left, top, right, bottom);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<Toolbar> build() {
-        return m_toolbar;
-    }
-
-private:
-    std::shared_ptr<Toolbar> m_toolbar;
 };
 
 } // namespace miqu

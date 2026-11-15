@@ -25,13 +25,13 @@ void MillerView::render_empty_preview(const std::shared_ptr<Config>& config) {
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text("󰋩")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.5f))
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.5f))
-        ->center(true)
+    auto icon = ImageViewBuilder::create()
+        ->source("folder-pictures")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.5f)
         ->build();
-    card->add_view(icon);
+    card->add_view(icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto text = TextViewBuilder::create()
         ->text("No Photo Selected")
@@ -65,13 +65,12 @@ void MillerView::render_empty_folder_preview(const std::shared_ptr<FileItem>& it
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text("󰋩")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.5f))
-        ->textColor(config->colors.primary.with_alpha(0.85f))
-        ->center(true)
+    auto icon = ImageViewBuilder::create()
+        ->source("folder-pictures")
+        ->targetSize(56)
+        ->fitMode(FitMode::Contain)
         ->build();
-    card->add_view(icon);
+    card->add_view(icon, LayoutParams(56, 56, Gravity::CenterHorizontal));
 
     auto title = TextViewBuilder::create()
         ->text(item->title)
@@ -201,7 +200,8 @@ void MillerView::render_photo_preview(const std::shared_ptr<FileItem>& item, con
     action_row->add_view(open_btn, LayoutParams(WRAP_CONTENT, 32));
 
     auto copy_btn = ButtonBuilder::create()
-        ->text("󰅍 Copy Path")
+        ->icon("edit-copy")
+        ->text("Copy Path")
         ->flat(true)
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
@@ -217,7 +217,8 @@ void MillerView::render_photo_preview(const std::shared_ptr<FileItem>& item, con
     action_row->add_view(copy_btn, LayoutParams(WRAP_CONTENT, 32));
 
     auto term_btn = ButtonBuilder::create()
-        ->text("󰆍 Terminal")
+        ->icon("utilities-terminal")
+        ->text("Terminal")
         ->flat(true)
         ->padding(12, 6)
         ->cornerRadius(get_btn_radius(config))
@@ -271,13 +272,12 @@ void MillerView::render_multi_selection_preview(const std::vector<std::shared_pt
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto hero_icon = TextViewBuilder::create()
-        ->text("󰋩")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.4f))
-        ->textColor(config->colors.primary)
-        ->center(true)
+    auto hero_icon = ImageViewBuilder::create()
+        ->source("folder-pictures")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
         ->build();
-    hero_card->add_view(hero_icon);
+    hero_card->add_view(hero_icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto hero_title = TextViewBuilder::create()
         ->text(std::to_string(items.size()) + " Photos Selected")
@@ -347,12 +347,12 @@ void MillerView::render_multi_selection_preview(const std::vector<std::shared_pt
             ->padding(4, 3)
             ->build();
 
-        auto icon = TextViewBuilder::create()
-            ->text(it->icon.empty() ? (it->is_category ? "󰉋" : "󰋩") : it->icon)
-            ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
-            ->textColor(it->is_category ? config->colors.primary : config->colors.on_surface_variant)
+        auto icon = ImageViewBuilder::create()
+            ->source(it->icon.empty() ? (it->is_category ? "folder-pictures" : "image-x-generic") : it->icon)
+            ->targetSize(18)
+            ->fitMode(FitMode::Contain)
             ->build();
-        row->add_view(icon, LayoutParams(20, WRAP_CONTENT));
+        row->add_view(icon, LayoutParams(18, 18, Gravity::CenterVertical));
 
         auto name = TextViewBuilder::create()
             ->text(it->title)

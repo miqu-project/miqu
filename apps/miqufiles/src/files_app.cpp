@@ -96,6 +96,7 @@ void FilesApp::setup_ui() {
     // 1. Top Toolbar (Centered Title "Files", close button on right)
     m_toolbar = ToolbarBuilder::create()
         ->title("Files")
+        ->iconResource("system-file-manager")
         ->titleAlignment(TitleAlignment::Center)
         ->showDivider(false)
         ->onClose([this]() {
@@ -136,6 +137,8 @@ void FilesApp::setup_ui() {
         ->style(CardStyle::Filled)
         ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
         ->elevation(0)
+        ->tooltip("Back")
+        ->tooltipShortcut("Left / Backspace")
         ->addView(back_content)
         ->build();
 
@@ -207,18 +210,25 @@ void FilesApp::setup_ui() {
     search_lp.gravity = Gravity::CenterVertical;
     m_ribbon->add_view(m_search_view, search_lp);
 
-    // Show Hidden Files toggle button after search view
+    m_hidden_icon = ImageViewBuilder::create()
+        ->source("show-hidden")
+        ->targetSize(16)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.6f)
+        ->build();
+
     m_hidden_label = TextViewBuilder::create()
-        ->text("󰈉 Hidden")
+        ->text("Hidden")
         ->textSize(config->metrics.font_size)
         ->textColor(config->colors.on_surface_variant)
         ->build();
 
     auto hidden_content = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
-        ->padding(10, 3)
-        ->spacing(4)
+        ->padding(8, 3)
+        ->spacing(6)
         ->gravity(Gravity::Center)
+        ->addView(m_hidden_icon, LayoutParams(16, 16, Gravity::CenterVertical))
         ->addView(m_hidden_label)
         ->build();
 
@@ -440,13 +450,19 @@ void FilesApp::update_hidden_btn_ui() {
     bool is_hidden_shown = m_miller_view->is_show_hidden();
 
     if (is_hidden_shown) {
-        m_hidden_label->set_text("󰈈 Hidden");
         m_hidden_label->set_text_color(config->colors.primary);
+        if (m_hidden_icon) {
+            m_hidden_icon->set_image_resource("view-reveal");
+            m_hidden_icon->set_alpha(1.0f);
+        }
         m_hidden_btn->set_card_background_color(config->colors.primary.with_alpha(0.20f));
         m_hidden_btn->set_tooltip("Hide Hidden Files");
     } else {
-        m_hidden_label->set_text("󰈉 Hidden");
         m_hidden_label->set_text_color(config->colors.on_surface_variant);
+        if (m_hidden_icon) {
+            m_hidden_icon->set_image_resource("show-hidden");
+            m_hidden_icon->set_alpha(0.6f);
+        }
         m_hidden_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
         m_hidden_btn->set_tooltip("Show Hidden Files");
     }
@@ -549,7 +565,8 @@ void FilesApp::handle_key_press(const KeyPressEvent& event) {
             }
         } else {
             // In standard 3-pillar mode: Left, Backspace, or Escape exits to middle pillar
-            if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
+            if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_h ||
+                event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
                 if (m_window) m_window->clear_focus();
                 m_miller_view->set_preview_focused(false);
                 return;
@@ -559,6 +576,7 @@ void FilesApp::handle_key_press(const KeyPressEvent& event) {
         // If right pillar is active but no control has focus yet (e.g. empty space clicked)
         if (!m_window || !m_window->get_focused_view() || !m_window->get_focused_view()->has_focus()) {
             if (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_Up ||
+                event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_k ||
                 event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
                 m_miller_view->focus_first_preview_control();
                 return;

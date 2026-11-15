@@ -207,16 +207,18 @@ bool BatteryBackend::query_battery_info(BatteryConfig& cfg) {
 }
 
 std::string BatteryBackend::get_battery_icon(const BatteryConfig& cfg) {
-    if (!cfg.has_battery) return "󰚥";
-    if (cfg.is_charging) return "󰂄";
-    if (cfg.power_saver) return "󰂃";
+    if (!cfg.has_battery) return "ac-adapter";
     int p = cfg.percentage;
-    if (p >= 90) return "󰁹";
-    if (p >= 70) return "󰂀";
-    if (p >= 50) return "󰁾";
-    if (p >= 30) return "󰁼";
-    if (p >= 15) return "󰁺";
-    return "󰂎";
+    std::string level = "060";
+    if (p >= 90) level = "100";
+    else if (p >= 70) level = "080";
+    else if (p >= 50) level = "060";
+    else if (p >= 30) level = "040";
+    else if (p >= 15) level = "020";
+    else level = "000";
+
+    if (cfg.is_charging) return "battery-" + level + "-charging";
+    return "battery-" + level;
 }
 
 void BatteryBackend::populate_battery_telemetry(const BatteryConfig& cfg, std::vector<TelemetryEntry>& telemetry) {

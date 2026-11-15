@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <functional>
 #include <algorithm>
 
@@ -64,9 +64,9 @@ private:
     std::function<void(float, bool)> m_on_change;
 };
 
-class SliderBuilder : public std::enable_shared_from_this<SliderBuilder> {
+class SliderBuilder : public ViewBuilder<SliderBuilder, Slider> {
 public:
-    SliderBuilder() : m_view(std::make_shared<Slider>()) {}
+    SliderBuilder() : ViewBuilder<SliderBuilder, Slider>() {}
 
     static std::shared_ptr<SliderBuilder> create() {
         return std::make_shared<SliderBuilder>();
@@ -116,43 +116,6 @@ public:
         m_view->set_on_value_changed_listener(std::move(listener));
         return shared_from_this();
     }
-
-    std::shared_ptr<SliderBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SliderBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SliderBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SliderBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SliderBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<SliderBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<Slider> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<Slider> m_view;
 };
 
 } // namespace miqu

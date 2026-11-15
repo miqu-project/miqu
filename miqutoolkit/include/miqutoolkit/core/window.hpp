@@ -98,6 +98,8 @@ public:
 
     void set_on_close(std::function<void()> cb) { m_on_close = std::move(cb); }
     void set_on_key(std::function<void(const KeyPressEvent&)> cb) { m_on_key = std::move(cb); }
+    void set_on_shortcut(std::function<bool(const KeyPressEvent&)> cb) { m_on_shortcut = std::move(cb); }
+    const std::function<bool(const KeyPressEvent&)>& get_on_shortcut() const { return m_on_shortcut; }
     void set_on_context_click_listener(std::function<void(int x, int y)> cb) { m_on_context_click = std::move(cb); }
     void set_on_keyboard_enter(std::function<void()> cb) { m_on_keyboard_enter = std::move(cb); }
     void set_on_keyboard_leave(std::function<void()> cb) { m_on_keyboard_leave = std::move(cb); }
@@ -131,9 +133,12 @@ public:
     void notify_view_destroyed(View* view);
 
     uint32_t get_modifiers() const { return m_modifiers; }
+    void set_modifiers(uint32_t mods) { m_modifiers = mods; }
     bool has_ctrl() const { return (m_modifiers & static_cast<uint32_t>(KeyboardModifier::Control)) != 0; }
     bool has_shift() const { return (m_modifiers & static_cast<uint32_t>(KeyboardModifier::Shift)) != 0; }
     bool has_alt() const { return (m_modifiers & static_cast<uint32_t>(KeyboardModifier::Alt)) != 0; }
+
+    void dispatch_key_event(const KeyPressEvent& event);
 
 private:
     void render_frame();
@@ -210,6 +215,7 @@ private:
 
     std::function<void()> m_on_close;
     std::function<void(const KeyPressEvent&)> m_on_key;
+    std::function<bool(const KeyPressEvent&)> m_on_shortcut;
     std::function<void(int x, int y)> m_on_context_click;
     std::function<void()> m_on_keyboard_enter;
     std::function<void()> m_on_keyboard_leave;
@@ -218,7 +224,6 @@ private:
     double m_last_y = 0;
 
     void handle_key_event(uint32_t keycode, bool pressed);
-    void dispatch_key_event(const KeyPressEvent& event);
     void stop_key_repeat();
 
     int32_t m_repeat_rate = 25;
@@ -334,6 +339,11 @@ public:
 
     std::shared_ptr<WindowBuilder> onKey(std::function<void(const KeyPressEvent&)> cb) {
         m_window->set_on_key(std::move(cb));
+        return shared_from_this();
+    }
+
+    std::shared_ptr<WindowBuilder> onShortcut(std::function<bool(const KeyPressEvent&)> cb) {
+        m_window->set_on_shortcut(std::move(cb));
         return shared_from_this();
     }
 

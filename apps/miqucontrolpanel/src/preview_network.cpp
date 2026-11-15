@@ -51,18 +51,17 @@ void MillerView::render_wifi_preview(const std::shared_ptr<SettingItem>& item, c
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    std::string wifi_top_icon = !item->switch_val ? "󰤮" : (!connected_ssid.empty() ? "󰤨" : "󰤟");
-    Color wifi_icon_color = (!item->switch_val || connected_ssid.empty())
-        ? config->colors.on_surface_variant
-        : config->colors.primary;
+    std::string wifi_top_icon = !item->switch_val ? "network-wireless-offline" : (!connected_ssid.empty() ? "network-wireless-signal-excellent" : "network-wireless-signal-weak");
 
-    auto wifi_icon = TextViewBuilder::create()
-        ->text(wifi_top_icon)
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(wifi_icon_color)
+    auto wifi_icon = ImageViewBuilder::create()
+        ->source(wifi_top_icon)
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
+        ->alpha((!item->switch_val || connected_ssid.empty()) ? 0.6f : 1.0f)
         ->build();
     LayoutParams wicon_lp;
-    wicon_lp.width = 30;
+    wicon_lp.width = 24;
+    wicon_lp.height = 24;
     wicon_lp.gravity = Gravity::CenterVertical;
     wifi_card->add_view(wifi_icon, wicon_lp);
 
@@ -215,13 +214,15 @@ void MillerView::render_wifi_preview(const std::shared_ptr<SettingItem>& item, c
                 ->build();
 
             // Signal icon
-            auto sig_view = TextViewBuilder::create()
-                ->text(net.icon)
-                ->textSize(config->metrics.font_size)
-                ->textColor(is_conn ? config->colors.primary : config->colors.on_surface_variant)
+            auto sig_view = ImageViewBuilder::create()
+                ->source(net.icon.empty() ? "network-wireless" : net.icon)
+                ->targetSize(20)
+                ->fitMode(FitMode::Contain)
+                ->alpha(is_conn ? 1.0f : 0.7f)
                 ->build();
             LayoutParams sig_lp;
-            sig_lp.width = 24;
+            sig_lp.width = 20;
+            sig_lp.height = 20;
             sig_lp.gravity = Gravity::CenterVertical;
             row_content->add_view(sig_view, sig_lp);
 
@@ -300,13 +301,15 @@ void MillerView::render_wifi_preview(const std::shared_ptr<SettingItem>& item, c
                 chk_lp.gravity = Gravity::CenterVertical;
                 row_content->add_view(check_view, chk_lp);
             } else if (net.secured) {
-                auto lock_view = TextViewBuilder::create()
-                    ->text("󰌾")
-                    ->textSize(config->metrics.font_size)
-                    ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+                auto lock_view = ImageViewBuilder::create()
+                    ->source("system-lock-screen")
+                    ->targetSize(16)
+                    ->fitMode(FitMode::Contain)
+                    ->alpha(0.6f)
                     ->build();
                 LayoutParams lk_lp;
-                lk_lp.width = static_cast<int>(LayoutDimension::WrapContent);
+                lk_lp.width = 16;
+                lk_lp.height = 16;
                 lk_lp.gravity = Gravity::CenterVertical;
                 row_content->add_view(lock_view, lk_lp);
             }
@@ -676,12 +679,12 @@ void MillerView::show_numeric_comparison_dialog(
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text("󰂯")
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(config->colors.primary)
+    auto icon = ImageViewBuilder::create()
+        ->source("bluetooth")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
         ->build();
-    hdr->add_view(icon);
+    hdr->add_view(icon, LayoutParams(24, 24, Gravity::CenterVertical));
 
     auto title_col = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
@@ -1093,13 +1096,15 @@ void MillerView::render_bluetooth_preview(const std::shared_ptr<SettingItem>& it
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto bt_icon = TextViewBuilder::create()
-        ->text("󰂯")
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(item->switch_val ? config->colors.primary : config->colors.on_surface_variant)
+    auto bt_icon = ImageViewBuilder::create()
+        ->source("bluetooth")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
+        ->alpha(item->switch_val ? 1.0f : 0.6f)
         ->build();
     LayoutParams bicon_lp;
-    bicon_lp.width = 30;
+    bicon_lp.width = 24;
+    bicon_lp.height = 24;
     bicon_lp.gravity = Gravity::CenterVertical;
     bt_card->add_view(bt_icon, bicon_lp);
 
@@ -1252,7 +1257,7 @@ void MillerView::render_bluetooth_preview(const std::shared_ptr<SettingItem>& it
                                 }
                             }
                             if (!already_has_bose) {
-                                item->bt_devices.push_back({"Bose QuietComfort 45", "Tap to pair", "󰋋", ""});
+                                item->bt_devices.push_back({"Bose QuietComfort 45", "Tap to pair", "audio-headphones", ""});
                                 item->last_action_message = "Scan completed • Found Bose QuietComfort 45";
                                 found_new = true;
                             } else {
@@ -1264,7 +1269,7 @@ void MillerView::render_bluetooth_preview(const std::shared_ptr<SettingItem>& it
                                     }
                                 }
                                 if (!already_has_mx) {
-                                    item->bt_devices.push_back({"MX Anywhere 3S", "Tap to pair", "󰍽", ""});
+                                    item->bt_devices.push_back({"MX Anywhere 3S", "Tap to pair", "input-mouse", ""});
                                     item->last_action_message = "Scan completed • Found MX Anywhere 3S";
                                     found_new = true;
                                 }
@@ -1318,13 +1323,15 @@ void MillerView::render_bluetooth_preview(const std::shared_ptr<SettingItem>& it
                 ->build();
 
             // Device icon
-            auto icon_view = TextViewBuilder::create()
-                ->text(dev.icon.empty() ? "󰂯" : dev.icon)
-                ->textSize(config->metrics.font_size)
-                ->textColor(is_conn ? config->colors.primary : config->colors.on_surface_variant)
+            auto icon_view = ImageViewBuilder::create()
+                ->source(dev.icon.empty() ? "bluetooth" : dev.icon)
+                ->targetSize(20)
+                ->fitMode(FitMode::Contain)
+                ->alpha(is_conn ? 1.0f : 0.7f)
                 ->build();
             LayoutParams icon_lp;
-            icon_lp.width = 24;
+            icon_lp.width = 20;
+            icon_lp.height = 20;
             icon_lp.gravity = Gravity::CenterVertical;
             row_content->add_view(icon_view, icon_lp);
 
@@ -1650,14 +1657,16 @@ void MillerView::render_ethernet_preview(const std::shared_ptr<SettingItem>& ite
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    std::string eth_icon = is_conn ? "󰈀" : (has_carrier ? "󰈀" : "󰈂");
-    auto eth_icon_view = TextViewBuilder::create()
-        ->text(eth_icon)
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(is_conn ? config->colors.primary : config->colors.on_surface_variant)
+    std::string eth_icon = is_conn ? "network-wired" : (has_carrier ? "network-wired" : "network-wired-disconnected");
+    auto eth_icon_view = ImageViewBuilder::create()
+        ->source(eth_icon)
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
+        ->alpha(is_conn ? 1.0f : 0.6f)
         ->build();
     LayoutParams eicon_lp;
-    eicon_lp.width = 30;
+    eicon_lp.width = 24;
+    eicon_lp.height = 24;
     eicon_lp.gravity = Gravity::CenterVertical;
     eth_card->add_view(eth_icon_view, eicon_lp);
 
@@ -1814,7 +1823,8 @@ void MillerView::render_ethernet_preview(const std::shared_ptr<SettingItem>& ite
 
         // Configure button (opens popup modal for IPv4 settings)
         auto config_btn = ButtonBuilder::create()
-            ->text("⚙ Configure")
+            ->icon("preferences-system")
+            ->text("Configure")
             ->style(ButtonStyle::Standard)
             ->textColor(config->colors.primary)
             ->padding(10, 4)
@@ -2087,13 +2097,14 @@ void MillerView::render_ethernet_preview(const std::shared_ptr<SettingItem>& ite
                 ->spacing(12)
                 ->build();
 
-            auto conn_icon = TextViewBuilder::create()
-                ->text("󰈀")
-                ->textSize(config->metrics.font_size)
-                ->textColor(config->colors.primary)
+            auto conn_icon = ImageViewBuilder::create()
+                ->source("network-wired")
+                ->targetSize(20)
+                ->fitMode(FitMode::Contain)
                 ->build();
             LayoutParams cicon_lp;
-            cicon_lp.width = 24;
+            cicon_lp.width = 20;
+            cicon_lp.height = 20;
             cicon_lp.gravity = Gravity::CenterVertical;
             conn_row_content->add_view(conn_icon, cicon_lp);
 
@@ -2188,13 +2199,14 @@ void MillerView::render_ethernet_preview(const std::shared_ptr<SettingItem>& ite
                 ->gravity(Gravity::CenterVertical)
                 ->build();
 
-            auto conn_icon = TextViewBuilder::create()
-                ->text("󰈀")
-                ->textSize(config->metrics.font_size)
-                ->textColor(config->colors.primary)
+            auto conn_icon = ImageViewBuilder::create()
+                ->source("network-wired")
+                ->targetSize(20)
+                ->fitMode(FitMode::Contain)
                 ->build();
             LayoutParams cicon_lp;
-            cicon_lp.width = 24;
+            cicon_lp.width = 20;
+            cicon_lp.height = 20;
             cicon_lp.gravity = Gravity::CenterVertical;
             link_box->add_view(conn_icon, cicon_lp);
 
@@ -2271,13 +2283,15 @@ void MillerView::render_ethernet_preview(const std::shared_ptr<SettingItem>& ite
                 ->gravity(Gravity::CenterVertical)
                 ->build();
 
-            auto u_icon = TextViewBuilder::create()
-                ->text("󰈂")
-                ->textSize(config->metrics.font_size + 2)
-                ->textColor(config->colors.on_surface_variant)
+            auto u_icon = ImageViewBuilder::create()
+                ->source("network-wired-disconnected")
+                ->targetSize(20)
+                ->fitMode(FitMode::Contain)
+                ->alpha(0.6f)
                 ->build();
             LayoutParams uicon_lp;
-            uicon_lp.width = 24;
+            uicon_lp.width = 20;
+            uicon_lp.height = 20;
             uicon_lp.gravity = Gravity::CenterVertical;
             unplugged_box->add_view(u_icon, uicon_lp);
 
@@ -2342,13 +2356,15 @@ void MillerView::render_airplane_preview(const std::shared_ptr<SettingItem>& ite
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto plane_icon = TextViewBuilder::create()
-        ->text("󰀝")
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(state.is_airplane_mode ? config->colors.primary : config->colors.on_surface_variant)
+    auto plane_icon = ImageViewBuilder::create()
+        ->source("airplane-mode")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
+        ->alpha(state.is_airplane_mode ? 1.0f : 0.6f)
         ->build();
     LayoutParams picon_lp;
-    picon_lp.width = 30;
+    picon_lp.width = 24;
+    picon_lp.height = 24;
     picon_lp.gravity = Gravity::CenterVertical;
     airplane_card->add_view(plane_icon, picon_lp);
 
@@ -2424,11 +2440,11 @@ void MillerView::render_airplane_preview(const std::shared_ptr<SettingItem>& ite
     };
 
     std::vector<SubsystemImpact> subsystems = {
-        {"Wi-Fi Radio (802.11)", "󰤨", "Shuts down wireless transmitters, background probe requests, and AP associations", state.wifi_blocked || state.is_airplane_mode},
-        {"Bluetooth Controller", "󰂯", "Powers off Bluetooth hardware, halts BLE advertising, peripherals, and discovery", state.bluetooth_blocked || state.is_airplane_mode},
-        {"Wired Ethernet & LAN", "󰈀", "Drops physical network links, releases DHCP leases, and flushes default routes", !state.global_networking_enabled || state.is_airplane_mode},
-        {"Cellular & WWAN", "󰄡", "Powers down mobile broadband modems, SIM card interfaces, and packet data", state.wwan_blocked || state.is_airplane_mode},
-        {"Global Network Stack", "󰒃", "Halts NetworkManager daemon sockets, active VPN tunnels, and wireguard bridges", !state.global_networking_enabled || state.is_airplane_mode}
+        {"Wi-Fi Radio (802.11)", "network-wireless", "Shuts down wireless transmitters, background probe requests, and AP associations", state.wifi_blocked || state.is_airplane_mode},
+        {"Bluetooth Controller", "bluetooth", "Powers off Bluetooth hardware, halts BLE advertising, peripherals, and discovery", state.bluetooth_blocked || state.is_airplane_mode},
+        {"Wired Ethernet & LAN", "network-wired", "Drops physical network links, releases DHCP leases, and flushes default routes", !state.global_networking_enabled || state.is_airplane_mode},
+        {"Cellular & WWAN", "network-cellular-signal-good", "Powers down mobile broadband modems, SIM card interfaces, and packet data", state.wwan_blocked || state.is_airplane_mode},
+        {"Global Network Stack", "network-workgroup", "Halts NetworkManager daemon sockets, active VPN tunnels, and wireguard bridges", !state.global_networking_enabled || state.is_airplane_mode}
     };
 
     for (const auto& sub : subsystems) {
@@ -2439,13 +2455,15 @@ void MillerView::render_airplane_preview(const std::shared_ptr<SettingItem>& ite
             ->gravity(Gravity::CenterVertical)
             ->build();
 
-        auto r_icon = TextViewBuilder::create()
-            ->text(sub.icon)
-            ->textSize(config->metrics.font_size)
-            ->textColor(sub.is_blocked ? config->colors.on_surface_variant.with_alpha(0.6f) : config->colors.primary)
+        auto r_icon = ImageViewBuilder::create()
+            ->source(sub.icon)
+            ->targetSize(20)
+            ->fitMode(FitMode::Contain)
+            ->alpha(sub.is_blocked ? 0.5f : 1.0f)
             ->build();
         LayoutParams ricon_lp;
-        ricon_lp.width = 24;
+        ricon_lp.width = 20;
+        ricon_lp.height = 20;
         ricon_lp.gravity = Gravity::CenterVertical;
         row_content->add_view(r_icon, ricon_lp);
 
@@ -2597,13 +2615,15 @@ void MillerView::render_vpn_preview(const std::shared_ptr<SettingItem>& item, co
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto vpn_icon = TextViewBuilder::create()
-        ->text("󰖂")
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(item->vpn_cfg.connected ? config->colors.primary : config->colors.on_surface_variant)
+    auto vpn_icon = ImageViewBuilder::create()
+        ->source("network-vpn")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
+        ->alpha(item->vpn_cfg.connected ? 1.0f : 0.6f)
         ->build();
     LayoutParams vicon_lp;
-    vicon_lp.width = 30;
+    vicon_lp.width = 24;
+    vicon_lp.height = 24;
     vicon_lp.gravity = Gravity::CenterVertical;
     master_card->add_view(vpn_icon, vicon_lp);
 
@@ -2984,13 +3004,15 @@ void MillerView::render_dns_preview(const std::shared_ptr<SettingItem>& item, co
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto engine_icon = TextViewBuilder::create()
-        ->text("󰒍")
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(item->private_dns_cfg.dot_engine_active ? config->colors.primary : config->colors.on_surface_variant)
+    auto engine_icon = ImageViewBuilder::create()
+        ->source("security-high")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
+        ->alpha(item->private_dns_cfg.dot_engine_active ? 1.0f : 0.6f)
         ->build();
     LayoutParams eicon_lp;
-    eicon_lp.width = 30;
+    eicon_lp.width = 24;
+    eicon_lp.height = 24;
     eicon_lp.gravity = Gravity::CenterVertical;
     engine_card->add_view(engine_icon, eicon_lp);
 
@@ -3453,13 +3475,15 @@ void MillerView::render_firewall_preview(const std::shared_ptr<SettingItem>& ite
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto fw_icon = TextViewBuilder::create()
-        ->text("󰒃")
-        ->textSize(config->metrics.font_size + 4)
-        ->textColor(item->firewall_cfg.enabled ? config->colors.primary : config->colors.on_surface_variant)
+    auto fw_icon = ImageViewBuilder::create()
+        ->source("security-high")
+        ->targetSize(24)
+        ->fitMode(FitMode::Contain)
+        ->alpha(item->firewall_cfg.enabled ? 1.0f : 0.6f)
         ->build();
     LayoutParams fwicon_lp;
-    fwicon_lp.width = 30;
+    fwicon_lp.width = 24;
+    fwicon_lp.height = 24;
     fwicon_lp.gravity = Gravity::CenterVertical;
     fw_card->add_view(fw_icon, fwicon_lp);
 
@@ -4150,13 +4174,15 @@ void MillerView::render_firewall_preview(const std::shared_ptr<SettingItem>& ite
             ->gravity(Gravity::CenterVertical)
             ->build();
 
-        auto mon_icon = TextViewBuilder::create()
-            ->text("󰒍")
-            ->textSize(config->metrics.font_size + 2)
-            ->textColor(item->firewall_cfg.monitor_enabled ? config->colors.primary : config->colors.on_surface_variant)
+        auto mon_icon = ImageViewBuilder::create()
+            ->source("security-high")
+            ->targetSize(20)
+            ->fitMode(FitMode::Contain)
+            ->alpha(item->firewall_cfg.monitor_enabled ? 1.0f : 0.6f)
             ->build();
         LayoutParams mico_lp;
-        mico_lp.width = 24;
+        mico_lp.width = 20;
+        mico_lp.height = 20;
         mico_lp.gravity = Gravity::CenterVertical;
         mon_hdr->add_view(mon_icon, mico_lp);
 
@@ -4305,13 +4331,14 @@ void MillerView::render_app_network_preview(const std::shared_ptr<SettingItem>& 
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto icon = TextViewBuilder::create()
-        ->text("󰋽")
-        ->textSize(config->metrics.font_size + 2)
-        ->textColor(config->colors.primary)
+    auto icon = ImageViewBuilder::create()
+        ->source("help-about")
+        ->targetSize(20)
+        ->fitMode(FitMode::Contain)
         ->build();
     LayoutParams icon_lp;
-    icon_lp.width = 24;
+    icon_lp.width = 20;
+    icon_lp.height = 20;
     icon_lp.gravity = Gravity::CenterVertical;
     card->add_view(icon, icon_lp);
 

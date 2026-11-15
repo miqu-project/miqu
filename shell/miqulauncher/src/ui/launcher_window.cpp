@@ -43,7 +43,7 @@ bool LauncherWindow::init() {
 
     const auto& init_mode = m_config.modes[m_active_mode_index];
 
-    // 4. GridView setup
+    // 4. GridView and ListView setup
     if (!m_config.allow_mode_switch && init_mode.type == ModeType::Search && m_config.search_view_mode != "inherit") {
         m_is_list_view = (m_config.search_view_mode == "list");
     } else {
@@ -51,22 +51,38 @@ bool LauncherWindow::init() {
     }
 
     m_grid = GridViewBuilder::create()
+        ->autoFit(m_config.cell_size)
+        ->stretchMode(StretchMode::ColumnWidth)
+        ->cellHeight(m_config.cell_size)
+        ->spacing(m_config.spacing, m_config.spacing)
         ->selectionBorder(m_config.selection_border)
         ->onItemClick([this](size_t index, std::shared_ptr<View> view) {
             handle_item_click(index, view);
         })
         ->build();
+
+    m_list = ListViewBuilder::create()
+        ->itemHeight(48)
+        ->spacing(4)
+        ->itemCornerRadius(config->metrics.corner_radius)
+        ->scrollbar(true)
+        ->onItemClick([this](size_t index, std::shared_ptr<View> view) {
+            handle_item_click(index, view);
+        })
+        ->build();
+
     apply_view_mode();
 
     // 4. Search View setup
-    int search_v_pad = std::max(2, (m_config.search_height - 24) / 2);
+    int search_v_pad = std::max(6, (m_config.search_height - 24) / 2);
     m_search = SearchViewBuilder::create()
         ->title(init_mode.display_label)
         ->hint(init_mode.hint)
+        ->focusable(true)
         ->focused(true)
         ->focusBorder(m_config.search_focus_border)
         ->elevation(m_config.search_elevation)
-        ->padding(16, search_v_pad)
+        ->padding(22, search_v_pad)
         ->onQueryTextListener(
             [this](const std::string& query) {
                 refresh_current_mode();
@@ -86,6 +102,7 @@ bool LauncherWindow::init() {
         m_mode_cycle_btn = ImageButtonBuilder::create()
             ->icon("view-refresh")
             ->iconSize(18)
+            ->tooltip("Switch Mode (Alt+Tab / Alt+Arrows)")
             ->cornerRadius(config->metrics.corner_radius)
             ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
             ->hoverColor(config->colors.surface_variant.with_alpha(0.70f))
@@ -103,6 +120,7 @@ bool LauncherWindow::init() {
     m_view_toggle_btn = ImageButtonBuilder::create()
         ->icon(m_is_list_view ? "view-grid" : "view-list")
         ->iconSize(18)
+        ->tooltip("Toggle View (Ctrl+V)")
         ->cornerRadius(config->metrics.corner_radius)
         ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
         ->hoverColor(config->colors.surface_variant.with_alpha(0.70f))
@@ -123,25 +141,25 @@ bool LauncherWindow::init() {
 
     LayoutParams search_lp;
     search_lp.width = search_w;
-    search_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+    search_lp.height = m_config.search_height;
     search_lp.center_horizontal = true;
     search_lp.center_vertical = true;
 
     LayoutParams toggle_lp;
-    toggle_lp.width = 36;
-    toggle_lp.height = 36;
+    toggle_lp.width = 38;
+    toggle_lp.height = 38;
     toggle_lp.align_parent_end = true;
     toggle_lp.center_vertical = true;
 
     auto header_builder = RelativeLayoutBuilder::create()
         ->addView(m_search, search_lp)
         ->addView(m_view_toggle_btn, toggle_lp)
-        ->margin(0, 0, 0, 12);
+        ->margin(0, 0, 0, 16);
 
     if (m_mode_cycle_btn) {
         LayoutParams cycle_lp;
-        cycle_lp.width = 36;
-        cycle_lp.height = 36;
+        cycle_lp.width = 38;
+        cycle_lp.height = 38;
         cycle_lp.align_parent_start = true;
         cycle_lp.center_vertical = true;
         header_builder->addView(m_mode_cycle_btn, cycle_lp);
@@ -153,6 +171,7 @@ bool LauncherWindow::init() {
         ->orientation(Orientation::Vertical)
         ->addView(m_header, LayoutParams(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent)))
         ->addView(m_grid, LayoutParams(1.0f))
+        ->addView(m_list, LayoutParams(1.0f))
         ->build();
 
     // Since layer surface drop shadow and blur are handled by miquland.conf layer rules,
@@ -195,23 +214,39 @@ bool LauncherWindow::init() {
         ->onClose([this]() {
             m_engine->quit();
         })
-        ->onKey([this](const KeyPressEvent& event) {
-            if (!event.pressed) return;
+        ->onShortcut([this](const KeyPressEvent& event) -> bool {
+            if (!event.pressed) return false;
+
             if (event.has_ctrl() && (event.keysym == XKB_KEY_v || event.keysym == XKB_KEY_V)) {
                 toggle_view_mode();
-                return;
+                return true;
             }
+
             if (m_config.allow_mode_switch && m_config.modes.size() > 1) {
-                if (event.has_shift() && event.keysym == XKB_KEY_Right) {
-                    switch_mode((m_active_mode_index + 1) % m_config.modes.size());
-                } else if (event.has_shift() && event.keysym == XKB_KEY_Left) {
-                    switch_mode((m_active_mode_index + m_config.modes.size() - 1) % m_config.modes.size());
-                } else if (event.has_alt()) {
+                if (event.has_alt()) {
+                    if (event.keysym == XKB_KEY_Tab || event.keysym == XKB_KEY_ISO_Left_Tab) {
+                        if (event.has_shift()) {
+                            switch_mode((m_active_mode_index + m_config.modes.size() - 1) % m_config.modes.size());
+                        } else {
+                            switch_mode((m_active_mode_index + 1) % m_config.modes.size());
+                        }
+                        return true;
+                    }
+                    if (event.keysym == XKB_KEY_Right || event.keysym == XKB_KEY_KP_Right) {
+                        switch_mode((m_active_mode_index + 1) % m_config.modes.size());
+                        return true;
+                    }
+                    if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_KP_Left) {
+                        switch_mode((m_active_mode_index + m_config.modes.size() - 1) % m_config.modes.size());
+                        return true;
+                    }
                     if (event.keysym >= XKB_KEY_1 && event.keysym < XKB_KEY_1 + static_cast<uint32_t>(m_config.modes.size())) {
                         switch_mode(event.keysym - XKB_KEY_1);
+                        return true;
                     }
                 }
             }
+            return false;
         })
         ->build();
 
@@ -236,7 +271,11 @@ void LauncherWindow::switch_mode(size_t mode_index) {
 
     m_search->set_title(mode.display_label);
     m_search->set_hint(mode.hint);
-    m_search->set_focused(true);
+    if (m_search->is_focusable()) {
+        m_search->set_focused(true);
+    } else {
+        m_search->set_focused(false);
+    }
 
     refresh_current_mode();
 }
@@ -294,23 +333,24 @@ void LauncherWindow::refresh_current_mode() {
         }
     }
 
-    m_view_cache.assign(m_current_items.size(), nullptr);
+    // 1. Populate GridView
+    m_grid_view_cache.clear();
+    m_grid_view_cache.assign(m_current_items.size(), nullptr);
 
-    // Pre-warm visible items for Frame 0 instant draw
     size_t prewarm_count = std::min<size_t>(m_current_items.size(), 12);
     for (size_t i = 0; i < prewarm_count; ++i) {
-        m_view_cache[i] = create_item_view(i);
+        m_grid_view_cache[i] = create_grid_item_view(i);
     }
 
     m_grid->set_item_provider(m_current_items.size(), [this](size_t index) -> std::shared_ptr<View> {
         if (index >= m_current_items.size()) return nullptr;
-        if (index >= m_view_cache.size()) {
-            m_view_cache.resize(m_current_items.size(), nullptr);
+        if (index >= m_grid_view_cache.size()) {
+            m_grid_view_cache.resize(m_current_items.size(), nullptr);
         }
-        if (!m_view_cache[index]) {
-            m_view_cache[index] = create_item_view(index);
+        if (!m_grid_view_cache[index]) {
+            m_grid_view_cache[index] = create_grid_item_view(index);
         }
-        return m_view_cache[index];
+        return m_grid_view_cache[index];
     });
 
     if (m_current_items.empty()) {
@@ -319,20 +359,26 @@ void LauncherWindow::refresh_current_mode() {
         m_grid->set_selected_index(desired_selected_idx);
     }
 
+    // 2. Populate ListView
+    m_list->clear_items();
+    for (size_t i = 0; i < m_current_items.size(); ++i) {
+        m_list->add_item(create_list_item_view(i));
+    }
+
+    if (m_current_items.empty()) {
+        m_list->set_selected_index(-1);
+    } else {
+        m_list->set_selected_index(desired_selected_idx);
+    }
+
     if (m_window) {
         m_window->schedule_redraw();
     }
 }
 
-void LauncherWindow::handle_item_click(size_t index, std::shared_ptr<View> view) {
-    LauncherItem data;
-    if (index < m_current_items.size()) {
-        data = m_current_items[index];
-    } else {
-        auto item_view = std::dynamic_pointer_cast<LauncherGridItemView>(view);
-        if (!item_view) return;
-        data = item_view->get_data();
-    }
+void LauncherWindow::handle_item_click(size_t index, std::shared_ptr<View>) {
+    if (index >= m_current_items.size()) return;
+    const auto& data = m_current_items[index];
 
     const auto& mode = m_config.modes[m_active_mode_index];
 
@@ -376,9 +422,14 @@ void LauncherWindow::handle_submit(const std::string& query) {
         return;
     }
 
+    int sel_idx = m_is_list_view ? (m_list ? m_list->get_selected_index() : -1)
+                                  : (m_grid ? m_grid->get_selected_index() : -1);
+    std::shared_ptr<View> sel_item = m_is_list_view ? (m_list ? m_list->get_selected_item() : nullptr)
+                                                    : (m_grid ? m_grid->get_selected_item() : nullptr);
+
     if (mode.type == ModeType::Dmenu) {
-        if (auto item = m_grid->get_selected_item()) {
-            handle_item_click(m_grid->get_selected_index(), item);
+        if (sel_item && sel_idx >= 0) {
+            handle_item_click(static_cast<size_t>(sel_idx), sel_item);
         } else if (!query.empty()) {
             m_dmenu_provider.submit(query);
             m_engine->quit();
@@ -387,8 +438,8 @@ void LauncherWindow::handle_submit(const std::string& query) {
     }
 
     if (mode.type == ModeType::Search) {
-        if (auto item = m_grid->get_selected_item()) {
-            handle_item_click(m_grid->get_selected_index(), item);
+        if (sel_item && sel_idx >= 0) {
+            handle_item_click(static_cast<size_t>(sel_idx), sel_item);
         } else if (m_search_aggregator && !m_current_items.empty()) {
             m_search_aggregator->activate(m_current_items[0]);
             m_engine->quit();
@@ -396,41 +447,38 @@ void LauncherWindow::handle_submit(const std::string& query) {
         return;
     }
 
-    if (auto item = m_grid->get_selected_item()) {
-        handle_item_click(m_grid->get_selected_index(), item);
+    if (sel_item && sel_idx >= 0) {
+        handle_item_click(static_cast<size_t>(sel_idx), sel_item);
     }
 }
 
 void LauncherWindow::apply_view_mode() {
-    if (!m_grid) return;
+    if (!m_grid || !m_list) return;
 
     if (m_is_list_view) {
-        m_grid->set_num_columns(1);
-        m_grid->set_stretch_mode(StretchMode::ColumnWidth);
-        m_grid->set_cell_height(48);
-        m_grid->set_horizontal_spacing(0);
-        m_grid->set_vertical_spacing(4);
+        m_grid->set_visibility(Visibility::Gone);
+        m_list->set_visibility(Visibility::Visible);
+        int sel = m_grid->get_selected_index();
+        if (sel >= 0 && sel < static_cast<int>(m_current_items.size())) {
+            m_list->set_selected_index(sel);
+        }
     } else {
-        m_grid->set_auto_fit(m_config.cell_size);
-        m_grid->set_stretch_mode(StretchMode::ColumnWidth);
-        m_grid->set_cell_height(m_config.cell_size);
-        m_grid->set_horizontal_spacing(m_config.spacing);
-        m_grid->set_vertical_spacing(m_config.spacing);
+        m_list->set_visibility(Visibility::Gone);
+        m_grid->set_visibility(Visibility::Visible);
+        int sel = m_list->get_selected_index();
+        if (sel >= 0 && sel < static_cast<int>(m_current_items.size())) {
+            m_grid->set_selected_index(sel);
+        }
     }
 
     if (m_view_toggle_btn) {
         m_view_toggle_btn->set_icon(m_is_list_view ? "view-grid" : "view-list");
     }
 
-    m_view_cache.clear();
-    m_view_cache.assign(m_current_items.size(), nullptr);
-
-    size_t prewarm_count = std::min<size_t>(m_current_items.size(), 12);
-    for (size_t i = 0; i < prewarm_count; ++i) {
-        m_view_cache[i] = create_item_view(i);
-    }
-
     if (m_window) {
+        if (!m_search || !m_search->has_focus()) {
+            m_window->set_focused_view(m_is_list_view ? static_cast<View*>(m_list.get()) : static_cast<View*>(m_grid.get()));
+        }
         m_window->schedule_redraw();
     }
 }
@@ -440,32 +488,33 @@ void LauncherWindow::toggle_view_mode() {
     apply_view_mode();
 }
 
-std::shared_ptr<View> LauncherWindow::create_item_view(size_t index) const {
+std::shared_ptr<View> LauncherWindow::create_grid_item_view(size_t index) const {
+    if (index >= m_current_items.size()) return nullptr;
+    return std::make_shared<LauncherGridItemView>(m_current_items[index]);
+}
+
+std::shared_ptr<View> LauncherWindow::create_list_item_view(size_t index) const {
     if (index >= m_current_items.size()) return nullptr;
     const auto& item = m_current_items[index];
 
-    if (m_is_list_view) {
-        std::string icon_src = item.icon_path.empty() ? item.icon_name : item.icon_path;
-        auto builder = ListItemViewBuilder::create()
-            ->title(item.title)
-            ->subtitle(item.subtitle)
-            ->trailingText(item.badge)
-            ->iconSource(icon_src)
-            ->iconSize(28)
-            ->isImage(item.is_image);
-        if (!item.badge.empty()) {
-            builder->highlightTrailing(true);
-        }
-        if (item.is_image) {
-            builder->qualityMode(ImageQuality::ThumbnailFast);
-        }
-        if (item.is_active || item.subtitle.find("Active") != std::string::npos) {
-            builder->highlightSubtitle(true);
-        }
-        return builder->build();
-    } else {
-        return std::make_shared<LauncherGridItemView>(item);
+    std::string icon_src = item.icon_path.empty() ? item.icon_name : item.icon_path;
+    auto builder = ListItemViewBuilder::create()
+        ->title(item.title)
+        ->subtitle(item.subtitle)
+        ->trailingText(item.badge)
+        ->iconSource(icon_src)
+        ->iconSize(28)
+        ->isImage(item.is_image);
+    if (!item.badge.empty()) {
+        builder->highlightTrailing(true);
     }
+    if (item.is_image) {
+        builder->qualityMode(ImageQuality::ThumbnailFast);
+    }
+    if (item.is_active || item.subtitle.find("Active") != std::string::npos) {
+        builder->highlightSubtitle(true);
+    }
+    return builder->build();
 }
 
 } // namespace miqu

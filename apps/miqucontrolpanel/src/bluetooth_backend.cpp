@@ -264,22 +264,22 @@ std::string BluetoothBackend::resolve_icon(const std::string& bluez_icon, Blueto
     std::string s = bluez_icon;
     std::transform(s.begin(), s.end(), s.begin(), ::tolower);
     if (cat == BluetoothDeviceCategory::Audio) {
-        if (s.find("speaker") != std::string::npos) return "󰓃";
-        return "󰋋";
+        if (s.find("speaker") != std::string::npos) return "audio-speakers";
+        return "audio-headphones";
     }
     if (cat == BluetoothDeviceCategory::Input) {
-        if (s.find("keyboard") != std::string::npos) return "󰌌";
-        if (s.find("gamepad") != std::string::npos || s.find("joystick") != std::string::npos) return "󰊴";
-        if (s.find("tablet") != std::string::npos || s.find("pen") != std::string::npos) return "󰓹";
-        return "󰍽";
+        if (s.find("keyboard") != std::string::npos) return "input-keyboard";
+        if (s.find("gamepad") != std::string::npos || s.find("joystick") != std::string::npos) return "input-gaming";
+        if (s.find("tablet") != std::string::npos || s.find("pen") != std::string::npos) return "input-tablet";
+        return "input-mouse";
     }
     if (cat == BluetoothDeviceCategory::Phone) {
-        return "󰏲";
+        return "phone";
     }
     if (cat == BluetoothDeviceCategory::Computer) {
-        return "󰌢";
+        return "computer";
     }
-    return "󰂯";
+    return "bluetooth";
 }
 
 bool BluetoothBackend::query_devices_dbus(std::vector<BluetoothDevice>& out_paired, std::vector<BluetoothDevice>& out_available) {
@@ -405,7 +405,7 @@ BluetoothDevice BluetoothBackend::parse_device_info_cli(
 
     std::string info_out = run_cmd("bluetoothctl info " + mac + " 2>/dev/null");
     if (info_out.empty()) {
-        item.icon = "󰂯";
+        item.icon = "bluetooth";
         item.status = item.is_connected ? "Connected" : "Paired";
         return item;
     }
@@ -499,7 +499,7 @@ bool BluetoothBackend::query_devices_cli(std::vector<BluetoothDevice>& out_paire
         dev.name = name;
         dev.is_paired = false;
         dev.is_connected = false;
-        dev.icon = "󰂯";
+        dev.icon = "bluetooth";
         dev.status = "Tap to pair";
         out_available.push_back(dev);
     }

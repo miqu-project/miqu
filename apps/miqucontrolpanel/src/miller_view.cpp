@@ -215,6 +215,7 @@ void MillerView::init() {
         ->style(CardStyle::Filled)
         ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
         ->elevation(0)
+        ->tooltip("Expand full width")
         ->addView(icon_box)
         ->build();
     m_preview_toggle_btn->set_on_click_listener([this]() {
@@ -247,6 +248,14 @@ void MillerView::init() {
         if (!check_and_update_click_debounce()) return;
         auto item = get_current_selected_item();
         if (!item || !item->is_category) return;
+
+        item->ensure_children();
+        if (idx >= item->children.size()) return;
+
+        if (!m_search_query.empty()) {
+            m_search_query.clear();
+            m_search_results.clear();
+        }
 
         m_path.push_back(item);
         m_history_indices.push_back(m_current_index);
@@ -350,6 +359,11 @@ void MillerView::update_preview_ribbon() {
         if (config) {
             m_preview_toggle_icon->set_text_color(config->colors.primary);
         }
+    }
+
+    if (m_preview_toggle_btn) {
+        m_preview_toggle_btn->set_tooltip(m_preview_expanded ? "Collapse to 3 pillars" : "Expand full width");
+        m_preview_toggle_btn->set_tooltip_shortcut(m_preview_expanded ? "Esc" : "");
     }
 }
 
@@ -474,13 +488,13 @@ std::shared_ptr<View> MillerView::create_parent_hero_box(const std::shared_ptr<C
         ->spacing(10)
         ->build();
 
-    auto hero_icon = TextViewBuilder::create()
-        ->text("⚙")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2.8f))
-        ->textColor(config->colors.primary.with_alpha(0.6f))
-        ->center(true)
+    auto hero_icon = ImageViewBuilder::create()
+        ->source("preferences-system")
+        ->targetSize(48)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.85f)
         ->build();
-    hero_box->add_view(hero_icon);
+    hero_box->add_view(hero_icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto hero_title = TextViewBuilder::create()
         ->text("Settings")
@@ -510,12 +524,13 @@ std::shared_ptr<View> MillerView::create_empty_search_box(const std::shared_ptr<
         ->spacing(8)
         ->build();
 
-    auto empty_icon = TextViewBuilder::create()
-        ->text("🔍")
-        ->textSize(static_cast<int>(config->metrics.font_size * 2))
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.5f))
+    auto empty_icon = ImageViewBuilder::create()
+        ->source("system-search")
+        ->targetSize(40)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.5f)
         ->build();
-    empty_box->add_view(empty_icon);
+    empty_box->add_view(empty_icon, LayoutParams(40, 40, Gravity::CenterHorizontal));
 
     auto empty_text = TextViewBuilder::create()
         ->text("No settings found")
@@ -544,12 +559,12 @@ std::shared_ptr<View> MillerView::create_list_row_item(const std::shared_ptr<Set
         ->backgroundColor(Color::transparent())
         ->build();
 
-    auto icon_view = TextViewBuilder::create()
-        ->text(item->icon.empty() ? "⚙" : item->icon)
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.on_surface_variant)
+    auto icon_view = ImageViewBuilder::create()
+        ->source(item->icon.empty() ? "preferences-system" : item->icon)
+        ->targetSize(20)
+        ->fitMode(FitMode::Contain)
         ->build();
-    item_row->add_view(icon_view, LayoutParams(24, WRAP_CONTENT, Gravity::CenterVertical));
+    item_row->add_view(icon_view, LayoutParams(20, 20, Gravity::CenterVertical));
 
     auto title_view = TextViewBuilder::create()
         ->text(item->title)
@@ -616,9 +631,10 @@ void MillerView::rebuild_current_column() {
     if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Gone);
     if (m_current_list) {
         m_current_list->set_visibility(Visibility::Visible);
+        int target_index = m_current_index;
         m_current_list->clear_items();
 
-        m_current_index = std::clamp(m_current_index, 0, static_cast<int>(list.size()) - 1);
+        m_current_index = std::clamp(target_index, 0, static_cast<int>(list.size()) - 1);
 
         for (size_t i = 0; i < list.size(); ++i) {
             const auto& item = list[i];
@@ -835,6 +851,10 @@ bool MillerView::navigate_enter() {
     m_last_navigate_enter_time_ms = now_ms;
 
     if (item->is_category) {
+        if (!m_search_query.empty()) {
+            m_search_query.clear();
+            m_search_results.clear();
+        }
         m_path.push_back(item);
         m_history_indices.push_back(m_current_index);
         m_current_index = 0;

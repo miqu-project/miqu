@@ -35,13 +35,13 @@ struct LauncherConfig {
     int height = 460;
     int cell_size = 100;
     int spacing = 10;
-    int edge_padding = 16;
+    int edge_padding = 24;
     bool show_subtitles = true;
     bool selection_border = false;
-    bool search_focus_border = false;
+    bool search_focus_border = true;
     int search_width_percent = 55;
-    int search_height = 36;
-    int search_elevation = 0;
+    int search_height = 42;
+    int search_elevation = 1;
     std::string view_mode = "grid"; // "grid" or "list"
     std::string search_view_mode = "inherit"; // "inherit", "list", or "grid"
     std::string icon_theme = "";

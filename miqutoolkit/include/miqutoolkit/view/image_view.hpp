@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <string>
 
 namespace miqu {
@@ -132,12 +132,19 @@ private:
     float m_cached_dim_alpha = 0.0f;
 };
 
-class ImageViewBuilder : public std::enable_shared_from_this<ImageViewBuilder> {
+class ImageViewBuilder : public ViewBuilder<ImageViewBuilder, ImageView> {
 public:
-    ImageViewBuilder() : m_view(std::make_shared<ImageView>()) {}
+    ImageViewBuilder() : ViewBuilder<ImageViewBuilder, ImageView>() {}
+    explicit ImageViewBuilder(std::string src) : ViewBuilder<ImageViewBuilder, ImageView>() {
+        m_view->set_image_resource(std::move(src));
+    }
 
     static std::shared_ptr<ImageViewBuilder> create() {
         return std::make_shared<ImageViewBuilder>();
+    }
+
+    static std::shared_ptr<ImageViewBuilder> create(std::string src) {
+        return std::make_shared<ImageViewBuilder>(std::move(src));
     }
 
     std::shared_ptr<ImageViewBuilder> source(std::string src) {
@@ -199,53 +206,6 @@ public:
         m_view->set_alpha(op);
         return shared_from_this();
     }
-
-    std::shared_ptr<ImageViewBuilder> padding(const Padding& p) {
-        m_view->set_padding(p);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageViewBuilder> padding(int uniform) {
-        m_view->set_padding(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageViewBuilder> padding(int h, int v) {
-        m_view->set_padding(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageViewBuilder> padding(int l, int t, int r, int b) {
-        m_view->set_padding(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageViewBuilder> margin(const Margin& m) {
-        m_view->set_margin(m);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageViewBuilder> margin(int uniform) {
-        m_view->set_margin(uniform);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageViewBuilder> margin(int h, int v) {
-        m_view->set_margin(h, v);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageViewBuilder> margin(int l, int t, int r, int b) {
-        m_view->set_margin(l, t, r, b);
-        return shared_from_this();
-    }
-
-    std::shared_ptr<ImageView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<ImageView> m_view;
 };
 
 } // namespace miqu

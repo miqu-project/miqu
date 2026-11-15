@@ -1,6 +1,6 @@
 #pragma once
 
-#include "miqutoolkit/view/view.hpp"
+#include "miqutoolkit/view/view_builder.hpp"
 #include <string>
 #include <memory>
 
@@ -128,12 +128,19 @@ private:
     double m_border_width = 1.0;
 };
 
-class AvatarViewBuilder : public std::enable_shared_from_this<AvatarViewBuilder> {
+class AvatarViewBuilder : public ViewBuilder<AvatarViewBuilder, AvatarView> {
 public:
-    AvatarViewBuilder() : m_view(std::make_shared<AvatarView>()) {}
+    AvatarViewBuilder() : ViewBuilder<AvatarViewBuilder, AvatarView>() {}
+    explicit AvatarViewBuilder(int s) : ViewBuilder<AvatarViewBuilder, AvatarView>() {
+        m_view->set_size(s);
+    }
 
     static std::shared_ptr<AvatarViewBuilder> create() {
         return std::make_shared<AvatarViewBuilder>();
+    }
+
+    static std::shared_ptr<AvatarViewBuilder> create(int s) {
+        return std::make_shared<AvatarViewBuilder>(s);
     }
 
     std::shared_ptr<AvatarViewBuilder> size(int s) {
@@ -201,13 +208,6 @@ public:
         m_view->set_bold(b);
         return shared_from_this();
     }
-
-    std::shared_ptr<AvatarView> build() {
-        return m_view;
-    }
-
-private:
-    std::shared_ptr<AvatarView> m_view;
 };
 
 } // namespace miqu

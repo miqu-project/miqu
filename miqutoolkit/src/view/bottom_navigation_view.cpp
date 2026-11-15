@@ -287,8 +287,4 @@ bool BottomNavigationView::on_mouse_button(int lx, int ly, MouseButton button, b
     }
 }
 
-BottomNavigationViewBuilder::BottomNavigationViewBuilder() {
-    m_view = std::make_shared<BottomNavigationView>();
-}
-
 } // namespace miqu

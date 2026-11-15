@@ -15,9 +15,10 @@ void ListItemView::draw(cairo_t* cr, const Rect& bounds) {
     std::string font_family = !config->metrics.font_family.empty() ? config->metrics.font_family : "Sans";
     int font_size = config->metrics.font_size > 0 ? config->metrics.font_size : 11;
 
-    int pad_x = 12;
-    int cur_x = bounds.x + pad_x;
-    int right_edge = bounds.x + bounds.width - pad_x;
+    int pad_left = (m_padding.left > 0) ? m_padding.left : 12;
+    int pad_right = (m_padding.right > 0) ? m_padding.right : 12;
+    int cur_x = bounds.x + pad_left;
+    int right_edge = bounds.x + bounds.width - pad_right;
 
     // 1. Render Leading Icon (if present)
     if (!m_icon_source.empty()) {
@@ -114,7 +115,7 @@ void ListItemView::draw(cairo_t* cr, const Rect& bounds) {
 
     // 6. Render Trailing Text
     if (trailing_layout) {
-        int trail_x = bounds.x + bounds.width - pad_x - trailing_w;
+        int trail_x = bounds.x + bounds.width - pad_right - trailing_w;
         int trail_y = bounds.y + (bounds.height - trailing_h) / 2;
         cairo_move_to(cr, trail_x, trail_y);
         if (m_highlight_trailing) {
