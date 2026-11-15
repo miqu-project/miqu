@@ -802,7 +802,70 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
     add_preview_card(main_card);
 
     // ==============================================================================
-    // 2. Style Section Card
+    // 2. Dark Section Card
+    // ==============================================================================
+    auto dark_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(16, 16)
+        ->spacing(12)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto dark_header = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->gravity(Gravity::CenterVertical)
+        ->spacing(8)
+        ->build();
+
+    auto dark_icon = ImageViewBuilder::create()
+        ->source("weather-clear-night")
+        ->targetSize(20)
+        ->fitMode(FitMode::Contain)
+        ->build();
+    dark_header->add_view(dark_icon, LayoutParams(20, 20, Gravity::CenterVertical));
+
+    auto dark_title = TextViewBuilder::create()
+        ->text("Dark")
+        ->textSize(static_cast<int>(config->metrics.font_size * 1.15f))
+        ->bold(true)
+        ->textColor(config->colors.on_surface)
+        ->build();
+    dark_header->add_view(dark_title);
+
+    dark_card->add_view(dark_header);
+
+    auto dark_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->gravity(Gravity::CenterVertical)
+        ->padding(0, 4)
+        ->spacing(12)
+        ->build();
+
+    auto dark_label = TextViewBuilder::create()
+        ->text("Dark Mode")
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.on_surface)
+        ->build();
+    LayoutParams lbl_lp(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent));
+    lbl_lp.weight = 1.0f;
+    lbl_lp.gravity = Gravity::CenterVertical;
+    dark_row->add_view(dark_label, lbl_lp);
+
+    auto dark_switch = SwitchBuilder::create()
+        ->checked(false)
+        ->build();
+    LayoutParams sw_lp(44, 24);
+    sw_lp.gravity = Gravity::CenterVertical;
+    dark_row->add_view(dark_switch, sw_lp);
+
+    dark_card->add_view(dark_row);
+
+    add_preview_card(dark_card);
+
+    // ==============================================================================
+    // 3. Style Section Card
     // ==============================================================================
     auto style_card = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
