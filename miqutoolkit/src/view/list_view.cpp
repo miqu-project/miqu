@@ -13,6 +13,11 @@ ListView::ListView() {}
 void ListView::set_items(std::vector<std::shared_ptr<View>> items) {
     m_items = std::move(items);
     m_selected_index = (!m_selectable || m_items.empty()) ? -1 : 0;
+    m_anchor_index = m_selected_index;
+    m_selected_indices.clear();
+    if (m_selectable && m_selected_index >= 0) {
+        m_selected_indices.insert(m_selected_index);
+    }
     m_scroll_y = 0.0;
 }
 
@@ -21,6 +26,8 @@ void ListView::add_item(std::shared_ptr<View> item) {
         m_items.push_back(std::move(item));
         if (m_selectable && m_selected_index < 0 && !m_items.empty()) {
             m_selected_index = 0;
+            m_anchor_index = 0;
+            m_selected_indices.insert(0);
         }
     }
 }
@@ -28,7 +35,9 @@ void ListView::add_item(std::shared_ptr<View> item) {
 void ListView::clear_items() {
     m_items.clear();
     m_selected_index = -1;
+    m_anchor_index = -1;
     m_hovered_index = -1;
+    m_selected_indices.clear();
     m_scroll_y = 0.0;
 }
 
@@ -39,13 +48,129 @@ std::shared_ptr<View> ListView::get_item_at(size_t index) const {
     return nullptr;
 }
 
+void ListView::set_selectable(bool selectable) {
+    m_selectable = selectable;
+    if (!m_selectable) {
+        m_selected_index = -1;
+        m_anchor_index = -1;
+        m_selected_indices.clear();
+        if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+    }
+    request_redraw();
+}
+
+void ListView::set_selection_mode(ListViewSelectionMode mode) {
+    if (m_selection_mode != mode) {
+        m_selection_mode = mode;
+        if (m_selection_mode == ListViewSelectionMode::None) {
+            m_selected_index = -1;
+            m_anchor_index = -1;
+            m_selected_indices.clear();
+        } else if (m_selection_mode == ListViewSelectionMode::Single) {
+            m_selected_indices.clear();
+            if (m_selected_index >= 0) {
+                m_selected_indices.insert(m_selected_index);
+            }
+        }
+        if (m_on_selection_changed) {
+            m_on_selection_changed(m_selected_indices);
+        }
+        request_redraw();
+    }
+}
+
+void ListView::set_selected_indices(const std::unordered_set<int>& indices) {
+    m_selected_indices = indices;
+    if (m_on_selection_changed) {
+        m_on_selection_changed(m_selected_indices);
+    }
+    request_redraw();
+}
+
+void ListView::add_selected_index(int index) {
+    if (index >= 0 && index < static_cast<int>(m_items.size())) {
+        m_selected_indices.insert(index);
+        if (m_on_selection_changed) {
+            m_on_selection_changed(m_selected_indices);
+        }
+        request_redraw();
+    }
+}
+
+void ListView::remove_selected_index(int index) {
+    auto it = m_selected_indices.find(index);
+    if (it != m_selected_indices.end()) {
+        m_selected_indices.erase(it);
+        if (m_on_selection_changed) {
+            m_on_selection_changed(m_selected_indices);
+        }
+        request_redraw();
+    }
+}
+
+void ListView::toggle_selected_index(int index) {
+    if (index >= 0 && index < static_cast<int>(m_items.size())) {
+        auto it = m_selected_indices.find(index);
+        if (it != m_selected_indices.end()) {
+            m_selected_indices.erase(it);
+        } else {
+            m_selected_indices.insert(index);
+        }
+        if (m_on_selection_changed) {
+            m_on_selection_changed(m_selected_indices);
+        }
+        request_redraw();
+    }
+}
+
+void ListView::select_range(int from, int to) {
+    if (m_items.empty()) return;
+    int start = std::clamp(std::min(from, to), 0, static_cast<int>(m_items.size()) - 1);
+    int end = std::clamp(std::max(from, to), 0, static_cast<int>(m_items.size()) - 1);
+    m_selected_indices.clear();
+    for (int i = start; i <= end; ++i) {
+        m_selected_indices.insert(i);
+    }
+    if (m_on_selection_changed) {
+        m_on_selection_changed(m_selected_indices);
+    }
+    request_redraw();
+}
+
+void ListView::select_all() {
+    m_selected_indices.clear();
+    for (int i = 0; i < static_cast<int>(m_items.size()); ++i) {
+        m_selected_indices.insert(i);
+    }
+    if (m_on_selection_changed) {
+        m_on_selection_changed(m_selected_indices);
+    }
+    request_redraw();
+}
+
+void ListView::clear_selection() {
+    m_selected_indices.clear();
+    if (m_on_selection_changed) {
+        m_on_selection_changed(m_selected_indices);
+    }
+    request_redraw();
+}
+
 void ListView::set_selected_index(int index) {
     if (!m_selectable || m_items.empty() || index < 0) {
         m_selected_index = -1;
+        m_anchor_index = -1;
+        m_selected_indices.clear();
+        if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
         request_redraw();
         return;
     }
     m_selected_index = std::clamp(index, 0, static_cast<int>(m_items.size()) - 1);
+    m_selected_indices.clear();
+    m_selected_indices.insert(m_selected_index);
+    m_anchor_index = m_selected_index;
+    if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+
     if (m_last_height > 0) {
         ensure_visible(m_last_height);
     } else {
@@ -59,6 +184,22 @@ std::shared_ptr<View> ListView::get_selected_item() const {
         return m_items[m_selected_index];
     }
     return nullptr;
+}
+
+std::vector<std::shared_ptr<View>> ListView::get_selected_items() const {
+    std::vector<std::shared_ptr<View>> result;
+    if (m_selection_mode == ListViewSelectionMode::Multiple) {
+        for (int i = 0; i < static_cast<int>(m_items.size()); ++i) {
+            if (m_selected_indices.find(i) != m_selected_indices.end()) {
+                result.push_back(m_items[i]);
+            }
+        }
+    } else {
+        if (m_selected_index >= 0 && m_selected_index < static_cast<int>(m_items.size())) {
+            result.push_back(m_items[m_selected_index]);
+        }
+    }
+    return result;
 }
 
 void ListView::ensure_visible(int viewport_height) {
@@ -133,11 +274,13 @@ void ListView::draw(cairo_t* cr, const Rect& bounds) {
         int item_y = bounds.y + i * row_stride - static_cast<int>(m_scroll_y);
         Rect item_rect(bounds.x, item_y, bounds.width, m_item_h);
 
-        bool is_selected = (m_selectable && i == m_selected_index);
-        bool is_hovered = (i == m_hovered_index && !is_selected);
+        bool is_cursor = (m_selectable && i == m_selected_index);
+        bool in_multi_select = (m_selection_mode == ListViewSelectionMode::Multiple &&
+                                m_selected_indices.find(i) != m_selected_indices.end());
+        bool is_hovered = (i == m_hovered_index && !is_cursor);
 
         // Highlight background
-        if (is_selected) {
+        if (is_cursor) {
             CardView::draw_rounded_rect(cr, item_rect.x, item_rect.y, item_rect.width, item_rect.height, radius);
             cairo_set_source_rgba(cr, config->colors.primary_container.r,
                                       config->colors.primary_container.g,
@@ -152,6 +295,13 @@ void ListView::draw(cairo_t* cr, const Rect& bounds) {
                                       0.45f);
             cairo_set_line_width(cr, 1.0);
             cairo_stroke(cr);
+        } else if (in_multi_select) {
+            CardView::draw_rounded_rect(cr, item_rect.x, item_rect.y, item_rect.width, item_rect.height, radius);
+            cairo_set_source_rgba(cr, config->colors.primary.r,
+                                      config->colors.primary.g,
+                                      config->colors.primary.b,
+                                      0.12f);
+            cairo_fill(cr);
         } else if (is_hovered) {
             CardView::draw_rounded_rect(cr, item_rect.x, item_rect.y, item_rect.width, item_rect.height, radius);
             cairo_set_source_rgba(cr, config->colors.on_surface.r,
@@ -164,6 +314,20 @@ void ListView::draw(cairo_t* cr, const Rect& bounds) {
         // Draw child item
         if (m_items[i]) {
             m_items[i]->draw(cr, item_rect);
+        }
+
+        // Left vertical accent marker for multi-selected items (Pure Yazi style)
+        if (in_multi_select) {
+            double bar_w = 3.5;
+            double bar_h = item_rect.height - 14.0;
+            double bar_x = item_rect.x + 3.0;
+            double bar_y = item_rect.y + 7.0;
+            CardView::draw_rounded_rect(cr, bar_x, bar_y, bar_w, bar_h, 1.75);
+            cairo_set_source_rgba(cr, config->colors.primary.r,
+                                      config->colors.primary.g,
+                                      config->colors.primary.b,
+                                      0.95f);
+            cairo_fill(cr);
         }
 
         // Optional row divider
@@ -215,19 +379,58 @@ bool ListView::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
     if (button == MouseButton::Left && pressed) {
         int idx = item_at(lx, ly, bounds);
         if (idx >= 0 && idx < static_cast<int>(m_items.size())) {
+            Window* win = get_window();
+            bool is_shift = win && win->has_shift();
+            bool is_ctrl = win && win->has_ctrl();
+
             if (m_selectable) {
-                m_selected_index = idx;
+                if (m_selection_mode == ListViewSelectionMode::Multiple) {
+                    if (is_shift) {
+                        if (m_anchor_index < 0) {
+                            m_anchor_index = (m_selected_index >= 0 ? m_selected_index : idx);
+                        }
+                        select_range(m_anchor_index, idx);
+                        m_selected_index = idx;
+                    } else if (is_ctrl) {
+                        toggle_selected_index(idx);
+                        m_selected_index = idx;
+                        m_anchor_index = idx;
+                    } else {
+                        m_selected_index = idx;
+                        m_anchor_index = idx;
+                        m_selected_indices.clear();
+                        m_selected_indices.insert(idx);
+                        if (m_on_selection_changed) {
+                            m_on_selection_changed(m_selected_indices);
+                        }
+                    }
+                } else {
+                    set_selected_index(idx);
+                }
             }
             if (m_on_item_click) {
                 m_on_item_click(idx, m_items[idx]);
             }
+            request_redraw();
             return true;
         }
     } else if (button == MouseButton::Right && pressed) {
         int idx = item_at(lx, ly, bounds);
         if (idx >= 0 && idx < static_cast<int>(m_items.size())) {
             if (m_selectable) {
-                m_selected_index = idx;
+                if (m_selection_mode == ListViewSelectionMode::Multiple) {
+                    if (m_selected_indices.find(idx) == m_selected_indices.end()) {
+                        m_selected_index = idx;
+                        m_anchor_index = idx;
+                        m_selected_indices.clear();
+                        m_selected_indices.insert(idx);
+                        if (m_on_selection_changed) {
+                            m_on_selection_changed(m_selected_indices);
+                        }
+                    }
+                } else {
+                    m_selected_index = idx;
+                }
             }
             if (m_on_item_context_click) {
                 m_on_item_context_click(idx, m_items[idx], lx, ly);
@@ -265,39 +468,188 @@ bool ListView::on_key(const KeyPressEvent& event) {
     int count = static_cast<int>(m_items.size());
     int old_selected = m_selected_index;
 
+    // Multi-select specific shortcuts
+    if (m_selection_mode == ListViewSelectionMode::Multiple) {
+        // Ctrl+A: Select All
+        if (event.has_ctrl() && (event.keysym == XKB_KEY_a || event.keysym == XKB_KEY_A)) {
+            select_all();
+            return true;
+        }
+
+        // Escape: Cancel multi-selection, collapse back to 1 selected item at cursor
+        if (event.keysym == XKB_KEY_Escape) {
+            if (m_selected_indices.size() > 1 || m_selected_indices.find(m_selected_index) == m_selected_indices.end()) {
+                m_selected_indices.clear();
+                if (m_selected_index >= 0 && m_selected_index < count) {
+                    m_selected_indices.insert(m_selected_index);
+                }
+                m_anchor_index = m_selected_index;
+                if (m_on_selection_changed) {
+                    m_on_selection_changed(m_selected_indices);
+                }
+                request_redraw();
+                return true;
+            }
+            return false;
+        }
+
+        // Space: Sporadic toggle current item & step down 1 row
+        if (event.keysym == XKB_KEY_space) {
+            if (m_selected_index >= 0 && m_selected_index < count) {
+                auto it = m_selected_indices.find(m_selected_index);
+                if (it != m_selected_indices.end()) {
+                    m_selected_indices.erase(it);
+                } else {
+                    m_selected_indices.insert(m_selected_index);
+                }
+                m_anchor_index = m_selected_index;
+                if (m_on_selection_changed) {
+                    m_on_selection_changed(m_selected_indices);
+                }
+                // Step down 1 row if available
+                if (m_selected_index < count - 1) {
+                    m_selected_index++;
+                    if (m_last_height > 0) {
+                        ensure_visible(m_last_height);
+                    }
+                }
+                request_redraw();
+                return true;
+            }
+        }
+    }
+
     switch (event.keysym) {
         case XKB_KEY_Up:
         case XKB_KEY_k:
+        case XKB_KEY_K:
             if (m_selected_index > 0) {
                 m_selected_index--;
+                if (m_selection_mode == ListViewSelectionMode::Multiple) {
+                    if (event.has_shift()) {
+                        if (m_anchor_index < 0) m_anchor_index = old_selected;
+                        select_range(m_anchor_index, m_selected_index);
+                    } else {
+                        m_selected_indices.clear();
+                        m_selected_indices.insert(m_selected_index);
+                        m_anchor_index = m_selected_index;
+                        if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+                    }
+                } else {
+                    m_selected_indices.clear();
+                    m_selected_indices.insert(m_selected_index);
+                    m_anchor_index = m_selected_index;
+                    if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+                }
             }
             break;
 
         case XKB_KEY_Down:
         case XKB_KEY_j:
+        case XKB_KEY_J:
             if (m_selected_index < count - 1) {
                 m_selected_index++;
+                if (m_selection_mode == ListViewSelectionMode::Multiple) {
+                    if (event.has_shift()) {
+                        if (m_anchor_index < 0) m_anchor_index = old_selected;
+                        select_range(m_anchor_index, m_selected_index);
+                    } else {
+                        m_selected_indices.clear();
+                        m_selected_indices.insert(m_selected_index);
+                        m_anchor_index = m_selected_index;
+                        if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+                    }
+                } else {
+                    m_selected_indices.clear();
+                    m_selected_indices.insert(m_selected_index);
+                    m_anchor_index = m_selected_index;
+                    if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+                }
             }
             break;
 
         case XKB_KEY_Page_Up: {
             int page_items = std::max(1, m_last_height / (m_item_h + m_spacing));
             m_selected_index = std::max(0, m_selected_index - page_items);
+            if (m_selection_mode == ListViewSelectionMode::Multiple) {
+                if (event.has_shift()) {
+                    if (m_anchor_index < 0) m_anchor_index = old_selected;
+                    select_range(m_anchor_index, m_selected_index);
+                } else {
+                    m_selected_indices.clear();
+                    m_selected_indices.insert(m_selected_index);
+                    m_anchor_index = m_selected_index;
+                    if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+                }
+            } else {
+                m_selected_indices.clear();
+                m_selected_indices.insert(m_selected_index);
+                m_anchor_index = m_selected_index;
+                if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+            }
             break;
         }
 
         case XKB_KEY_Page_Down: {
             int page_items = std::max(1, m_last_height / (m_item_h + m_spacing));
             m_selected_index = std::min(count - 1, m_selected_index + page_items);
+            if (m_selection_mode == ListViewSelectionMode::Multiple) {
+                if (event.has_shift()) {
+                    if (m_anchor_index < 0) m_anchor_index = old_selected;
+                    select_range(m_anchor_index, m_selected_index);
+                } else {
+                    m_selected_indices.clear();
+                    m_selected_indices.insert(m_selected_index);
+                    m_anchor_index = m_selected_index;
+                    if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+                }
+            } else {
+                m_selected_indices.clear();
+                m_selected_indices.insert(m_selected_index);
+                m_anchor_index = m_selected_index;
+                if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+            }
             break;
         }
 
         case XKB_KEY_Home:
             m_selected_index = 0;
+            if (m_selection_mode == ListViewSelectionMode::Multiple) {
+                if (event.has_shift()) {
+                    if (m_anchor_index < 0) m_anchor_index = old_selected;
+                    select_range(m_anchor_index, m_selected_index);
+                } else {
+                    m_selected_indices.clear();
+                    m_selected_indices.insert(m_selected_index);
+                    m_anchor_index = m_selected_index;
+                    if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+                }
+            } else {
+                m_selected_indices.clear();
+                m_selected_indices.insert(m_selected_index);
+                m_anchor_index = m_selected_index;
+                if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+            }
             break;
 
         case XKB_KEY_End:
             m_selected_index = count - 1;
+            if (m_selection_mode == ListViewSelectionMode::Multiple) {
+                if (event.has_shift()) {
+                    if (m_anchor_index < 0) m_anchor_index = old_selected;
+                    select_range(m_anchor_index, m_selected_index);
+                } else {
+                    m_selected_indices.clear();
+                    m_selected_indices.insert(m_selected_index);
+                    m_anchor_index = m_selected_index;
+                    if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+                }
+            } else {
+                m_selected_indices.clear();
+                m_selected_indices.insert(m_selected_index);
+                m_anchor_index = m_selected_index;
+                if (m_on_selection_changed) m_on_selection_changed(m_selected_indices);
+            }
             break;
 
         case XKB_KEY_Return:
@@ -318,6 +670,7 @@ bool ListView::on_key(const KeyPressEvent& event) {
         if (m_last_height > 0) {
             ensure_visible(m_last_height);
         }
+        request_redraw();
         return true;
     }
 

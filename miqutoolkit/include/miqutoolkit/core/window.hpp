@@ -130,6 +130,11 @@ public:
     void notify_focus_ring_drawn() { m_focus_ring_drawn = true; }
     void notify_view_destroyed(View* view);
 
+    uint32_t get_modifiers() const { return m_modifiers; }
+    bool has_ctrl() const { return (m_modifiers & static_cast<uint32_t>(KeyboardModifier::Control)) != 0; }
+    bool has_shift() const { return (m_modifiers & static_cast<uint32_t>(KeyboardModifier::Shift)) != 0; }
+    bool has_alt() const { return (m_modifiers & static_cast<uint32_t>(KeyboardModifier::Alt)) != 0; }
+
 private:
     void render_frame();
 

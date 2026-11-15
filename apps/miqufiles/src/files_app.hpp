@@ -21,6 +21,8 @@ public:
 private:
     void setup_ui();
     void update_header();
+    void update_hidden_btn_ui();
+    void toggle_show_hidden();
 
     std::shared_ptr<AppEngine> m_engine;
     std::string m_start_path;
@@ -33,6 +35,8 @@ private:
     std::shared_ptr<TextView> m_back_label;
     std::shared_ptr<LinearLayout> m_breadcrumb_container;
     std::shared_ptr<SearchView> m_search_view;
+    std::shared_ptr<CardView> m_hidden_btn;
+    std::shared_ptr<TextView> m_hidden_label;
     std::shared_ptr<MillerView> m_miller_view;
 };
 

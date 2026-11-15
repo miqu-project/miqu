@@ -27,11 +27,83 @@ bool MillerView::check_and_update_click_debounce() {
 }
 
 void MillerView::refresh_model() {
-    m_root_tree = FilesModel::build_default_tree(m_start_path);
+    m_root_tree = FilesModel::build_default_tree(m_start_path, m_show_hidden);
     if (m_preview_layout) {
         rebuild_columns();
         notify_state_changed();
     }
+}
+
+void MillerView::set_show_hidden(bool show) {
+    if (m_show_hidden == show) return;
+    m_show_hidden = show;
+
+    // 1. Remember what item was selected (by id / path)
+    std::string selected_id;
+    auto cur_item = get_current_selected_item();
+    if (cur_item) {
+        selected_id = cur_item->id;
+    }
+
+    // 2. Re-scan root tree
+    m_root_tree = FilesModel::build_default_tree(m_start_path, m_show_hidden);
+
+    // 3. For each folder in m_path, reload its children with m_show_hidden
+    std::vector<std::shared_ptr<FileItem>>* parent_level = &m_root_tree;
+
+    for (size_t depth = 0; depth < m_path.size(); ++depth) {
+        auto& path_item = m_path[depth];
+
+        // Find path_item in parent_level by id
+        int new_idx = -1;
+        for (size_t i = 0; i < parent_level->size(); ++i) {
+            if ((*parent_level)[i]->id == path_item->id) {
+                new_idx = static_cast<int>(i);
+                path_item = (*parent_level)[i]; // update pointer to new instance
+                break;
+            }
+        }
+
+        if (depth < m_history_indices.size()) {
+            if (new_idx >= 0) {
+                m_history_indices[depth] = new_idx;
+            }
+        }
+
+        path_item->reload_children(m_show_hidden);
+        parent_level = &(path_item->children);
+    }
+
+    // 4. Update current selection index in current list
+    const auto* current_pool = m_path.empty() ? &m_root_tree : &(m_path.back()->children);
+    int new_current_idx = 0;
+    if (!selected_id.empty()) {
+        for (size_t i = 0; i < current_pool->size(); ++i) {
+            if ((*current_pool)[i]->id == selected_id) {
+                new_current_idx = static_cast<int>(i);
+                break;
+            }
+        }
+    }
+    if (!current_pool->empty()) {
+        m_current_index = std::clamp(new_current_idx, 0, static_cast<int>(current_pool->size()) - 1);
+    } else {
+        m_current_index = 0;
+    }
+
+    // 5. If searching, re-run search against updated pool
+    if (!m_search_query.empty()) {
+        std::string q = m_search_query;
+        m_search_query.clear(); // force set_search_query to rebuild
+        set_search_query(q);
+    } else {
+        rebuild_columns();
+        notify_state_changed();
+    }
+}
+
+void MillerView::toggle_show_hidden() {
+    set_show_hidden(!m_show_hidden);
 }
 
 void MillerView::execute_sibling_swap(const std::shared_ptr<FileItem>& item, size_t index) {
@@ -100,9 +172,10 @@ void MillerView::handle_parent_item_click(size_t idx) {
     execute_sibling_swap(item, idx);
 }
 
-void MillerView::init(const std::string& start_path) {
+void MillerView::init(const std::string& start_path, bool show_hidden) {
     m_start_path = start_path;
-    m_root_tree = FilesModel::build_default_tree(m_start_path);
+    m_show_hidden = show_hidden;
+    m_root_tree = FilesModel::build_default_tree(m_start_path, m_show_hidden);
 
     set_orientation(Orientation::Horizontal);
     set_padding(12, 4, 12, 12);
@@ -157,8 +230,13 @@ void MillerView::init(const std::string& start_path) {
         ->spacing(4)
         ->itemCornerRadius(inner_rad)
         ->scrollbar(false)
+        ->selectionMode(ListViewSelectionMode::Multiple)
         ->build();
-    m_current_list->set_keyboard_navigation_enabled(false);
+    m_current_list->set_on_selection_changed([this](const std::unordered_set<int>&) {
+        m_current_index = m_current_list->get_selected_index();
+        rebuild_preview_column();
+        notify_state_changed();
+    });
     m_current_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
         if (!check_and_update_click_debounce()) return;
         int clicked_idx = static_cast<int>(idx);
@@ -171,7 +249,7 @@ void MillerView::init(const std::string& start_path) {
             if (m_window) {
                 m_window->clear_focus();
             }
-            rebuild_columns();
+            rebuild_preview_column();
             notify_state_changed();
         } else {
             auto item = get_current_selected_item();
@@ -315,6 +393,18 @@ void MillerView::init(const std::string& start_path) {
         }
     }
     std::reverse(segments.begin(), segments.end());
+    for (const auto& seg : segments) {
+        if (!seg.empty() && seg[0] == '.') {
+            m_show_hidden = true;
+            break;
+        }
+    }
+    if (!select_filename.empty() && select_filename[0] == '.') {
+        m_show_hidden = true;
+    }
+    if (m_show_hidden) {
+        m_root_tree = FilesModel::build_default_tree(m_start_path, m_show_hidden);
+    }
 
     m_path.clear();
     m_history_indices.clear();
@@ -403,6 +493,25 @@ void MillerView::update_preview_ribbon() {
     if (!m_preview_ribbon) return;
 
     auto config = Config::get();
+
+    if (is_multi_selected()) {
+        m_preview_ribbon->set_visibility(Visibility::Visible);
+        if (m_preview_title) {
+            m_preview_title->set_text(std::to_string(get_selected_count()) + " items selected");
+            if (config) {
+                m_preview_title->set_text_color(config->colors.primary);
+            }
+        }
+        if (m_preview_toggle_btn) {
+            m_preview_toggle_btn->set_visibility(Visibility::Gone);
+        }
+        return;
+    }
+
+    if (m_preview_toggle_btn) {
+        m_preview_toggle_btn->set_visibility(Visibility::Visible);
+    }
+
     auto item = get_current_selected_item();
 
     // Only show ribbon for leaf items
@@ -523,6 +632,83 @@ std::shared_ptr<FileItem> MillerView::get_current_selected_item() const {
     if (list.empty()) return nullptr;
     int idx = std::clamp(m_current_index, 0, static_cast<int>(list.size()) - 1);
     return list[idx];
+}
+
+bool MillerView::is_multi_selected() const {
+    return m_current_list && m_current_list->get_selected_count() > 1;
+}
+
+size_t MillerView::get_selected_count() const {
+    if (!m_current_list) return 0;
+    return m_current_list->get_selected_count();
+}
+
+std::vector<std::shared_ptr<FileItem>> MillerView::get_selected_items() const {
+    std::vector<std::shared_ptr<FileItem>> result;
+    if (!m_current_list) return result;
+    const auto& list = get_current_list();
+    if (m_current_list->is_multi_select()) {
+        const auto& indices = m_current_list->get_selected_indices();
+        for (int i = 0; i < static_cast<int>(list.size()); ++i) {
+            if (indices.find(i) != indices.end()) {
+                result.push_back(list[i]);
+            }
+        }
+    } else {
+        auto item = get_current_selected_item();
+        if (item) result.push_back(item);
+    }
+    return result;
+}
+
+bool MillerView::handle_list_key(const KeyPressEvent& event) {
+    if (m_preview_focused || m_preview_expanded) return false;
+    if (!m_current_list || !m_current_list->is_visible()) return false;
+
+    // Ctrl+A: Select All
+    if (event.has_ctrl() && (event.keysym == XKB_KEY_a || event.keysym == XKB_KEY_A)) {
+        m_current_list->select_all();
+        rebuild_preview_column();
+        notify_state_changed();
+        return true;
+    }
+
+    // Escape: If multiple items selected, collapse back to 1 item at cursor
+    if (event.keysym == XKB_KEY_Escape) {
+        if (m_current_list->get_selected_count() > 1) {
+            m_current_list->on_key(event);
+            m_current_index = m_current_list->get_selected_index();
+            rebuild_preview_column();
+            notify_state_changed();
+            return true;
+        }
+        return false;
+    }
+
+    // Space: Sporadic toggle current item & step down
+    if (event.keysym == XKB_KEY_space) {
+        m_current_list->on_key(event);
+        m_current_index = m_current_list->get_selected_index();
+        rebuild_preview_column();
+        notify_state_changed();
+        return true;
+    }
+
+    // Shift + Up/Down range navigation
+    if (event.has_shift()) {
+        if (event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_k || event.keysym == XKB_KEY_K ||
+            event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_J ||
+            event.keysym == XKB_KEY_Page_Up || event.keysym == XKB_KEY_Page_Down ||
+            event.keysym == XKB_KEY_Home || event.keysym == XKB_KEY_End) {
+            m_current_list->on_key(event);
+            m_current_index = m_current_list->get_selected_index();
+            rebuild_preview_column();
+            notify_state_changed();
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void MillerView::notify_state_changed() {
@@ -655,17 +841,24 @@ std::shared_ptr<View> MillerView::create_list_row_item(const std::shared_ptr<Fil
         ->backgroundColor(Color::transparent())
         ->build();
 
+    Color icon_col = item->is_category ? config->colors.primary : config->colors.on_surface_variant;
+    Color title_col = config->colors.on_surface;
+    if (item->is_hidden) {
+        icon_col = icon_col.with_alpha(item->is_category ? 0.7f : 0.6f);
+        title_col = title_col.with_alpha(0.65f);
+    }
+
     auto icon_view = TextViewBuilder::create()
         ->text(item->icon.empty() ? "󰈔" : item->icon)
         ->textSize(config->metrics.font_size)
-        ->textColor(item->is_category ? config->colors.primary : config->colors.on_surface_variant)
+        ->textColor(icon_col)
         ->build();
     item_row->add_view(icon_view, LayoutParams(24, WRAP_CONTENT, Gravity::CenterVertical));
 
     auto title_view = TextViewBuilder::create()
         ->text(item->title)
         ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.on_surface)
+        ->textColor(title_col)
         ->ellipsize(true)
         ->build();
     item_row->add_view(title_view, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
@@ -805,6 +998,15 @@ void MillerView::rebuild_preview_column() {
     auto item = get_current_selected_item();
 
     update_preview_ribbon();
+
+    if (is_multi_selected()) {
+        if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
+        if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
+        m_preview_layout->set_padding(Padding(14, 4, 14, 14));
+        m_preview_layout->set_divider_spacing(10);
+        render_multi_selection_preview(get_selected_items(), config);
+        return;
+    }
 
     if (!item) {
         if (m_category_list) m_category_list->set_visibility(Visibility::Gone);

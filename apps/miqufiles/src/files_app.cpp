@@ -1,8 +1,51 @@
 #include "files_app.hpp"
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include <iostream>
+#include <fstream>
+#include <algorithm>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 namespace miqu {
+
+static bool read_config_show_hidden() {
+    std::string user_conf = FsUtils::get_user_config_file("miqufiles");
+    std::string target_conf = fs::exists(user_conf) ? user_conf : FsUtils::get_system_config_file("miqufiles");
+    if (!fs::exists(target_conf)) return false;
+
+    std::ifstream file(target_conf);
+    if (!file.is_open()) return false;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t hash_pos = line.find('#');
+        if (hash_pos != std::string::npos) line = line.substr(0, hash_pos);
+        size_t semi_pos = line.find(';');
+        if (semi_pos != std::string::npos) line = line.substr(0, semi_pos);
+
+        size_t eq_pos = line.find('=');
+        if (eq_pos == std::string::npos) continue;
+
+        std::string key = line.substr(0, eq_pos);
+        std::string val = line.substr(eq_pos + 1);
+
+        auto trim = [](std::string s) {
+            size_t p1 = s.find_first_not_of(" \t\r\n\"'");
+            if (p1 == std::string::npos) return std::string();
+            size_t p2 = s.find_last_not_of(" \t\r\n\"'");
+            return s.substr(p1, p2 - p1 + 1);
+        };
+
+        key = trim(key);
+        val = trim(val);
+        if (key == "show_hidden") {
+            std::transform(val.begin(), val.end(), val.begin(), [](unsigned char c) { return std::tolower(c); });
+            return (val == "true" || val == "1" || val == "yes");
+        }
+    }
+    return false;
+}
 
 FilesApp::FilesApp(std::shared_ptr<AppEngine> engine, const std::string& start_path)
     : m_engine(std::move(engine)), m_start_path(start_path) {}
@@ -36,6 +79,7 @@ bool FilesApp::init() {
     m_engine->register_window(m_window);
     sync_theme();
     update_header();
+    update_hidden_btn_ui();
 
     return true;
 }
@@ -163,14 +207,50 @@ void FilesApp::setup_ui() {
     search_lp.gravity = Gravity::CenterVertical;
     m_ribbon->add_view(m_search_view, search_lp);
 
+    // Show Hidden Files toggle button after search view
+    m_hidden_label = TextViewBuilder::create()
+        ->text("󰈉 Hidden")
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.on_surface_variant)
+        ->build();
+
+    auto hidden_content = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->padding(10, 3)
+        ->spacing(4)
+        ->gravity(Gravity::Center)
+        ->addView(m_hidden_label)
+        ->build();
+
+    m_hidden_btn = CardViewBuilder::create()
+        ->style(CardStyle::Filled)
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
+        ->elevation(0)
+        ->addView(hidden_content)
+        ->build();
+    m_hidden_btn->set_focusable(false);
+    m_hidden_btn->set_tooltip("Show Hidden Files");
+    m_hidden_btn->set_tooltip_shortcut("Ctrl+H");
+
+    m_hidden_btn->set_on_click_listener([this]() {
+        toggle_show_hidden();
+    });
+
+    LayoutParams hidden_lp;
+    hidden_lp.width = static_cast<int>(LayoutDimension::WrapContent);
+    hidden_lp.height = 26;
+    hidden_lp.gravity = Gravity::CenterVertical;
+    m_ribbon->add_view(m_hidden_btn, hidden_lp);
+
     LayoutParams ribbon_lp;
     ribbon_lp.width = static_cast<int>(LayoutDimension::MatchParent);
     ribbon_lp.height = 36;
     m_root_layout->add_view(m_ribbon, ribbon_lp);
 
     // 3. Middle Body: MillerView
+    bool initial_show_hidden = read_config_show_hidden();
     m_miller_view = std::make_shared<MillerView>();
-    m_miller_view->init(m_start_path);
+    m_miller_view->init(m_start_path, initial_show_hidden);
     m_miller_view->set_on_state_changed([this]() {
         update_header();
     });
@@ -199,6 +279,9 @@ void FilesApp::sync_theme() {
     if (m_search_view) {
         m_search_view->set_background_color(config->colors.surface_variant.with_alpha(0.35f));
         m_search_view->set_stroke(0, Color::transparent());
+    }
+    if (m_hidden_btn) {
+        update_hidden_btn_ui();
     }
 
     if (m_miller_view) {
@@ -351,6 +434,37 @@ void FilesApp::update_header() {
     }
 }
 
+void FilesApp::update_hidden_btn_ui() {
+    if (!m_miller_view || !m_hidden_btn || !m_hidden_label) return;
+    auto config = Config::get();
+    bool is_hidden_shown = m_miller_view->is_show_hidden();
+
+    if (is_hidden_shown) {
+        m_hidden_label->set_text("󰈈 Hidden");
+        m_hidden_label->set_text_color(config->colors.primary);
+        m_hidden_btn->set_card_background_color(config->colors.primary.with_alpha(0.20f));
+        m_hidden_btn->set_tooltip("Hide Hidden Files");
+    } else {
+        m_hidden_label->set_text("󰈉 Hidden");
+        m_hidden_label->set_text_color(config->colors.on_surface_variant);
+        m_hidden_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
+        m_hidden_btn->set_tooltip("Show Hidden Files");
+    }
+    m_hidden_btn->set_tooltip_shortcut("Ctrl+H");
+}
+
+void FilesApp::toggle_show_hidden() {
+    if (!m_miller_view) return;
+    if (!m_miller_view->check_and_update_click_debounce()) return;
+
+    m_miller_view->toggle_show_hidden();
+    update_hidden_btn_ui();
+    update_header();
+    if (m_window) {
+        m_window->schedule_redraw();
+    }
+}
+
 void FilesApp::handle_key_press(const KeyPressEvent& event) {
     if (!event.pressed || !m_miller_view) return;
 
@@ -361,6 +475,12 @@ void FilesApp::handle_key_press(const KeyPressEvent& event) {
             if (m_window) m_window->schedule_redraw();
             return;
         }
+    }
+
+    // Global: Ctrl+H to toggle show/hide hidden files
+    if (event.has_ctrl() && (event.keysym == XKB_KEY_h || event.keysym == XKB_KEY_H)) {
+        toggle_show_hidden();
+        return;
     }
 
     // F11: Toggle full-width / standard 3-column view on leaf files
@@ -448,6 +568,11 @@ void FilesApp::handle_key_press(const KeyPressEvent& event) {
     }
 
     // 5. State 3: List Mode (Middle Pillar Active)
+    if (m_miller_view->handle_list_key(event)) {
+        update_header();
+        return;
+    }
+
     switch (event.keysym) {
         case XKB_KEY_k:
         case XKB_KEY_Up:
@@ -476,6 +601,10 @@ void FilesApp::handle_key_press(const KeyPressEvent& event) {
             if (!m_miller_view->navigate_back()) {
                 if (m_engine) m_engine->quit();
             }
+            break;
+
+        case XKB_KEY_period:
+            toggle_show_hidden();
             break;
 
         default:

@@ -456,6 +456,11 @@ void MusicApp::handle_key_press(const KeyPressEvent& event) {
     }
 
     // 5. State 3: List Mode (Middle Pillar Active)
+    if (m_miller_view->handle_list_key(event)) {
+        update_header();
+        return;
+    }
+
     switch (event.keysym) {
         case XKB_KEY_Up:
             m_miller_view->navigate_up();

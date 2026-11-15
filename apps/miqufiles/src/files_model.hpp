@@ -59,14 +59,17 @@ public:
             p(this);
         }
     }
+
+    void reload_children(bool show_hidden);
 };
 
 class FilesModel {
 public:
-    static std::vector<std::shared_ptr<FileItem>> build_default_tree(const std::string& start_path = "");
+    static std::vector<std::shared_ptr<FileItem>> build_default_tree(const std::string& start_path = "", bool show_hidden = false);
     static std::shared_ptr<FileItem> create_directory_item(const std::filesystem::path& dir,
                                                            const std::string& custom_title = "",
-                                                           const std::string& custom_icon = "");
+                                                           const std::string& custom_icon = "",
+                                                           bool show_hidden = false);
     static std::shared_ptr<FileItem> create_file_item(const std::filesystem::path& path);
     static std::vector<std::shared_ptr<FileItem>> scan_directory(const std::filesystem::path& dir, bool show_hidden = false);
 

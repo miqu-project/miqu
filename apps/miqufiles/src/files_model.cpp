@@ -144,9 +144,29 @@ std::string FilesModel::get_icon_for_category(FileCategory cat, const std::strin
     }
 }
 
+void FileItem::reload_children(bool show_hidden) {
+    if (!is_dir || path.empty()) return;
+
+    if (provider == nullptr) {
+        children = FilesModel::scan_directory(path, show_hidden);
+        child_count = children.size();
+        size_formatted = std::to_string(child_count) + (child_count == 1 ? " item" : " items");
+        subtitle = size_formatted;
+    } else {
+        auto p = path;
+        provider = [p, show_hidden](FileItem* self) {
+            self->children = FilesModel::scan_directory(p, show_hidden);
+            self->child_count = self->children.size();
+            self->size_formatted = std::to_string(self->child_count) + (self->child_count == 1 ? " item" : " items");
+            self->subtitle = self->size_formatted;
+        };
+    }
+}
+
 std::shared_ptr<FileItem> FilesModel::create_directory_item(const fs::path& dir,
                                                            const std::string& custom_title,
-                                                           const std::string& custom_icon) {
+                                                           const std::string& custom_icon,
+                                                           bool show_hidden) {
     auto item = std::make_shared<FileItem>();
     item->path = dir;
     item->id = dir.string();
@@ -158,6 +178,7 @@ std::shared_ptr<FileItem> FilesModel::create_directory_item(const fs::path& dir,
     std::string fname = custom_title.empty() ? dir.filename().string() : custom_title;
     if (fname.empty()) fname = dir.string();
     item->title = fname;
+    item->is_hidden = (!item->title.empty() && item->title[0] == '.');
     item->icon = custom_icon.empty() ? get_icon_for_category(FileCategory::Directory, fname) : custom_icon;
 
     std::error_code ec;
@@ -171,8 +192,8 @@ std::shared_ptr<FileItem> FilesModel::create_directory_item(const fs::path& dir,
         }
     }
 
-    item->provider = [dir](FileItem* self) {
-        self->children = FilesModel::scan_directory(dir);
+    item->provider = [dir, show_hidden](FileItem* self) {
+        self->children = FilesModel::scan_directory(dir, show_hidden);
         self->child_count = self->children.size();
         self->size_formatted = std::to_string(self->child_count) + (self->child_count == 1 ? " item" : " items");
         self->subtitle = self->size_formatted;
@@ -256,7 +277,7 @@ std::vector<std::shared_ptr<FileItem>> FilesModel::scan_directory(const fs::path
         std::error_code is_dir_ec;
         bool is_sub_dir = fs::is_directory(it->path(), is_dir_ec);
         if (is_sub_dir) {
-            items.push_back(create_directory_item(it->path()));
+            items.push_back(create_directory_item(it->path(), "", "", show_hidden));
         } else {
             items.push_back(create_file_item(it->path()));
         }
@@ -277,9 +298,9 @@ std::vector<std::shared_ptr<FileItem>> FilesModel::scan_directory(const fs::path
     return items;
 }
 
-std::vector<std::shared_ptr<FileItem>> FilesModel::build_default_tree(const std::string& start_path) {
+std::vector<std::shared_ptr<FileItem>> FilesModel::build_default_tree(const std::string& start_path, bool show_hidden) {
     (void)start_path;
-    return scan_directory("/");
+    return scan_directory("/", show_hidden);
 }
 
 } // namespace miqu

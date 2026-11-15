@@ -237,4 +237,182 @@ void MillerView::render_photo_preview(const std::shared_ptr<FileItem>& item, con
     m_preview_frame->add_view(overlay_card, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity::Bottom));
 }
 
+void MillerView::render_multi_selection_preview(const std::vector<std::shared_ptr<FileItem>>& items, const std::shared_ptr<Config>& config) {
+    if (items.empty() || !m_preview_frame) return;
+
+    size_t num_photos = 0;
+    size_t num_dirs = 0;
+    uintmax_t total_bytes = 0;
+
+    for (const auto& it : items) {
+        if (!it) continue;
+        if (it->is_category || it->is_dir) {
+            num_dirs++;
+        } else {
+            num_photos++;
+            total_bytes += it->size_bytes;
+        }
+    }
+
+    auto container = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(20, 20)
+        ->spacing(12)
+        ->build();
+
+    // 1. Overview Card
+    auto hero_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->gravity(Gravity::Center)
+        ->padding(20, 24)
+        ->spacing(8)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto hero_icon = TextViewBuilder::create()
+        ->text("󰋩")
+        ->textSize(static_cast<int>(config->metrics.font_size * 2.4f))
+        ->textColor(config->colors.primary)
+        ->center(true)
+        ->build();
+    hero_card->add_view(hero_icon);
+
+    auto hero_title = TextViewBuilder::create()
+        ->text(std::to_string(items.size()) + " Photos Selected")
+        ->textSize(static_cast<int>(config->metrics.font_size * 1.25f))
+        ->bold(true)
+        ->textColor(config->colors.on_surface)
+        ->center(true)
+        ->build();
+    hero_card->add_view(hero_title);
+
+    std::string count_str;
+    if (num_photos > 0 && num_dirs > 0) {
+        count_str = std::to_string(num_photos) + " photos, " + std::to_string(num_dirs) + " albums";
+    } else if (num_dirs > 0) {
+        count_str = std::to_string(num_dirs) + (num_dirs == 1 ? " album" : " albums");
+    } else {
+        count_str = std::to_string(num_photos) + (num_photos == 1 ? " photo" : " photos");
+    }
+
+    auto count_label = TextViewBuilder::create()
+        ->text(count_str)
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant)
+        ->center(true)
+        ->build();
+    hero_card->add_view(count_label);
+
+    if (total_bytes > 0) {
+        auto size_badge = TextViewBuilder::create()
+            ->text("Total Size: " + PhotosModel::format_file_size(total_bytes))
+            ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
+            ->textColor(config->colors.primary)
+            ->center(true)
+            ->build();
+        hero_card->add_view(size_badge);
+    }
+
+    container->add_view(hero_card, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+
+    // 2. Selection List Card
+    auto list_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(14, 12)
+        ->spacing(6)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto list_header = TextViewBuilder::create()
+        ->text("Selection List")
+        ->bold(true)
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.on_surface)
+        ->build();
+    list_card->add_view(list_header);
+
+    size_t max_preview_items = 8;
+    for (size_t i = 0; i < std::min(items.size(), max_preview_items); ++i) {
+        const auto& it = items[i];
+        if (!it) continue;
+
+        auto row = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Horizontal)
+            ->spacing(8)
+            ->gravity(Gravity::CenterVertical)
+            ->padding(4, 3)
+            ->build();
+
+        auto icon = TextViewBuilder::create()
+            ->text(it->icon.empty() ? (it->is_category ? "󰉋" : "󰋩") : it->icon)
+            ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
+            ->textColor(it->is_category ? config->colors.primary : config->colors.on_surface_variant)
+            ->build();
+        row->add_view(icon, LayoutParams(20, WRAP_CONTENT));
+
+        auto name = TextViewBuilder::create()
+            ->text(it->title)
+            ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
+            ->textColor(config->colors.on_surface)
+            ->ellipsize(true)
+            ->build();
+        row->add_view(name, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+
+        std::string right_text = it->is_category ? "album" : it->size_formatted;
+        auto sz = TextViewBuilder::create()
+            ->text(right_text)
+            ->caption(true)
+            ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+            ->build();
+        row->add_view(sz, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+
+        list_card->add_view(row);
+    }
+
+    if (items.size() > max_preview_items) {
+        auto more_label = TextViewBuilder::create()
+            ->text("+ " + std::to_string(items.size() - max_preview_items) + " more photos...")
+            ->caption(true)
+            ->textColor(config->colors.primary)
+            ->padding(4, 2)
+            ->build();
+        list_card->add_view(more_label);
+    }
+
+    container->add_view(list_card, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+
+    // 3. Selection Shortcuts Card
+    auto hint_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(14, 12)
+        ->spacing(4)
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
+        ->stroke(1, config->colors.outline.with_alpha(0.2f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto hint_title = TextViewBuilder::create()
+        ->text("Selection Shortcuts")
+        ->bold(true)
+        ->textSize(static_cast<int>(config->metrics.font_size * 0.9f))
+        ->textColor(config->colors.on_surface_variant)
+        ->build();
+    hint_card->add_view(hint_title);
+
+    auto hint_text = TextViewBuilder::create()
+        ->text("Space: Toggle item  |  Shift+↑/↓: Range\nCtrl+A: Select All  |  Esc: Cancel")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.75f))
+        ->build();
+    hint_card->add_view(hint_text);
+
+    container->add_view(hint_card, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+
+    m_preview_frame->add_view(container, LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity::Center));
+}
+
 } // namespace miqu

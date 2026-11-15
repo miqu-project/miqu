@@ -48,6 +48,10 @@ public:
     std::string get_breadcrumb_path() const;
     bool is_preview_focused() const { return m_preview_focused; }
     std::shared_ptr<FileItem> get_current_selected_item() const;
+    bool is_multi_selected() const;
+    size_t get_selected_count() const;
+    std::vector<std::shared_ptr<FileItem>> get_selected_items() const;
+    bool handle_list_key(const KeyPressEvent& event);
 
     bool check_and_update_click_debounce();
 
@@ -78,6 +82,7 @@ private:
     void render_empty_folder_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
     void render_category_children_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
     void render_photo_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
+    void render_multi_selection_preview(const std::vector<std::shared_ptr<FileItem>>& items, const std::shared_ptr<Config>& config);
 
     const std::vector<std::shared_ptr<FileItem>>& get_current_list() const;
     void notify_state_changed();

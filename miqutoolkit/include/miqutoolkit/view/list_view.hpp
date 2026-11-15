@@ -4,8 +4,15 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <unordered_set>
 
 namespace miqu {
+
+enum class ListViewSelectionMode {
+    None,
+    Single,
+    Multiple
+};
 
 class ListView : public View {
 public:
@@ -35,13 +42,41 @@ public:
     std::shared_ptr<View> get_item_at(size_t index) const;
 
     // Selection
-    void set_selectable(bool selectable) {
-        m_selectable = selectable;
-        if (!m_selectable) {
-            m_selected_index = -1;
-        }
-    }
+    void set_selectable(bool selectable);
     bool is_selectable() const { return m_selectable; }
+
+    void set_selection_mode(ListViewSelectionMode mode);
+    ListViewSelectionMode get_selection_mode() const { return m_selection_mode; }
+    bool is_multi_select() const { return m_selection_mode == ListViewSelectionMode::Multiple; }
+
+    const std::unordered_set<int>& get_selected_indices() const { return m_selected_indices; }
+    bool is_index_selected(int index) const {
+        if (m_selection_mode == ListViewSelectionMode::Multiple) {
+            return m_selected_indices.find(index) != m_selected_indices.end();
+        }
+        return m_selectable && index == m_selected_index;
+    }
+    size_t get_selected_count() const {
+        if (m_selection_mode == ListViewSelectionMode::Multiple) {
+            return m_selected_indices.size();
+        }
+        return (m_selectable && m_selected_index >= 0) ? 1 : 0;
+    }
+
+    void set_selected_indices(const std::unordered_set<int>& indices);
+    void add_selected_index(int index);
+    void remove_selected_index(int index);
+    void toggle_selected_index(int index);
+    void select_range(int from, int to);
+    void select_all();
+    void clear_selection();
+
+    int get_anchor_index() const { return m_anchor_index; }
+    void set_anchor_index(int index) { m_anchor_index = index; }
+
+    void set_on_selection_changed(std::function<void(const std::unordered_set<int>&)> cb) {
+        m_on_selection_changed = std::move(cb);
+    }
 
     void set_keyboard_navigation_enabled(bool enabled) { m_keyboard_navigation_enabled = enabled; }
     bool is_keyboard_navigation_enabled() const { return m_keyboard_navigation_enabled; }
@@ -49,6 +84,7 @@ public:
     void set_selected_index(int index);
     int get_selected_index() const { return m_selected_index; }
     std::shared_ptr<View> get_selected_item() const;
+    std::vector<std::shared_ptr<View>> get_selected_items() const;
 
     // Event listeners
     void set_on_item_click_listener(std::function<void(size_t index, std::shared_ptr<View> item)> cb) {
@@ -79,9 +115,13 @@ private:
     bool m_scrollbar_enabled = true;
 
     bool m_selectable = true;
+    ListViewSelectionMode m_selection_mode = ListViewSelectionMode::Single;
     bool m_keyboard_navigation_enabled = true;
     int m_selected_index = -1;
+    int m_anchor_index = -1;
     int m_hovered_index = -1;
+    std::unordered_set<int> m_selected_indices;
+    std::function<void(const std::unordered_set<int>&)> m_on_selection_changed;
 
     int32_t m_touch_id = -1;
     double m_touch_start_x = 0.0;
@@ -133,6 +173,16 @@ public:
 
     std::shared_ptr<ListViewBuilder> selectable(bool selectable) {
         m_view->set_selectable(selectable);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<ListViewBuilder> selectionMode(ListViewSelectionMode mode) {
+        m_view->set_selection_mode(mode);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<ListViewBuilder> multiSelect(bool enabled = true) {
+        m_view->set_selection_mode(enabled ? ListViewSelectionMode::Multiple : ListViewSelectionMode::Single);
         return shared_from_this();
     }
 

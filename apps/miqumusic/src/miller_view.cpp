@@ -160,7 +160,11 @@ void MillerView::init() {
         ->itemCornerRadius(inner_rad)
         ->scrollbar(false)
         ->build();
-    m_current_list->set_keyboard_navigation_enabled(false);
+    m_current_list->set_on_selection_changed([this](const std::unordered_set<int>&) {
+        m_current_index = m_current_list->get_selected_index();
+        rebuild_preview_column();
+        notify_state_changed();
+    });
     m_current_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
         if (!check_and_update_click_debounce()) return;
         int clicked_idx = static_cast<int>(idx);
@@ -173,7 +177,7 @@ void MillerView::init() {
             if (m_window) {
                 m_window->clear_focus();
             }
-            rebuild_columns();
+            rebuild_preview_column();
             notify_state_changed();
         } else {
             auto item = get_current_selected_item();
@@ -331,6 +335,25 @@ void MillerView::update_preview_ribbon() {
     if (!m_preview_ribbon) return;
 
     auto config = Config::get();
+
+    if (is_multi_selected()) {
+        m_preview_ribbon->set_visibility(Visibility::Visible);
+        if (m_preview_title) {
+            m_preview_title->set_text(std::to_string(get_selected_count()) + " tracks selected");
+            if (config) {
+                m_preview_title->set_text_color(config->colors.primary);
+            }
+        }
+        if (m_preview_toggle_btn) {
+            m_preview_toggle_btn->set_visibility(Visibility::Gone);
+        }
+        return;
+    }
+
+    if (m_preview_toggle_btn) {
+        m_preview_toggle_btn->set_visibility(Visibility::Visible);
+    }
+
     auto item = get_current_selected_item();
 
     // Only show ribbon for leaf items
@@ -451,6 +474,88 @@ std::shared_ptr<MusicItem> MillerView::get_current_selected_item() const {
     if (list.empty()) return nullptr;
     int idx = std::clamp(m_current_index, 0, static_cast<int>(list.size()) - 1);
     return list[idx];
+}
+
+bool MillerView::is_multi_selected() const {
+    return m_current_list && m_current_list->get_selected_count() > 1;
+}
+
+size_t MillerView::get_selected_count() const {
+    if (!m_current_list) return 0;
+    return m_current_list->get_selected_count();
+}
+
+std::vector<std::shared_ptr<MusicItem>> MillerView::get_selected_items() const {
+    std::vector<std::shared_ptr<MusicItem>> result;
+    if (!m_current_list) return result;
+    const auto& list = get_current_list();
+    if (m_current_list->is_multi_select()) {
+        const auto& indices = m_current_list->get_selected_indices();
+        for (int i = 0; i < static_cast<int>(list.size()); ++i) {
+            if (indices.find(i) != indices.end()) {
+                result.push_back(list[i]);
+            }
+        }
+    } else {
+        auto item = get_current_selected_item();
+        if (item) result.push_back(item);
+    }
+    return result;
+}
+
+bool MillerView::handle_list_key(const KeyPressEvent& event) {
+    if (m_preview_focused || m_preview_expanded) return false;
+    if (!m_current_list || !m_current_list->is_visible()) return false;
+
+    // Only handle multi-selection keys if in Multiple selection mode
+    if (!m_current_list->is_multi_select()) {
+        return false;
+    }
+
+    // Ctrl+A: Select All
+    if (event.has_ctrl() && (event.keysym == XKB_KEY_a || event.keysym == XKB_KEY_A)) {
+        m_current_list->select_all();
+        rebuild_preview_column();
+        notify_state_changed();
+        return true;
+    }
+
+    // Escape: If multiple items selected, collapse back to 1 item at cursor
+    if (event.keysym == XKB_KEY_Escape) {
+        if (m_current_list->get_selected_count() > 1) {
+            m_current_list->on_key(event);
+            m_current_index = m_current_list->get_selected_index();
+            rebuild_preview_column();
+            notify_state_changed();
+            return true;
+        }
+        return false;
+    }
+
+    // Space: Sporadic toggle current item & step down
+    if (event.keysym == XKB_KEY_space) {
+        m_current_list->on_key(event);
+        m_current_index = m_current_list->get_selected_index();
+        rebuild_preview_column();
+        notify_state_changed();
+        return true;
+    }
+
+    // Shift + Up/Down range navigation
+    if (event.has_shift()) {
+        if (event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_k || event.keysym == XKB_KEY_K ||
+            event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_J ||
+            event.keysym == XKB_KEY_Page_Up || event.keysym == XKB_KEY_Page_Down ||
+            event.keysym == XKB_KEY_Home || event.keysym == XKB_KEY_End) {
+            m_current_list->on_key(event);
+            m_current_index = m_current_list->get_selected_index();
+            rebuild_preview_column();
+            notify_state_changed();
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void MillerView::notify_state_changed() {
@@ -619,8 +724,13 @@ void MillerView::rebuild_current_column() {
     if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Gone);
     if (m_current_list) {
         m_current_list->set_visibility(Visibility::Visible);
-        m_current_list->clear_items();
 
+        // Multiple selection only for contents (inside category or searching)
+        // Hardcoded root categories ("Queue, Artists, Playlists, etc") stay Single selection!
+        bool is_root_category_list = m_path.empty() && m_search_query.empty();
+        m_current_list->set_selection_mode(is_root_category_list ? ListViewSelectionMode::Single : ListViewSelectionMode::Multiple);
+
+        m_current_list->clear_items();
         m_current_index = std::clamp(m_current_index, 0, static_cast<int>(list.size()) - 1);
 
         for (size_t i = 0; i < list.size(); ++i) {
@@ -676,6 +786,15 @@ void MillerView::rebuild_preview_column() {
     auto item = get_current_selected_item();
 
     update_preview_ribbon();
+
+    if (is_multi_selected()) {
+        if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
+        if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
+        m_preview_layout->set_padding(Padding(14, 4, 14, 14));
+        m_preview_layout->set_divider_spacing(10);
+        render_multi_selection_preview(get_selected_items(), config);
+        return;
+    }
 
     if (!item) {
         if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
