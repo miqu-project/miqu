@@ -262,43 +262,67 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **Buffer Commit Discipline**: Never trigger output frame repaints or damage tracking on redundant client surface commits if buffer contents, subsurface states, or view positions have not changed.
 - **Inotify & Watcher Dormancy**: Inotify event loops and config watchers must settle completely into dormancy after a single debounced reload. Never allow descriptor invalidation events (`IN_IGNORED`) or teardown routines to re-arm debounce timers or spin the event loop in background reload loops.
 
+### 16. Dual-Input UX Parity — Keyboard Enthusiasts & Mouse/Touch Users
+Every application built on `miqutoolkit` must be equally effortless for both keyboard-driven and pointer-driven users. Neither input mode is an afterthought.
+
+- **Keyboard-First Spatial Navigation**: All multi-pane applications (Miller columns layout) implement full four-directional spatial navigation:
+  - `↑` / `↓` — move selection within the focused pane.
+  - `→` / `Enter` — dive into / expand (move focus to the next pane to the right, or open the item).
+  - `←` / `Backspace` — ascend / collapse (move focus back to the left pane).
+  - Focus ownership is always unambiguous — exactly one pane is active at any time and visually indicates it.
+- **Yazi-Style Pane Interplay**: The right pane is a live contextual preview that updates instantly as the selection changes in the middle pane — no extra keypress required. This is a core UX contract, not an optional enhancement.
+- **Mouse & Touch Parity**: A single click/tap on any item in any pane transfers focus to that pane and selects the item — identical in outcome to the keyboard path. There must be zero features accessible only by keyboard and zero features accessible only by pointer.
+- **Delivered Through `miqutoolkit`, Not Per-App**: Navigation focus management, pane routing, and input dispatch for Miller columns layouts live inside `miqutoolkit` (e.g. `MillerView`, `SelectionModel`). Applications wire up callbacks and content — they never re-implement spatial routing logic themselves.
+- **New Apps Must Inherit This**: Any new application that presents a list, tree, or hierarchical content structure must adopt the Miller columns + dual-input pattern from `miqutoolkit` from day one — not bolt it on later.
+
 ---
 
-## Build System & Installation Standards (`CMakeLists.txt` & `make.sh`)
+## Build System & Installation Standards (`CMakeLists.txt` & `install.sh`)
 
-Every component and application in the ecosystem adheres to a standardized, deterministic build and installation pattern.
+The ecosystem uses a **unified monorepo build** orchestrated by a single root `install.sh`. All components — `miqutoolkit`, `miquland`, the full `shell/` suite, and all `apps/` — are configured and compiled together in a single CMake invocation. Per-component `make.sh` scripts no longer exist.
 
-### 1. The Standard `make.sh` Pattern
-Every repository and downstream application contains a uniform, standalone `make.sh` (~20 lines) providing a consistent build-and-install lifecycle:
+### 1. Unified Monorepo Orchestration (`install.sh`)
+
+The root `install.sh` is the **sole** entry point for building and installing the entire ecosystem:
+
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
+# Build only (no install) — run as a normal user for local verification:
+./install.sh
 
-BUILD_DIR="build"
-BUILD_TYPE="${BUILD_TYPE:-Release}"
-
-echo "==> Configuring <target> ($BUILD_TYPE)..."
-cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_INSTALL_PREFIX="/usr" "$@"
-
-echo "==> Building <target>..."
-cmake --build "$BUILD_DIR" -j"$(nproc)"
-
-# Root auto-install check
-if [ "${EUID}" -eq 0 ]; then
-    echo "==> Installing <target> to system (/usr)..."
-    cmake --install "$BUILD_DIR"
-    # ldconfig || true   # (Included for shared libraries like miqutoolkit)
-    echo "==> <target> successfully installed to /usr!"
-else
-    echo "==> Built locally in $BUILD_DIR. To install system-wide, run: sudo ./make.sh"
-fi
+# Build + system-wide install to /usr and /etc:
+sudo ./install.sh
 ```
-- **Idempotent Local Build**: Running `./make.sh` as an unprivileged user builds locally into `build/` without touching system directories.
-- **Single-Command Root Install**: Running `sudo ./make.sh` configures, compiles, and automatically invokes `cmake --install` to `/usr`.
-- **Argument Forwarding**: Passing `"$@"` allows forwarding custom CMake flags (e.g. `./make.sh -DCMAKE_BUILD_TYPE=Debug`).
+
+**What `install.sh` does:**
+1. Configures the entire monorepo with CMake (Ninja preferred, falls back to Unix Makefiles).
+2. Compiles all components in parallel (`-j$(nproc)`) in a single Ninja graph — maximising incremental rebuild speed.
+3. When run as root: installs everything to `/usr` and `/etc`, then runs post-install hooks (`ldconfig`, `update-desktop-database`, `gtk-update-icon-cache`, `systemctl daemon-reload`).
+4. When run as a normal user: validates the build locally in `build/` without touching system directories.
+
+**Build directory:** `<repo_root>/build/` (unified, monorepo-wide).
+
+**CMake build order (enforced by `add_subdirectory` ordering in root `CMakeLists.txt`):**
+1. `miqutoolkit` — shared UI library, headers, pkg-config file, in-tree CMake target (`PkgConfig::MIQUTOOLKIT`)
+2. `miquland` — Wayland compositor, scenefx, `miquctl` IPC tool
+3. `shell/` — all 11 desktop shell components and daemons
+4. `apps/` — all 6 standalone desktop applications
+
+**Selective subsystem builds** (via CMake options, forwarded through `install.sh "$@"`):
+```bash
+# Build and install only the toolkit and apps, skip compositor and shell:
+sudo ./install.sh -DBUILD_COMPOSITOR=OFF -DBUILD_SHELL=OFF
+```
+Available flags: `-DBUILD_TOOLKIT=ON/OFF`, `-DBUILD_COMPOSITOR=ON/OFF`, `-DBUILD_SHELL=ON/OFF`, `-DBUILD_APPS=ON/OFF`.
+
+**Debug builds:**
+```bash
+BUILD_TYPE=Debug ./install.sh
+```
 
 ### 2. The Standard `CMakeLists.txt` Pattern
-Downstream applications follow an identical, minimal structure:
+
+Every downstream component and application follows an identical, minimal structure. This ensures zero-warning monorepo builds and correct runtime library resolution.
+
 1. **Core Standards & Compiler Flags**:
    ```cmake
    cmake_minimum_required(VERSION 3.20)
@@ -307,26 +331,46 @@ Downstream applications follow an identical, minimal structure:
    set(CMAKE_CXX_STANDARD_REQUIRED ON)
    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
    ```
-2. **Deterministic RPATH Configuration**:
+
+2. **Deterministic RPATH Configuration** *(must be exactly this — no `CMAKE_BUILD_RPATH`)*:
    ```cmake
-   # Guarantees the binary locates libmiqutoolkit.so without manual LD_LIBRARY_PATH hacks
+   # Guarantees the binary locates libmiqutoolkit.so without manual LD_LIBRARY_PATH hacks.
+   # CMAKE_BUILD_WITH_INSTALL_RPATH TRUE is mandatory in the monorepo — it prevents CMake
+   # from adding the monorepo build directory AND the source-tree miqutoolkit/build to the
+   # RPATH simultaneously, which would create an unresolvable cycle in the constraint graph.
    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib;$ORIGIN/../lib")
    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
    ```
+   > [!CAUTION]
+   > **Never** use `CMAKE_BUILD_RPATH` in combination with `CMAKE_BUILD_WITH_INSTALL_RPATH FALSE`
+   > for any component that also links against `miqutoolkit`. Doing so causes a CMake RPATH
+   > cycle warning during monorepo configure because both `<build>/miqutoolkit` (the in-tree
+   > CMake target output) and `miqutoolkit/build` (the source-tree fallback absolute path)
+   > would both be added to RPATH with conflicting ordering constraints.
+
 3. **Dual-Mode Toolkit Resolution**:
-   Uses `pkg_check_modules` for installed systems, with an in-tree relative fallback for local dev trees:
+   The `if(NOT TARGET PkgConfig::MIQUTOOLKIT)` guard makes each component self-contained:
+   - **Inside the monorepo**: `miqutoolkit/CMakeLists.txt` defines `add_library(PkgConfig::MIQUTOOLKIT ALIAS miqutoolkit)` before any downstream target is processed, so the guard short-circuits `pkg_check_modules` and the in-tree CMake target is used directly.
+   - **Standalone build** (component built independently outside the monorepo): the guard falls through, `pkg_check_modules` resolves the installed system `miqutoolkit`, and the absolute-path fallback provides the local dev-tree `.so`.
    ```cmake
    find_package(PkgConfig REQUIRED)
-   pkg_check_modules(MIQUTOOLKIT REQUIRED IMPORTED_TARGET miqutoolkit)
-   
-   # Local in-tree dev tree fallback
+   if(NOT TARGET PkgConfig::MIQUTOOLKIT)
+       pkg_check_modules(MIQUTOOLKIT REQUIRED IMPORTED_TARGET miqutoolkit)
+   endif()
+
+   # Local in-tree dev-tree fallback (only active in standalone builds outside the monorepo)
    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build/libmiqutoolkit.so")
        target_link_libraries(<app_name> PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build/libmiqutoolkit.so")
+   elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/build/libmiqutoolkit.so")
+       target_link_libraries(<app_name> PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/build/libmiqutoolkit.so")
    endif()
    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/include")
        target_include_directories(<app_name> BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/include")
+   elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/include")
+       target_include_directories(<app_name> BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/include")
    endif()
    ```
+
 4. **Standard GNU Installations (`GNUInstallDirs`)**:
    ```cmake
    include(GNUInstallDirs)
@@ -337,13 +381,6 @@ Downstream applications follow an identical, minimal structure:
    # Scaled PNG icons installed with RENAME <app_name>.png
    ```
 
-### 3. Unified Monorepo Orchestration (`install.sh`)
-- **Root `install.sh`**: Single-command CMake/Ninja orchestrator that builds and installs the entire ecosystem in topological order:
-  1. `miqutoolkit` (Shared UI library, headers, in-tree target)
-  2. `miquland` (Compositor core, scenefx, and miquctl IPC)
-  3. `shell/` (All 11 desktop shell components and daemons)
-  4. `apps/` (All 6 standalone desktop applications)
-
 ---
 
 ## Tool Execution & Safety Restrictions
@@ -353,26 +390,26 @@ Downstream applications follow an identical, minimal structure:
 - System installation commands requiring root privileges are always provided as instructions for the user to execute manually.
 
 ### 2. Local Test Builds Only
-- For compilation verification and syntax checking during development, always build into the local project `build/` directory without sudo:
+- For compilation verification and syntax checking during development, always build into the unified monorepo `build/` directory **without sudo**:
   ```bash
-  ./make.sh
+  ./install.sh
   ```
-- Binaries and shared libraries built locally remain in `build/` strictly for validation.
+- This runs the full configure + compile cycle (Ninja, parallel) but skips installation, leaving all outputs in `build/`. Do not use `cmake -B build` or `cmake --build build` directly — always go through `install.sh` to stay consistent.
 
 ### 3. Downstream Application Build Dependency Order
-- All downstream applications dynamically link against `miqutoolkit`.
+- All downstream applications dynamically link against `miqutoolkit`. The monorepo CMake graph enforces the correct build order automatically — `miqutoolkit` is always compiled before `shell/` and `apps/`.
 - **Authoring vs. Building**:
-  - You **may** write, edit, and refactor code for downstream applications before updating `miqutoolkit`.
-  - You **must NEVER** compile or test-build downstream applications until `miqutoolkit` has been rebuilt and installed.
-- **Mandatory Step-by-Step Protocol**:
-  1. Make edits to `miqutoolkit`.
-  2. Validate compilation locally (`./make.sh` inside `miqutoolkit`).
+  - You **may** write, edit, and refactor code for any downstream application or `miqutoolkit` freely.
+  - You **must NEVER** run a local build (even `./install.sh` without sudo) until all edits are consistent and compile-ready.
+- **When `miqutoolkit` headers or the library ABI are changed**:
+  1. Make all edits to `miqutoolkit` and dependent downstream components.
+  2. Validate the full ecosystem compiles locally (`./install.sh`).
   3. **STOP immediately**.
-  4. Prompt the user to install `miqutoolkit` system-wide:
+  4. Prompt the user to install the updated ecosystem system-wide:
      ```bash
-     cd miqutoolkit && sudo ./make.sh
+     sudo ./install.sh
      ```
-  5. **Wait for user confirmation** that installation has completed before running `./make.sh` on any downstream application.
+  5. **Wait for user confirmation** that installation has completed before running any downstream binaries or further tests.
 
 ---
 
