@@ -135,7 +135,7 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miqupolkit`**: Native graphical Polkit authentication agent handling privilege escalation prompts.
 
 ### Standalone Desktop Applications (`apps/`)
-- **`miqucontrolpanel`**: Modern Miller-columns centralized desktop control panel, network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
+- **`miqusettings`**: Modern Miller-columns centralized desktop settings manager, network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
 - **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
 - **`miqumusic`**: Fast, lightweight native MPD (Music Player Daemon) client and audio playback interface.
 - **`miquphotos`**: High-performance photo gallery and image viewer application with flat album navigation and full-size photo preview.
@@ -156,10 +156,10 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 2. **Next Utilities & Applications**:
    - `miqushot` (screenshot utility)
    - `miqusunset` (gamma/blue light control)
-   - `miqucontrolpanel` (completed: modern Miller-columns centralized desktop control panel and settings manager)
+   - `miqusettings` (completed: modern Miller-columns centralized desktop settings manager)
    - Package manager front-end
    
-4. **Privacy & Security Extensions in `miqucontrolpanel`**: OpenSnitch frontend, 1-click Tor enabler, browser privacy advisor, security auditor, LUKS advice, firewall (ufw/nftables) selection, system restore points (Timeshift/Snapper OS snapshots).
+4. **Privacy & Security Extensions in `miqusettings`**: OpenSnitch frontend, 1-click Tor enabler, browser privacy advisor, security auditor, LUKS advice, firewall (ufw/nftables) selection, system restore points (Timeshift/Snapper OS snapshots).
 7. **Touch Screen Gestures**: Multi-touch gesture recognition (swipes, pinch-to-zoom, edge gestures) for touchscreen devices.
 8. **Virtual Machine Front-End**: Front-end utility to try out Linux distributions.
 9. **Firefox Live Preview Fix in `miquoverview`**: Resolve subsurfaces / popup preview bounding in overview cards.

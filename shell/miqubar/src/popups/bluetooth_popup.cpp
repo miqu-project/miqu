@@ -209,7 +209,7 @@ void BluetoothPopupView::setup_ui() {
     btn_settings->set_content_gravity(Gravity::Center);
     btn_settings->set_flat(true);
     btn_settings->set_on_click_listener([this]() {
-        std::system("miqucontrolpanel -p bluetooth 2>/dev/null || miqucontrolpanel 2>/dev/null &");
+        std::system("miqusettings -p bluetooth 2>/dev/null || miqusettings 2>/dev/null &");
         if (m_on_close) m_on_close();
     });
     btn_settings->set_focusable(false);

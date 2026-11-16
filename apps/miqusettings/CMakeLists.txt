@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(miqucontrolpanel LANGUAGES C CXX)
+project(miqusettings LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,7 +17,7 @@ if(NOT TARGET PkgConfig::MIQUTOOLKIT)
 endif()
 pkg_check_modules(SDBUSCPP REQUIRED IMPORTED_TARGET sdbus-c++)
 
-add_executable(miqucontrolpanel
+add_executable(miqusettings
     src/main.cpp
     src/settings_model.cpp
     src/miller_view.cpp
@@ -26,7 +26,7 @@ add_executable(miqucontrolpanel
     src/preview_personalization.cpp
     src/preview_hardware.cpp
     src/preview_apps.cpp
-    src/control_panel_app.cpp
+    src/settings_app.cpp
     src/wifi_backend.cpp
     src/bluetooth_backend.cpp
     src/bluetooth_agent.cpp
@@ -45,11 +45,11 @@ add_executable(miqucontrolpanel
     src/preview_input.cpp
 )
 
-target_include_directories(miqucontrolpanel PRIVATE
+target_include_directories(miqusettings PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(miqucontrolpanel PRIVATE
+target_link_libraries(miqusettings PRIVATE
     PkgConfig::MIQUTOOLKIT
     PkgConfig::SDBUSCPP
     Threads::Threads
@@ -59,26 +59,26 @@ target_link_libraries(miqucontrolpanel PRIVATE
 )
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build/libmiqutoolkit.so")
-    target_link_libraries(miqucontrolpanel PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build/libmiqutoolkit.so")
+    target_link_libraries(miqusettings PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build/libmiqutoolkit.so")
 elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/build/libmiqutoolkit.so")
-    target_link_libraries(miqucontrolpanel PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/build/libmiqutoolkit.so")
+    target_link_libraries(miqusettings PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/build/libmiqutoolkit.so")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/include")
-    target_include_directories(miqucontrolpanel BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/include")
+    target_include_directories(miqusettings BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/include")
 elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/include")
-    target_include_directories(miqucontrolpanel BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/include")
+    target_include_directories(miqusettings BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../miqutoolkit/include")
 endif()
 
-target_compile_options(miqucontrolpanel PRIVATE
+target_compile_options(miqusettings PRIVATE
     -Wall -Wextra -Wpedantic
     -Wno-unused-parameter
 )
 
 include(GNUInstallDirs)
-install(TARGETS miqucontrolpanel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES assets/miqucontrolpanel.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/miqucontrolpanel)
-install(FILES assets/miqucontrolpanel.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(TARGETS miqusettings RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES assets/miqusettings.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/miqusettings)
+install(FILES assets/miqusettings.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES assets/miquland.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps)
 install(FILES assets/miquland-128.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps RENAME miquland.png)
 install(FILES assets/miquland-64.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/64x64/apps RENAME miquland.png)

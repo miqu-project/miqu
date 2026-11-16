@@ -6,10 +6,10 @@
 
 namespace miqu {
 
-class ControlPanelApp {
+class SettingsApp {
 public:
-    explicit ControlPanelApp(std::shared_ptr<AppEngine> engine);
-    ~ControlPanelApp() = default;
+    explicit SettingsApp(std::shared_ptr<AppEngine> engine);
+    ~SettingsApp() = default;
 
     bool init();
     void sync_theme();

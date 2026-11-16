@@ -51,7 +51,7 @@ private:
     std::unique_ptr<sdbus::IConnection> m_connection;
     std::unique_ptr<sdbus::IObject> m_agent_object;
     std::unique_ptr<sdbus::IProxy> m_manager_proxy;
-    sdbus::ObjectPath m_agent_path{"/org/bluez/miqucontrolpanel/agent"};
+    sdbus::ObjectPath m_agent_path{"/org/bluez/miqusettings/agent"};
 
     bool m_running = false;
 

@@ -1,20 +1,20 @@
-#include "control_panel_app.hpp"
+#include "settings_app.hpp"
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include <iostream>
 
 namespace miqu {
 
-ControlPanelApp::ControlPanelApp(std::shared_ptr<AppEngine> engine)
+SettingsApp::SettingsApp(std::shared_ptr<AppEngine> engine)
     : m_engine(std::move(engine)) {}
 
-bool ControlPanelApp::init() {
+bool SettingsApp::init() {
     if (!m_engine) return false;
 
     setup_ui();
 
     m_window = WindowBuilder::create()
-        ->title("Control Panel")
-        ->appId("miqucontrolpanel")
+        ->title("Settings")
+        ->appId("miqusettings")
         ->role(WindowRole::Toplevel)
         ->preferredSize(980, 640)
         ->closeOnEscape(false)
@@ -29,7 +29,7 @@ bool ControlPanelApp::init() {
         ->build();
 
     if (!m_window) {
-        std::cerr << "[miqucontrolpanel] Failed to build main window.\n";
+        std::cerr << "[miqusettings] Failed to build main window.\n";
         return false;
     }
 
@@ -40,7 +40,7 @@ bool ControlPanelApp::init() {
     return true;
 }
 
-void ControlPanelApp::setup_ui() {
+void SettingsApp::setup_ui() {
     auto config = Config::get();
 
     m_root_layout = LinearLayoutBuilder::create()
@@ -185,7 +185,7 @@ void ControlPanelApp::setup_ui() {
     m_root_layout->add_view(m_miller_view, miller_lp);
 }
 
-void ControlPanelApp::sync_theme() {
+void SettingsApp::sync_theme() {
     auto config = Config::get();
     m_root_layout->set_background_color(Color::transparent());
 
@@ -214,7 +214,7 @@ void ControlPanelApp::sync_theme() {
     }
 }
 
-void ControlPanelApp::update_header() {
+void SettingsApp::update_header() {
     if (!m_miller_view) return;
 
     if (m_breadcrumb_container) {
@@ -343,7 +343,7 @@ void ControlPanelApp::update_header() {
     }
 }
 
-void ControlPanelApp::handle_key_press(const KeyPressEvent& event) {
+void SettingsApp::handle_key_press(const KeyPressEvent& event) {
     if (!event.pressed || !m_miller_view) return;
 
     // 1. Global: Ctrl+F to focus search bar from anywhere

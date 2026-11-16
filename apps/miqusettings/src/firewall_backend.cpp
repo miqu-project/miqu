@@ -192,7 +192,7 @@ void persist_network_mode(const std::string& mode) {
     const char* home = getenv("HOME");
     if (!home) return;
     std::vector<std::string> dirs = {
-        std::string(home) + "/.config/miqucontrolpanel"
+        std::string(home) + "/.config/miqusettings"
     };
     std::error_code ec;
     for (const auto& d : dirs) {
@@ -273,7 +273,7 @@ std::string FirewallBackend::get_active_preset() {
     const char* home = getenv("HOME");
     std::string home_str = home ? home : "/tmp";
     std::vector<std::string> paths = {
-        home_str + "/.config/miqucontrolpanel/network_mode.txt"
+        home_str + "/.config/miqusettings/network_mode.txt"
     };
 
     for (const auto& p : paths) {

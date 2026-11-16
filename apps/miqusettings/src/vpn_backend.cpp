@@ -100,7 +100,7 @@ bool VpnBackend::is_available() {
 void VpnBackend::load_saved_state(std::string& out_active_profile, std::string& out_account_id, bool& out_killswitch) {
     const char* home = getenv("HOME");
     if (!home) return;
-    std::string path = std::string(home) + "/.config/miqucontrolpanel/vpn_state.conf";
+    std::string path = std::string(home) + "/.config/miqusettings/vpn_state.conf";
     std::ifstream ifs(path);
     if (!ifs.is_open()) return;
 
@@ -120,7 +120,7 @@ void VpnBackend::load_saved_state(std::string& out_active_profile, std::string& 
 void VpnBackend::save_state(const std::string& active_profile, const std::string& account_id, bool killswitch) {
     const char* home = getenv("HOME");
     if (!home) return;
-    std::string dir = std::string(home) + "/.config/miqucontrolpanel";
+    std::string dir = std::string(home) + "/.config/miqusettings";
     std::error_code ec;
     fs::create_directories(dir, ec);
 
@@ -182,10 +182,10 @@ std::vector<VpnProfile> VpnBackend::scan_system_profiles() {
         }
     }
 
-    // 2. Also scan ~/.config/miqucontrolpanel/vpn_profiles/
+    // 2. Also scan ~/.config/miqusettings/vpn_profiles/
     const char* home = getenv("HOME");
     if (home) {
-        std::string prof_dir = std::string(home) + "/.config/miqucontrolpanel/vpn_profiles";
+        std::string prof_dir = std::string(home) + "/.config/miqusettings/vpn_profiles";
         std::error_code ec;
         if (fs::exists(prof_dir, ec) && fs::is_directory(prof_dir, ec)) {
             for (const auto& entry : fs::directory_iterator(prof_dir, ec)) {
@@ -344,7 +344,7 @@ bool VpnBackend::connect_profile(const std::string& profile_name) {
         // If not in NM, check if there is a saved .conf file to import
         const char* home = getenv("HOME");
         if (home) {
-            std::string conf_path = std::string(home) + "/.config/miqucontrolpanel/vpn_profiles/" + profile_name + ".conf";
+            std::string conf_path = std::string(home) + "/.config/miqusettings/vpn_profiles/" + profile_name + ".conf";
             std::error_code ec;
             if (fs::exists(conf_path, ec)) {
                 std::string import_cmd = "nmcli connection import type wireguard file \"" + conf_path + "\" 2>/dev/null";
@@ -399,10 +399,10 @@ bool VpnBackend::import_profile(const std::string& file_path, std::string* out_n
     std::string cmd = "nmcli connection import type wireguard file \"" + file_path + "\" 2>/dev/null";
     int ret = std::system(cmd.c_str());
 
-    // Save a persistent copy in ~/.config/miqucontrolpanel/vpn_profiles/
+    // Save a persistent copy in ~/.config/miqusettings/vpn_profiles/
     const char* home = getenv("HOME");
     if (home) {
-        std::string dir = std::string(home) + "/.config/miqucontrolpanel/vpn_profiles";
+        std::string dir = std::string(home) + "/.config/miqusettings/vpn_profiles";
         fs::create_directories(dir, ec);
         fs::copy_file(file_path, dir + "/" + stem + ".conf", fs::copy_options::overwrite_existing, ec);
     }
@@ -424,7 +424,7 @@ bool VpnBackend::delete_profile(const std::string& profile_name) {
 
     const char* home = getenv("HOME");
     if (home) {
-        std::string path = std::string(home) + "/.config/miqucontrolpanel/vpn_profiles/" + profile_name + ".conf";
+        std::string path = std::string(home) + "/.config/miqusettings/vpn_profiles/" + profile_name + ".conf";
         std::error_code ec;
         fs::remove(path, ec);
     }

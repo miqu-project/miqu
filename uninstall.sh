@@ -94,7 +94,7 @@ BINARIES=(
     "miquidle"
     "miqupolkit"
     # Applications
-    "miqucontrolpanel"
+    "miqusettings"
     "miqufiles"
     "miqumusic"
     "miquphotos"
@@ -102,7 +102,7 @@ BINARIES=(
     "miquinfo"
     # Legacy
     "miqutest"
-    "miqusettings"
+    "miqucontrolpanel"
     "miqusecure"
 )
 

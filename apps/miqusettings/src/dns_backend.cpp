@@ -595,7 +595,7 @@ std::string DnsBackend::get_active_connection(std::string* out_device) {
 void DnsBackend::load_saved_state(std::string& out_mode, std::string& out_custom_host) {
     const char* home = getenv("HOME");
     if (!home) return;
-    std::string path = std::string(home) + "/.config/miqucontrolpanel/dns_state.conf";
+    std::string path = std::string(home) + "/.config/miqusettings/dns_state.conf";
     std::ifstream ifs(path);
     if (!ifs.is_open()) return;
 
@@ -613,7 +613,7 @@ void DnsBackend::load_saved_state(std::string& out_mode, std::string& out_custom
 void DnsBackend::save_state(const std::string& mode, const std::string& custom_host) {
     const char* home = getenv("HOME");
     if (!home) return;
-    std::string dir = std::string(home) + "/.config/miqucontrolpanel";
+    std::string dir = std::string(home) + "/.config/miqusettings";
     std::error_code ec;
     fs::create_directories(dir, ec);
 

@@ -1,8 +1,8 @@
-# miqucontrolpanel
+# miqusettings
 
 > **Centralized Desktop Settings, Network Security & Privacy Manager**
 
-`miqucontrolpanel` is a modern Miller-columns settings manager for the Miqu desktop environment, built with `miqutoolkit`. It consolidates hardware telemetry, network security, and appearance customization into an intuitive, multi-column interface.
+`miqusettings` is a modern Miller-columns settings manager for the Miqu desktop environment, built with `miqutoolkit`. It consolidates hardware telemetry, network security, and appearance customization into an intuitive, multi-column interface.
 
 Website & Documentation: [**miqu-project.github.io**](https://miqu-project.github.io)
 
@@ -23,9 +23,9 @@ Website & Documentation: [**miqu-project.github.io**](https://miqu-project.githu
 
 Generate user configuration:
 ```bash
-miqucontrolpanel --init-config
+miqusettings --init-config
 ```
-Config location: `~/.config/miqucontrolpanel/miqucontrolpanel.conf`.
+Config location: `~/.config/miqusettings/miqusettings.conf`.
 
 ---
 
@@ -33,7 +33,7 @@ Config location: `~/.config/miqucontrolpanel/miqucontrolpanel.conf`.
 
 ```bash
 # In monorepo root:
-cmake --build build --target miqucontrolpanel
+cmake --build build --target miqusettings
 
 # Standalone:
 ./make.sh

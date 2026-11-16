@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=Control Panel
-Comment=System Settings & Configuration Control Panel for Miqu Desktop
-Exec=miqucontrolpanel
+Name=Settings
+Comment=System Settings & Configuration for Miqu Desktop
+Exec=miqusettings
 Icon=preferences-system
 Terminal=false
 Type=Application
