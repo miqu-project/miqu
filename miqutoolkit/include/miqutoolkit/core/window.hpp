@@ -123,6 +123,14 @@ public:
     void update_seat_capabilities(uint32_t caps);
 
     // Focus Management & Traversal
+    void set_focus_enabled(bool enabled) {
+        m_focus_enabled = enabled;
+        if (!m_focus_enabled && m_focused_view) {
+            clear_focus();
+        }
+    }
+    bool is_focus_enabled() const { return m_focus_enabled; }
+
     void set_focused_view(View* view);
     void clear_focus();
     View* get_focused_view() const { return m_focused_view; }
@@ -176,6 +184,7 @@ private:
     bool m_configured = false;
     bool m_needs_redraw = false;
     bool m_rendering = false;
+    bool m_focus_enabled = true;
     bool m_has_keyboard_focus = false;
     View* m_focused_view = nullptr;
     bool m_focus_ring_drawn = false;
@@ -264,6 +273,11 @@ public:
 
     std::shared_ptr<WindowBuilder> keyboardInteractive(bool kb = true) {
         m_window->set_keyboard_interactive(kb);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<WindowBuilder> focusEnabled(bool enabled = true) {
+        m_window->set_focus_enabled(enabled);
         return shared_from_this();
     }
 

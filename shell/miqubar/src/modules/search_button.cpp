@@ -11,6 +11,7 @@ SearchButtonView::SearchButtonView() {
     set_on_click_listener([this]() {
         launch_search();
     });
+    set_focusable(false);
 }
 
 void SearchButtonView::sync_style() {

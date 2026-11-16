@@ -44,6 +44,7 @@ StartButtonView::StartButtonView() {
     set_on_click_listener([this]() {
         launch_menu();
     });
+    set_focusable(false);
 }
 
 void StartButtonView::launch_menu() {

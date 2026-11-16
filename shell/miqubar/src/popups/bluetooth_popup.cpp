@@ -131,6 +131,7 @@ void BluetoothPopupView::setup_ui() {
             set_bluetooth_powered(checked);
         })
         ->build();
+    m_switch->set_focusable(false);
     m_switch->set_layout_params(LayoutParams(46, 26));
     header->add_view(m_switch);
     root->add_view(header);
@@ -187,6 +188,7 @@ void BluetoothPopupView::setup_ui() {
                 std::system(cmd.c_str());
                 if (m_on_close) m_on_close();
             });
+            btn->set_focusable(false);
             m_device_list->add_view(btn);
         }
         root->add_view(m_device_list);
@@ -210,6 +212,7 @@ void BluetoothPopupView::setup_ui() {
         std::system("miqucontrolpanel -p bluetooth 2>/dev/null || miqucontrolpanel 2>/dev/null &");
         if (m_on_close) m_on_close();
     });
+    btn_settings->set_focusable(false);
     root->add_view(btn_settings);
 
     add_view(root);

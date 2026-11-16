@@ -34,6 +34,7 @@ WorkspaceButtonView::WorkspaceButtonView() {
             show_flyout();
         }
     });
+    set_focusable(false);
 
     auto mgr = miqu::WorkspaceManager::get();
     if (mgr) {
@@ -263,6 +264,7 @@ void WorkspaceButtonView::show_flyout() {
             hide_flyout();
             request_redraw();
         });
+        btn->set_focusable(false);
         row->add_view(btn);
     }
     card->add_view(row);

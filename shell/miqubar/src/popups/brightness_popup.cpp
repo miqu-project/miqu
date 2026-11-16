@@ -96,6 +96,7 @@ void BrightnessControlPopupView::setup_ui() {
             m_slider->set_progress(m_brightness / 100.0f);
         }
     });
+    m_icon_btn->set_focusable(false);
     header_row->add_view(m_icon_btn);
 
     root_layout->add_view(header_row);
@@ -119,6 +120,7 @@ void BrightnessControlPopupView::setup_ui() {
         ->thumbRadius(9)
         ->progressColor(config->colors.primary)
         ->thumbColor(config->colors.primary)
+        ->focusable(false)
         ->build();
     m_slider->set_layout_params(LayoutParams(
         static_cast<int>(LayoutDimension::MatchParent),
@@ -137,6 +139,7 @@ void BrightnessControlPopupView::setup_ui() {
             }
         }
     });
+    m_slider->set_focusable(false);
     root_layout->add_view(m_slider);
 
     add_view(root_layout);

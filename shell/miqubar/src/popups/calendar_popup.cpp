@@ -135,6 +135,7 @@ void CalendarPopupView::setup_ui() {
         }
         rebuild_calendar();
     });
+    prev_btn->set_focusable(false);
     nav_row->add_view(prev_btn);
 
     m_month_label = miqu::TextViewBuilder::create()
@@ -162,6 +163,7 @@ void CalendarPopupView::setup_ui() {
         }
         rebuild_calendar();
     });
+    next_btn->set_focusable(false);
     nav_row->add_view(next_btn);
 
     root->add_view(nav_row);
@@ -257,6 +259,7 @@ void CalendarPopupView::rebuild_calendar() {
                     }
                     rebuild_calendar();
                 });
+                btn->set_focusable(false);
                 row->add_view(btn);
             } else if (cur_day_num <= days_in_month) {
                 // Day in current view month
@@ -271,6 +274,7 @@ void CalendarPopupView::rebuild_calendar() {
                 } else {
                     btn->set_flat(true);
                 }
+                btn->set_focusable(false);
                 row->add_view(btn);
                 cur_day_num++;
             } else {
@@ -291,6 +295,7 @@ void CalendarPopupView::rebuild_calendar() {
                     }
                     rebuild_calendar();
                 });
+                btn->set_focusable(false);
                 row->add_view(btn);
             }
         }

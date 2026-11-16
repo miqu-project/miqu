@@ -17,6 +17,7 @@ BarRootView::BarRootView() {
     set_radius(cfg.bar_corner_radius);
     set_elevation(0); // Surface elevation and shadows are handled natively by miquland compositor layer rules
     set_padding(cfg.padding_left, cfg.padding_top, cfg.padding_right, cfg.padding_bottom);
+    set_focusable(false);
 
     // 1. Left container (pinned left)
     m_left_box = std::make_shared<miqu::LinearLayout>(miqu::Orientation::Horizontal);
@@ -27,6 +28,7 @@ BarRootView::BarRootView() {
         static_cast<int>(miqu::LayoutDimension::MatchParent),
         miqu::Gravity::Left | miqu::Gravity::CenterVertical
     ));
+    m_left_box->set_focusable(false);
     add_view(m_left_box);
 
     // 2. Center container (centered dock: workspace, start, search, windows)
@@ -38,24 +40,29 @@ BarRootView::BarRootView() {
         static_cast<int>(miqu::LayoutDimension::MatchParent),
         miqu::Gravity::CenterHorizontal | miqu::Gravity::CenterVertical
     ));
+    m_center_box->set_focusable(false);
 
     if (cfg.show_workspace_btn) {
         m_ws_btn = std::make_shared<WorkspaceButtonView>();
         m_ws_btn->set_tooltip("Workspace Overview");
+        m_ws_btn->set_focusable(false);
         m_center_box->add_view(m_ws_btn);
     }
     if (cfg.show_start) {
         m_start_btn = std::make_shared<StartButtonView>();
         m_start_btn->set_tooltip("Start Menu");
+        m_start_btn->set_focusable(false);
         m_center_box->add_view(m_start_btn);
     }
     if (cfg.show_search) {
         m_search_btn = std::make_shared<SearchButtonView>();
         m_search_btn->set_tooltip("Search Apps & Files");
+        m_search_btn->set_focusable(false);
         m_center_box->add_view(m_search_btn);
     }
     if (cfg.show_taskbar) {
         m_taskbar = std::make_shared<TaskbarView>();
+        m_taskbar->set_focusable(false);
         m_center_box->add_view(m_taskbar);
     }
     add_view(m_center_box);
@@ -69,61 +76,73 @@ BarRootView::BarRootView() {
         static_cast<int>(miqu::LayoutDimension::MatchParent),
         miqu::Gravity::Right | miqu::Gravity::CenterVertical
     ));
+    m_right_box->set_focusable(false);
 
     if (cfg.show_cpu) {
         m_cpu = std::make_shared<CpuModuleView>();
+        m_cpu->set_focusable(false);
         m_right_box->add_view(m_cpu);
     }
     if (cfg.show_memory) {
         m_mem = std::make_shared<MemoryModuleView>();
+        m_mem->set_focusable(false);
         m_right_box->add_view(m_mem);
     }
     if (cfg.show_network) {
         m_network = std::make_shared<NetworkModuleView>([this]() {
             toggle_network();
         });
+        m_network->set_focusable(false);
         m_right_box->add_view(m_network);
     }
     if (cfg.show_bluetooth) {
         m_bluetooth = std::make_shared<BluetoothModuleView>([this]() {
             toggle_bluetooth();
         });
+        m_bluetooth->set_focusable(false);
         m_right_box->add_view(m_bluetooth);
     }
     if (cfg.show_volume) {
         m_volume = std::make_shared<VolumeModuleView>([this]() {
             toggle_sound();
         });
+        m_volume->set_focusable(false);
         m_right_box->add_view(m_volume);
     }
     if (cfg.show_brightness) {
         m_brightness = std::make_shared<BrightnessModuleView>([this]() {
             toggle_brightness();
         });
+        m_brightness->set_focusable(false);
         m_right_box->add_view(m_brightness);
     }
     if (cfg.show_battery) {
         m_battery = std::make_shared<BatteryModuleView>();
+        m_battery->set_focusable(false);
         m_right_box->add_view(m_battery);
     }
     if (cfg.show_dark_mode) {
         m_dark_mode = std::make_shared<DarkModeModuleView>();
+        m_dark_mode->set_focusable(false);
         m_right_box->add_view(m_dark_mode);
     }
     if (cfg.show_notifications) {
         m_notifications = std::make_shared<NotificationModuleView>();
+        m_notifications->set_focusable(false);
         m_right_box->add_view(m_notifications);
     }
     if (cfg.show_clock) {
         m_clock = std::make_shared<ClockModuleView>([this]() {
             toggle_calendar();
         });
+        m_clock->set_focusable(false);
         m_right_box->add_view(m_clock);
     }
     if (cfg.show_power) {
         m_power = std::make_shared<PowerButtonView>([this]() {
             toggle_power();
         });
+        m_power->set_focusable(false);
         m_right_box->add_view(m_power);
     }
     add_view(m_right_box);
@@ -301,6 +320,7 @@ bool BarWindow::init() {
         ->contentMargin(margin)
         ->transparent(true)
         ->keyboardInteractive(false)
+        ->focusEnabled(false)
         ->closeOnClickOutside(false)
         ->closeOnEscape(false)
         ->contentView(m_root_view)

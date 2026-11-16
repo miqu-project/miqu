@@ -1048,6 +1048,8 @@ void Window::update_cursor(uint32_t serial) {
 }
 
 void Window::set_focused_view(View* view) {
+    if (!m_focus_enabled && view != nullptr) return;
+    if (view && !view->is_focusable()) return;
     if (m_focused_view == view) return;
     View* old_focus = m_focused_view;
     m_focused_view = view;
@@ -1079,6 +1081,7 @@ void Window::notify_view_destroyed(View* view) {
 }
 
 bool Window::focus_next() {
+    if (!m_focus_enabled) return false;
     std::vector<View*> focusable;
     if (auto group = std::dynamic_pointer_cast<ViewGroup>(m_root_view)) {
         group->collect_focusable_views(focusable);
@@ -1106,6 +1109,7 @@ bool Window::focus_next() {
 }
 
 bool Window::focus_prev() {
+    if (!m_focus_enabled) return false;
     std::vector<View*> focusable;
     if (auto group = std::dynamic_pointer_cast<ViewGroup>(m_root_view)) {
         group->collect_focusable_views(focusable);
@@ -1133,6 +1137,7 @@ bool Window::focus_prev() {
 }
 
 bool Window::focus_direction(FocusDirection dir) {
+    if (!m_focus_enabled) return false;
     if (dir == FocusDirection::Next) return focus_next();
     if (dir == FocusDirection::Previous) return focus_prev();
 
@@ -1340,7 +1345,8 @@ void Window::dispatch_key_event(const KeyPressEvent& event) {
         }
     } else if (event.pressed && !event.has_ctrl() && !event.has_alt()) {
         if (event.keysym == XKB_KEY_Tab || event.keysym == XKB_KEY_ISO_Left_Tab) {
-            if (focus_next()) {
+            bool focused = event.has_shift() ? focus_prev() : focus_next();
+            if (focused) {
                 schedule_redraw();
                 return;
             }

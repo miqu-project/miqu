@@ -25,6 +25,7 @@ void View::request_redraw() {
 }
 
 void View::request_focus() {
+    if (!is_focusable()) return;
     if (m_window) {
         m_window->set_focused_view(this);
     }
@@ -346,9 +347,9 @@ bool ViewGroup::on_key(const KeyPressEvent& event) {
     if (!is_visible() || !is_enabled()) return false;
     auto self = shared_from_this();
 
-    // If this ViewGroup itself has focus and a click listener, handle Enter
+    // If this ViewGroup itself has focus and a click listener, handle Space/Enter
     if (has_focus() && event.pressed &&
-        (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter)) {
+        (event.keysym == XKB_KEY_space || event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter)) {
         if (m_on_click) {
             auto cb = m_on_click;
             request_redraw();

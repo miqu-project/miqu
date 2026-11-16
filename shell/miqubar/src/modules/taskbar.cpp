@@ -77,6 +77,7 @@ public:
             ->padding(0, 0)
             ->cornerRadius(5)
             ->customColors(badge_bg, badge_fg)
+            ->focusable(false)
             ->build();
         badge->set_layout_params(miqu::LayoutParams(22, 20));
         add_view(badge);
@@ -97,6 +98,7 @@ public:
             ->padding(0, 0)
             ->cornerRadius(3)
             ->customColors(dot_color, miqu::Color::transparent())
+            ->focusable(false)
             ->build();
         dot->set_layout_params(miqu::LayoutParams(6, 6));
         add_view(dot);
@@ -132,6 +134,7 @@ public:
             ->onClick([this]() {
                 if (m_on_close) m_on_close();
             })
+            ->focusable(false)
             ->build();
         close_btn->set_layout_params(miqu::LayoutParams(24, 24));
         add_view(close_btn);
@@ -261,6 +264,7 @@ public:
                 }
             }
         });
+        set_focusable(false);
     }
 
     const std::vector<miqu::WindowInfo>& get_windows() const { return m_windows; }
@@ -394,6 +398,7 @@ private:
 };
 
 TaskbarView::TaskbarView() : LinearLayout(miqu::Orientation::Horizontal) {
+    set_focusable(false);
     set_divider_spacing(4);
     sync_windows();
 
@@ -654,6 +659,7 @@ void TaskbarView::show_group_popup(TaskbarItemButton* anchor) {
             config->colors.primary.with_alpha(0.15f),
             config->colors.primary
         )
+        ->focusable(false)
         ->build();
     count_btn->set_layout_params(miqu::LayoutParams(
         static_cast<int>(miqu::LayoutDimension::WrapContent),
@@ -680,6 +686,7 @@ void TaskbarView::show_group_popup(TaskbarItemButton* anchor) {
                 w.close();
             }
         })
+        ->focusable(false)
         ->build();
     close_all_btn->set_layout_params(miqu::LayoutParams(
         static_cast<int>(miqu::LayoutDimension::WrapContent),
@@ -796,7 +803,8 @@ void TaskbarView::show_context_menu(const std::vector<miqu::WindowInfo>& win_gro
             ->onClick([this, cb = std::move(on_click)]() {
                 hide_context_menu();
                 if (cb) cb();
-            });
+            })
+            ->focusable(false);
         if (destructive) {
             builder->customColors(miqu::Color(0, 0, 0, 0), miqu::Color(0.92f, 0.26f, 0.26f, 1.0f));
         }

@@ -36,6 +36,7 @@ CpuModuleView::CpuModuleView() {
     set_padding(4, 2);
     set_icon("cpu");
     set_layout_params(miqu::LayoutParams(static_cast<int>(miqu::LayoutDimension::WrapContent), item_h));
+    set_focusable(false);
     update_metrics();
 }
 
@@ -75,6 +76,7 @@ MemoryModuleView::MemoryModuleView() {
     set_padding(4, 2);
     set_icon("media-flash");
     set_layout_params(miqu::LayoutParams(static_cast<int>(miqu::LayoutDimension::WrapContent), item_h));
+    set_focusable(false);
     update_metrics();
 }
 
@@ -116,6 +118,7 @@ BatteryModuleView::BatteryModuleView() {
     set_padding(6, 2);
     set_layout_params(miqu::LayoutParams(item_h, item_h));
     set_text(""); // icon-only
+    set_focusable(false);
     update_metrics();
 }
 
@@ -191,6 +194,7 @@ NetworkModuleView::NetworkModuleView(std::function<void()> on_open_network)
     set_layout_params(miqu::LayoutParams(item_h, item_h));
     set_text(""); // icon-only
     set_on_click_listener(m_on_open_network);
+    set_focusable(false);
     update_metrics();
 }
 
@@ -262,6 +266,7 @@ BluetoothModuleView::BluetoothModuleView(std::function<void()> on_open_bluetooth
     set_layout_params(miqu::LayoutParams(item_h, item_h));
     set_text(""); // icon-only
     set_on_click_listener(m_on_open_bluetooth);
+    set_focusable(false);
     update_metrics();
 }
 
@@ -368,6 +373,7 @@ VolumeModuleView::VolumeModuleView(std::function<void()> on_open_sound)
     set_layout_params(miqu::LayoutParams(item_h, item_h));
     set_text(""); // icon-only
     set_on_click_listener(m_on_open_sound);
+    set_focusable(false);
 
     // Register real-time change listener with AudioBackend
     AudioBackend::get().add_listener(this, [this](const AudioSinkInfo& info) {
@@ -429,6 +435,7 @@ BrightnessModuleView::BrightnessModuleView(std::function<void()> on_open_brightn
     set_layout_params(miqu::LayoutParams(item_h, item_h));
     set_text(""); // icon-only by default
     set_on_click_listener(m_on_open_brightness);
+    set_focusable(false);
     update_metrics();
 }
 
@@ -485,6 +492,7 @@ DarkModeModuleView::DarkModeModuleView() {
     set_on_click_listener([this]() {
         toggle_mode();
     });
+    set_focusable(false);
     sync_theme_state();
 }
 
@@ -535,6 +543,7 @@ ClockModuleView::ClockModuleView(std::function<void()> on_open_calendar)
     set_text_alignment(miqu::TextAlignment::Center);
     set_layout_params(miqu::LayoutParams(static_cast<int>(miqu::LayoutDimension::WrapContent), item_h));
     set_on_click_listener(m_on_open_calendar);
+    set_focusable(false);
     update_time();
 }
 
@@ -573,6 +582,7 @@ NotificationModuleView::NotificationModuleView() {
     set_icon_size(20);
     set_icon("bell");
     set_layout_params(miqu::LayoutParams(item_h, item_h));
+    set_focusable(false);
     update_metrics();
 }
 
@@ -649,6 +659,7 @@ PowerButtonView::PowerButtonView(std::function<void()> on_click) {
             miqu::AppManager::launch_command("miqupower");
         });
     }
+    set_focusable(false);
 }
 
 } // namespace miqubar

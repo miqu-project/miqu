@@ -92,6 +92,7 @@ void SoundControlPopupView::setup_ui() {
     m_mute_btn->set_on_click_listener([this]() {
         toggle_mute();
     });
+    m_mute_btn->set_focusable(false);
     header_row->add_view(m_mute_btn);
 
     root_layout->add_view(header_row);
@@ -117,6 +118,7 @@ void SoundControlPopupView::setup_ui() {
         ->thumbRadius(9)
         ->progressColor(config->colors.primary)
         ->thumbColor(config->colors.primary)
+        ->focusable(false)
         ->build();
     m_vol_slider->set_layout_params(LayoutParams(
         static_cast<int>(LayoutDimension::MatchParent),
@@ -136,6 +138,7 @@ void SoundControlPopupView::setup_ui() {
             set_volume(m_volume);
         }
     });
+    m_vol_slider->set_focusable(false);
     root_layout->add_view(m_vol_slider);
 
     add_view(root_layout);

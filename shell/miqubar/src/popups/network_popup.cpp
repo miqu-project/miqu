@@ -133,6 +133,7 @@ void NetworkPopupView::setup_ui() {
             set_wifi_enabled(checked);
         })
         ->build();
+    m_switch->set_focusable(false);
     m_switch->set_layout_params(LayoutParams(46, 26));
     header->add_view(m_switch);
     root->add_view(header);
@@ -188,6 +189,7 @@ void NetworkPopupView::setup_ui() {
                 std::system(cmd.c_str());
                 if (m_on_close) m_on_close();
             });
+            btn->set_focusable(false);
             m_network_list->add_view(btn);
         }
         root->add_view(m_network_list);

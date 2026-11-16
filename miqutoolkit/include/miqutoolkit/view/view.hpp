@@ -127,7 +127,15 @@ public:
     }
 
     // Visibility
-    void set_visibility(Visibility v) { m_visibility = v; }
+    void set_visibility(Visibility v) {
+        if (m_visibility != v) {
+            m_visibility = v;
+            if (m_visibility != Visibility::Visible && has_focus()) {
+                clear_focus();
+            }
+            request_redraw();
+        }
+    }
     Visibility get_visibility() const { return m_visibility; }
     bool is_visible() const { return m_visibility == Visibility::Visible; }
 
@@ -135,13 +143,22 @@ public:
     void set_enabled(bool enabled) {
         if (m_enabled != enabled) {
             m_enabled = enabled;
+            if (!m_enabled && has_focus()) {
+                clear_focus();
+            }
             request_redraw();
         }
     }
     bool is_enabled() const { return m_enabled; }
 
     // Focusability
-    virtual void set_focusable(bool focusable) { m_focusable = focusable; }
+    virtual void set_focusable(bool focusable) {
+        m_focusable = focusable;
+        m_focusable_explicit = true;
+        if (!m_focusable && has_focus()) {
+            clear_focus();
+        }
+    }
     bool is_focusable() const { return m_focusable && is_visible() && is_enabled(); }
 
     // Focus Ring Customization
@@ -154,7 +171,7 @@ public:
     // Click Listener
     void set_on_click_listener(std::function<void()> listener) {
         m_on_click = std::move(listener);
-        if (m_on_click) {
+        if (m_on_click && !m_focusable_explicit) {
             m_focusable = true;
         }
     }
@@ -208,6 +225,7 @@ protected:
     Visibility m_visibility = Visibility::Visible;
     bool m_enabled = true;
     bool m_focusable = false;
+    bool m_focusable_explicit = false;
     bool m_draw_focus_ring = true;
     int m_focus_ring_radius = -1;
     Window* m_window = nullptr;

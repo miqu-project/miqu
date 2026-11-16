@@ -61,6 +61,7 @@ void PowerPopupView::setup_ui() {
     expand_btn->set_on_click_listener([this]() {
         open_full_menu();
     });
+    expand_btn->set_focusable(false);
     header->add_view(expand_btn);
 
     root->add_view(header);
@@ -104,6 +105,7 @@ void PowerPopupView::setup_ui() {
         btn->set_on_click_listener([this, act = item.action]() {
             trigger_action(act);
         });
+        btn->set_focusable(false);
         action_list->add_view(btn);
     }
 
