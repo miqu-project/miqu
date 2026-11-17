@@ -195,10 +195,10 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **Permission required**: Seek user permission before editing `miqutoolkit` when developing downstream apps.
 - **Full-stack evolution**: We are free to modify any layer of the stack—including the compositor `miquland`—if a protocol, hook, or capability is missing.
 
-### 2. Aggressive Modularization & Anti-Slop Standards
-- **Small, Single-Responsibility Functions**: Keep functions under ~40–50 lines. Decompose geometry calculations, input validation, and rendering into focused helper functions.
-- **No God Classes**: Keep classes strictly scoped to a single domain. Avoid dumping miscellaneous state into monolithic managers.
-- **Deep Modules with Narrow Interfaces**: Implement rich internal capability behind clean, minimal public APIs.
+### 2. Pragmatic Modularization & Clean Craftsmanship Standards
+- **Flexible & Domain-Focused Class Sizing**: Avoid dogmatic or arbitrary line-count limits on classes. Cohesive classes (such as `Window`, `MillerView`, complex custom views, or core engines) are permitted to grow as large as naturally required by their domain. Prioritize self-contained, cohesive implementations over excessive fragmentation into artificial micro-classes that introduce needless indirection and lifecycle overhead. Only split a class when it clearly crosses distinct architectural domains or conflates unrelated responsibilities (e.g. separating MPD network protocol handling from Cairo UI rendering).
+- **Readable, Focused Functions**: Keep functions focused on a clear logical task. While ~40–60 lines is a healthy rule of thumb for general business logic, longer functions are entirely acceptable for declarative layout builders, event dispatch switches, rendering routines, and comprehensive state transitions where keeping the sequence contiguous preserves clarity and flow. Decompose heavy sub-calculations, input validation, and reusable helpers when doing so improves readability.
+- **Deep Modules with Narrow Interfaces**: Implement rich, self-sufficient internal capability behind clean, minimal, and self-documenting public APIs.
 
 ### 3. Lifecycle & Pointer Safety (Strict RAII)
 - **No Zombie States or Silent Swallowing**: Check all system call returns, Wayland protocol calls, and toolkit APIs. Never swallow exceptions or leave half-initialized objects.
