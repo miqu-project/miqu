@@ -307,7 +307,7 @@ void MillerView::render_multi_selection_preview(const std::vector<std::shared_pt
 
     if (total_bytes > 0) {
         auto size_badge = TextViewBuilder::create()
-            ->text("Total Size: " + PhotosModel::format_file_size(total_bytes))
+            ->text("Total Size: " + GalleryModel::format_file_size(total_bytes))
             ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
             ->textColor(config->colors.primary)
             ->center(true)

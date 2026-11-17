@@ -7,10 +7,10 @@
 
 namespace miqu {
 
-class PhotosApp {
+class GalleryApp {
 public:
-    explicit PhotosApp(std::shared_ptr<AppEngine> engine, const std::string& start_path = "");
-    ~PhotosApp() = default;
+    explicit GalleryApp(std::shared_ptr<AppEngine> engine, const std::string& start_path = "");
+    ~GalleryApp() = default;
 
     bool init();
     void sync_theme();

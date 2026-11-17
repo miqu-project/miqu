@@ -1,20 +1,20 @@
-#include "photos_app.hpp"
+#include "gallery_app.hpp"
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include <iostream>
 
 namespace miqu {
 
-PhotosApp::PhotosApp(std::shared_ptr<AppEngine> engine, const std::string& start_path)
+GalleryApp::GalleryApp(std::shared_ptr<AppEngine> engine, const std::string& start_path)
     : m_engine(std::move(engine)), m_start_path(start_path) {}
 
-bool PhotosApp::init() {
+bool GalleryApp::init() {
     if (!m_engine) return false;
 
     setup_ui();
 
     m_window = WindowBuilder::create()
-        ->title("Photos")
-        ->appId("miquphotos")
+        ->title("Gallery")
+        ->appId("miqugallery")
         ->role(WindowRole::Toplevel)
         ->preferredSize(1040, 680)
         ->closeOnEscape(false)
@@ -29,7 +29,7 @@ bool PhotosApp::init() {
         ->build();
 
     if (!m_window) {
-        std::cerr << "[miquphotos] Failed to build main window.\n";
+        std::cerr << "[miqugallery] Failed to build main window.\n";
         return false;
     }
 
@@ -40,7 +40,7 @@ bool PhotosApp::init() {
     return true;
 }
 
-void PhotosApp::setup_ui() {
+void GalleryApp::setup_ui() {
     auto config = Config::get();
 
     m_root_layout = LinearLayoutBuilder::create()
@@ -51,7 +51,7 @@ void PhotosApp::setup_ui() {
 
     // 1. Top Toolbar (Centered Title "Photos", close button on right)
     m_toolbar = ToolbarBuilder::create()
-        ->title("Photos")
+        ->title("Gallery")
         ->iconResource("folder-pictures")
         ->titleAlignment(TitleAlignment::Center)
         ->showDivider(false)
@@ -60,7 +60,7 @@ void PhotosApp::setup_ui() {
                 eng->quit(0);
             }
         })
-        ->closeTooltip("Quit Photos")
+        ->closeTooltip("Quit Gallery")
         ->build();
 
     LayoutParams toolbar_lp;
@@ -132,7 +132,7 @@ void PhotosApp::setup_ui() {
 
     // Search bar integrated into the ribbon header
     m_search_view = SearchViewBuilder::create()
-        ->hint("Search photos")
+        ->hint("Search gallery")
         ->focused(false)
         ->focusBorder(false)
         ->padding(10, 2)
@@ -185,7 +185,7 @@ void PhotosApp::setup_ui() {
     m_root_layout->add_view(m_miller_view, miller_lp);
 }
 
-void PhotosApp::sync_theme() {
+void GalleryApp::sync_theme() {
     auto config = Config::get();
     m_root_layout->set_background_color(Color::transparent());
 
@@ -214,7 +214,7 @@ void PhotosApp::sync_theme() {
     }
 }
 
-void PhotosApp::update_header() {
+void GalleryApp::update_header() {
     if (!m_miller_view) return;
 
     if (m_breadcrumb_container) {
@@ -265,7 +265,7 @@ void PhotosApp::update_header() {
         };
 
         if (m_miller_view->is_searching()) {
-            add_crumb("Photos", [this]() {
+            add_crumb("Gallery", [this]() {
                 if (m_search_view) {
                     m_search_view->set_query("");
                     m_search_view->set_focused(false);
@@ -296,9 +296,9 @@ void PhotosApp::update_header() {
 
             if (path.empty()) {
                 if (!current) {
-                    add_crumb("Photos", nullptr, true);
+                    add_crumb("Gallery", nullptr, true);
                 } else {
-                    add_crumb("Photos", [this]() {
+                    add_crumb("Gallery", [this]() {
                         if (m_miller_view) {
                             m_miller_view->navigate_to_depth(0);
                         }
@@ -307,7 +307,7 @@ void PhotosApp::update_header() {
                     add_crumb(current->title, nullptr, true);
                 }
             } else {
-                add_crumb("Photos", [this]() {
+                add_crumb("Gallery", [this]() {
                     if (m_miller_view) {
                         m_miller_view->navigate_to_depth(0);
                     }
@@ -354,7 +354,7 @@ void PhotosApp::update_header() {
     }
 }
 
-void PhotosApp::handle_key_press(const KeyPressEvent& event) {
+void GalleryApp::handle_key_press(const KeyPressEvent& event) {
     if (!event.pressed || !m_miller_view) return;
 
     // 1. Global: Ctrl+F to focus search bar from anywhere

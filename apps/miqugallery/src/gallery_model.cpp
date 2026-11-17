@@ -1,4 +1,4 @@
-#include "photos_model.hpp"
+#include "gallery_model.hpp"
 #include <miqutoolkit/core/fs_utils.hpp>
 #include <algorithm>
 #include <chrono>
@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace miqu {
 
-bool PhotosModel::is_image_file(const fs::path& p) {
+bool GalleryModel::is_image_file(const fs::path& p) {
     std::error_code ec;
     if (!fs::is_regular_file(p, ec)) {
         return false;
@@ -26,7 +26,7 @@ bool PhotosModel::is_image_file(const fs::path& p) {
     return valid_exts.find(ext) != valid_exts.end();
 }
 
-std::string PhotosModel::format_file_size(uintmax_t bytes) {
+std::string GalleryModel::format_file_size(uintmax_t bytes) {
     constexpr double KB = 1024.0;
     constexpr double MB = KB * 1024.0;
     constexpr double GB = MB * 1024.0;
@@ -46,7 +46,7 @@ std::string PhotosModel::format_file_size(uintmax_t bytes) {
     return oss.str();
 }
 
-std::string PhotosModel::format_time(fs::file_time_type ftime) {
+std::string GalleryModel::format_time(fs::file_time_type ftime) {
     try {
         auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
             ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now()
@@ -62,7 +62,7 @@ std::string PhotosModel::format_time(fs::file_time_type ftime) {
     return "";
 }
 
-size_t PhotosModel::count_images_in_directory(const fs::path& dir) {
+size_t GalleryModel::count_images_in_directory(const fs::path& dir) {
     size_t count = 0;
     std::error_code ec;
     for (fs::directory_iterator it(dir, fs::directory_options::skip_permission_denied, ec), end;
@@ -74,12 +74,12 @@ size_t PhotosModel::count_images_in_directory(const fs::path& dir) {
     return count;
 }
 
-std::shared_ptr<FileItem> PhotosModel::create_album_item(const fs::path& dir, size_t count) {
+std::shared_ptr<FileItem> GalleryModel::create_album_item(const fs::path& dir, size_t count) {
     auto item = std::make_shared<FileItem>();
     item->path = dir;
     item->id = dir.string();
     item->title = dir.filename().string();
-    if (item->title.empty()) item->title = "Photos";
+    if (item->title.empty()) item->title = "Gallery";
     item->subtitle = std::to_string(count) + (count == 1 ? " photo" : " photos");
     item->size_formatted = item->subtitle;
     item->photo_count = count;
@@ -98,7 +98,7 @@ std::shared_ptr<FileItem> PhotosModel::create_album_item(const fs::path& dir, si
     return item;
 }
 
-std::shared_ptr<FileItem> PhotosModel::create_photo_item(const fs::path& path) {
+std::shared_ptr<FileItem> GalleryModel::create_photo_item(const fs::path& path) {
     auto item = std::make_shared<FileItem>();
     item->path = path;
     item->id = path.string();
@@ -131,7 +131,7 @@ std::shared_ptr<FileItem> PhotosModel::create_photo_item(const fs::path& path) {
     return item;
 }
 
-std::vector<std::shared_ptr<FileItem>> PhotosModel::scan_photos_in_directory(const fs::path& dir) {
+std::vector<std::shared_ptr<FileItem>> GalleryModel::scan_photos_in_directory(const fs::path& dir) {
     std::vector<std::shared_ptr<FileItem>> items;
     std::error_code ec;
 
@@ -157,7 +157,7 @@ std::vector<std::shared_ptr<FileItem>> PhotosModel::scan_photos_in_directory(con
     return items;
 }
 
-std::vector<std::shared_ptr<FileItem>> PhotosModel::build_default_tree(const std::string& start_path) {
+std::vector<std::shared_ptr<FileItem>> GalleryModel::build_default_tree(const std::string& start_path) {
     std::vector<std::shared_ptr<FileItem>> tree;
     std::unordered_set<std::string> seen_paths;
 

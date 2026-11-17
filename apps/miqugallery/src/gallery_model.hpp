@@ -65,7 +65,7 @@ public:
     }
 };
 
-class PhotosModel {
+class GalleryModel {
 public:
     static std::vector<std::shared_ptr<FileItem>> build_default_tree(const std::string& start_path = "");
     static std::shared_ptr<FileItem> create_album_item(const std::filesystem::path& dir, size_t count);

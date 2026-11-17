@@ -97,12 +97,13 @@ BINARIES=(
     "miqusettings"
     "miqufiles"
     "miqumusic"
-    "miquphotos"
+    "miqugallery"
     "miqutheme"
     "miquinfo"
     # Legacy
     "miqutest"
     "miqucontrolpanel"
+    "miquphotos"
     "miqusecure"
 )
 

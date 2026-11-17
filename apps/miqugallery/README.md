@@ -1,8 +1,8 @@
-# miquphotos
+# miqugallery
 
-> **Fast Miller Columns Photo Manager & Gallery for Wayland**
+> **Fast Miller Columns Photo & Media Gallery for Wayland**
 
-`miquphotos` is a lightweight, responsive photo manager built with `miqutoolkit`. It organizes your photo collections across folders into a flat album browser using the unified Miller columns layout.
+`miqugallery` is a lightweight, responsive photo and media gallery built with `miqutoolkit`. It organizes your photo collections across folders into a flat album browser using the unified Miller columns layout.
 
 ---
 
@@ -10,7 +10,7 @@
 
 - **Flat Album Discovery**: Automatically finds all directories containing photos in your home folder.
 - **Miller Columns Flow**:
-  - **Left Pillar**: Photos hero brand card (or album list when drilled).
+  - **Left Pillar**: Gallery hero brand card (or album list when drilled).
   - **Middle Pillar**: All folders containing images with photo counts.
   - **Right Pillar**: Instant thumbnail preview of the highlighted album's photos.
 - **Photo Inspection**: View image previews with file size, modified date, dimensions, and quick viewing actions.
@@ -28,9 +28,9 @@
 
 Generate default user configuration:
 ```bash
-miquphotos --init-config
+miqugallery --init-config
 ```
-Configuration path: `~/.config/miquphotos/miquphotos.conf`
+Configuration path: `~/.config/miqugallery/miqugallery.conf`
 
 ---
 

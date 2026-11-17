@@ -27,7 +27,7 @@ bool MillerView::check_and_update_click_debounce() {
 }
 
 void MillerView::refresh_model() {
-    m_root_tree = PhotosModel::build_default_tree(m_start_path);
+    m_root_tree = GalleryModel::build_default_tree(m_start_path);
     if (m_preview_frame) {
         rebuild_columns();
         notify_state_changed();
@@ -102,7 +102,7 @@ void MillerView::handle_parent_item_click(size_t idx) {
 
 void MillerView::init(const std::string& start_path) {
     m_start_path = start_path;
-    m_root_tree = PhotosModel::build_default_tree(m_start_path);
+    m_root_tree = GalleryModel::build_default_tree(m_start_path);
 
     set_orientation(Orientation::Horizontal);
     set_padding(12, 4, 12, 12);
@@ -292,7 +292,7 @@ void MillerView::init(const std::string& start_path) {
     m_preview_pillar->add_view(m_preview_frame, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
     add_view(m_preview_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
-    // On launch: left pillar shows Photos Label Icon.
+    // On launch: left pillar shows Gallery Label Icon.
     // Middle pillar shows all the folders containing images.
     // Right pillar shows expanded first folder of middle pillar.
     m_path.clear();
@@ -564,7 +564,7 @@ std::shared_ptr<View> MillerView::create_parent_hero_box(const std::shared_ptr<C
     hero_box->add_view(hero_icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
 
     auto hero_title = TextViewBuilder::create()
-        ->text("Photos")
+        ->text("Gallery")
         ->textSize(static_cast<int>(config->metrics.font_size * 1.3f))
         ->bold(true)
         ->textColor(config->colors.on_surface)
@@ -1149,14 +1149,14 @@ bool MillerView::trigger_active_action() {
 
 std::string MillerView::get_breadcrumb_path() const {
     if (!m_search_query.empty()) {
-        std::string path = "Photos › Search: \"" + m_search_query + "\"";
+        std::string path = "Gallery › Search: \"" + m_search_query + "\"";
         auto current = get_current_selected_item();
         if (current) {
             path += " › " + current->title;
         }
         return path;
     }
-    std::string path = "Photos";
+    std::string path = "Gallery";
     for (const auto& item : m_path) {
         path += " › " + item->title;
     }

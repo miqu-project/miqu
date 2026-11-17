@@ -138,7 +138,7 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miqusettings`**: Modern Miller-columns centralized desktop settings manager, network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
 - **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
 - **`miqumusic`**: Fast, lightweight native MPD (Music Player Daemon) client and audio playback interface.
-- **`miquphotos`**: High-performance photo gallery and image viewer application with flat album navigation and full-size photo preview.
+- **`miqugallery`**: High-performance photo gallery and image viewer application with flat album navigation and full-size photo preview.
 - **`miqutheme`**: Visual theme and appearance manager for selecting color schemes, wallpapers, fonts, and global design tokens.
 - **`miquinfo`**: Hardware monitoring, system telemetry, and diagnostic resource utility.
 

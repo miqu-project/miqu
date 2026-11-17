@@ -1,6 +1,6 @@
 #pragma once
 
-#include "photos_model.hpp"
+#include "gallery_model.hpp"
 #include <miqutoolkit/miqutoolkit.hpp>
 #include <algorithm>
 #include <memory>
