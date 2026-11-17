@@ -190,7 +190,7 @@ std::string OverviewConfig::init_user_config() {
                 << "outline             = #2e384d80\n"
                 << "outline_variant     = #4070b099\n\n"
                 << "# 3. Dynamic Theme Integration (Optional)\n"
-                << "# source = ~/.config/miqutheme/current/miqutoolkit.conf\n";
+                << "# source = ~/.config/miqusettings/current/miqutoolkit.conf\n";
             std::cout << "[miquoverview] Initialized built-in configuration template at: " << config_path << "\n";
             copied = true;
         }
@@ -369,7 +369,7 @@ void OverviewConfig::setup_watcher(struct wl_event_loop* loop) {
         }
     }
 
-    // 3. Sourced files (e.g. ~/.config/miqutheme/current/miqutoolkit.conf)
+    // 3. Sourced files (e.g. ~/.config/miqusettings/current/miqutoolkit.conf)
     for (const auto& file_path : m_watched_files) {
         fs::path p(file_path);
         fs::path parent = p.parent_path();

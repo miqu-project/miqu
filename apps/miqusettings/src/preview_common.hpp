@@ -9,6 +9,8 @@
 
 namespace miqu {
 
+void ensure_active_theme_initialized();
+
 inline int get_card_radius(const std::shared_ptr<Config>& config = nullptr) {
     auto cfg = config ? config : Config::get();
     return cfg ? cfg->metrics.corner_radius : 12;

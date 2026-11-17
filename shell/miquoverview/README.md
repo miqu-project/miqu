@@ -14,7 +14,7 @@ Website & Documentation: [**miqu-project.github.io**](https://miqu-project.githu
 - **Interactive Workspace Pager**: Top navigation pill bar displays all active workspaces, open window counts, and current selection.
 - **Direct Window & Workspace Dispatch**: Click any window to switch to that workspace and focus it immediately; click empty space to jump to that workspace; press `Esc` to dismiss.
 - **Full Keyboard Navigation**: Arrow keys or `h`/`l` to switch workspaces, `j`/`k` or `Tab` to cycle windows, `1`-`9` for instant workspace jumps.
-- **Dynamic Theming**: Automatically synchronizes colors and typography with `miqutheme`.
+- **Dynamic Theming**: Automatically synchronizes colors and typography with `miqusettings`.
 
 ---
 

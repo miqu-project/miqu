@@ -55,10 +55,10 @@ Every component across the entire Miqu ecosystem (`miquland`, `miqutoolkit`, and
 - There is **no hidden C++ background inheritance, no implicit layered merging, and no silent magic**. Every setting is explicitly visible and editable in one place.
 
 #### 4. Decoupled Dynamic Theming via Explicit `source`
-- `miqutoolkit` C++ code contains **zero hardcoded internal connections to `miqutheme`**.
+- `miqutoolkit` C++ code contains **zero hardcoded internal connections to `miqusettings` or theming backends**.
 - Instead, dynamic theming is completely decoupled and transparent:
-  - Configuration files use the standard `source = ~/.config/miqutheme/current/miqutoolkit.conf` directive.
-  - In `miqutoolkit.conf`, users who want dynamic wallpaper/palette changes from `miqutheme` explicitly include the `source` line.
+  - Configuration files use the standard `source = ~/.config/miqusettings/current/miqutoolkit.conf` directive.
+  - In `miqutoolkit.conf`, users who want dynamic wallpaper/palette changes from `miqusettings` explicitly include the `source` line.
   - Users who want completely static, pinned colors simply comment out or remove the `source` line and define their colors directly.
 - Sourced files are automatically watched via inotify for live dynamic reload.
 
@@ -135,11 +135,10 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miqupolkit`**: Native graphical Polkit authentication agent handling privilege escalation prompts.
 
 ### Standalone Desktop Applications (`apps/`)
-- **`miqusettings`**: Modern Miller-columns centralized desktop settings manager, network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
+- **`miqusettings`**: Modern Miller-columns centralized desktop settings manager, visual theme & appearance manager (color schemes, wallpapers, fonts, dark mode, electron/IDE sync, GTK styles), network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
 - **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
 - **`miqumusic`**: Fast, lightweight native MPD (Music Player Daemon) client and audio playback interface.
 - **`miqugallery`**: High-performance photo gallery and image viewer application with flat album navigation and full-size photo preview.
-- **`miqutheme`**: Visual theme and appearance manager for selecting color schemes, wallpapers, fonts, and global design tokens.
 - **`miquinfo`**: Hardware monitoring, system telemetry, and diagnostic resource utility.
 
 ### Mobile Applications (`mobile/`)
@@ -169,7 +168,7 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 13. **`miqubg` Internal Animation & Cross-Fade Transition**: `miqubg` currently relies on `miquland` compositor animations by spawning a temporary second layer surface and tearing it down after a timer. Evaluate and implement native internal animation / cross-fading directly inside `miqubg` and `miqutoolkit` (rendering smooth image transitions inside a single persistent background surface without creating temporary secondary layer surfaces).
 14. **Configuration Format Modernization (Lua / Advanced Scriptable Formats)**: Evaluate transitioning or expanding configuration formats across `miquland` and ecosystem components from custom key-value parsers to Lua (e.g. LuaJIT / Sol2) or other expressive configuration formats (enabling programmable rules, dynamic event callbacks, math expressions, and modular config architectures).
 15. **Add separate `miqupluginmanager`**: Dedicated manager and utility to discover, install, update, enable/disable, and configure `miquland` plugins and extensions.
-16. **`miqutheme` Auto-Seeding & Asset Layering Study**: `miqutheme` currently copies default schemes, wallpapers, and matugen templates into `~/.config/miqutheme/` on its very first launch (`ensure_directories_and_seed()`). Study and address potential loopholes (e.g. user directory pollution on startup, stale local copies when system schemes update upstream) and evaluate transitioning `miqutheme` to load system assets directly from `/usr/share/miqutheme/` while reserving `~/.config/miqutheme/` strictly for user-created custom wallpapers and palettes.
+16. **Asset Layering & User Customization in `miqusettings`**: Theming and personalization are now fully unified inside `miqusettings` (loading schemes, wallpapers, and templates from system paths like `/usr/share/miqusettings/` or user paths in `~/.config/miqusettings/`). Ensure robust fallback layering and support user-defined custom schemes and wallpapers without polluting home config on startup.
 17. **Gamma Control in `miqubar`**: Implement gamma / blue light control module and flyout slider in `miqubar` (integrating directly with native `miquland` IPC via `miquctl gamma`).
 
 18. **Special / Scratchpad Workspace Support in `miquland`**: Implement special workspace (scratchpad) functionality in `miquland` (toggleable overlay workspace, dispatching windows to/from special workspace, keybindings, and IPC controls).

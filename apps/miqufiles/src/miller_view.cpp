@@ -467,6 +467,9 @@ void MillerView::sync_theme() {
     }
     update_preview_ribbon();
     update_pillar_styles();
+    rebuild_parent_column();
+    rebuild_current_column();
+    rebuild_preview_column();
     request_redraw();
 }
 
@@ -723,9 +726,7 @@ std::shared_ptr<View> MillerView::create_parent_hero_box(const std::shared_ptr<C
 
     auto hero_title = TextViewBuilder::create()
         ->text("Files")
-        ->textSize(static_cast<int>(config->metrics.font_size * 1.3f))
         ->bold(true)
-        ->textColor(config->colors.on_surface)
         ->center(true)
         ->build();
     hero_box->add_view(hero_title);
@@ -733,7 +734,7 @@ std::shared_ptr<View> MillerView::create_parent_hero_box(const std::shared_ptr<C
     auto hero_hint = TextViewBuilder::create()
         ->text("↑/↓ Navigate\nEnter Open\nEsc Back")
         ->caption(true)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+        ->muted()
         ->center(true)
         ->build();
     hero_box->add_view(hero_hint);
@@ -759,15 +760,13 @@ std::shared_ptr<View> MillerView::create_empty_search_box(const std::shared_ptr<
 
     auto empty_text = TextViewBuilder::create()
         ->text("No files found")
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.on_surface)
         ->build();
     empty_box->add_view(empty_text);
 
     auto empty_hint = TextViewBuilder::create()
         ->text("No matches for \"" + m_search_query + "\"")
         ->caption(true)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+        ->muted()
         ->build();
     empty_box->add_view(empty_hint);
 
@@ -792,9 +791,7 @@ std::shared_ptr<View> MillerView::create_empty_folder_box(const std::shared_ptr<
 
     auto empty_text = TextViewBuilder::create()
         ->text("Folder is empty")
-        ->textSize(static_cast<int>(config->metrics.font_size * 1.15f))
         ->bold(true)
-        ->textColor(config->colors.on_surface)
         ->center(true)
         ->build();
     empty_box->add_view(empty_text);
@@ -802,7 +799,7 @@ std::shared_ptr<View> MillerView::create_empty_folder_box(const std::shared_ptr<
     auto empty_hint = TextViewBuilder::create()
         ->text("No files or directories found\nPress ‹ Back or Left (h) to return")
         ->caption(true)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+        ->muted()
         ->center(true)
         ->build();
     empty_box->add_view(empty_hint);
@@ -820,11 +817,6 @@ std::shared_ptr<View> MillerView::create_list_row_item(const std::shared_ptr<Fil
         ->backgroundColor(Color::transparent())
         ->build();
 
-    Color title_col = config->colors.on_surface;
-    if (item->is_hidden) {
-        title_col = title_col.with_alpha(0.65f);
-    }
-
     auto icon_view = ImageViewBuilder::create()
         ->source(item->icon.empty() ? (item->is_category ? "folder" : "text-x-generic") : item->icon)
         ->targetSize(20)
@@ -833,26 +825,26 @@ std::shared_ptr<View> MillerView::create_list_row_item(const std::shared_ptr<Fil
         ->build();
     item_row->add_view(icon_view, LayoutParams(20, 20, Gravity::CenterVertical));
 
-    auto title_view = TextViewBuilder::create()
+    auto title_builder = TextViewBuilder::create()
         ->text(item->title)
-        ->textSize(config->metrics.font_size)
-        ->textColor(title_col)
-        ->ellipsize(true)
-        ->build();
+        ->ellipsize(true);
+    if (item->is_hidden) {
+        title_builder->muted();
+    }
+    auto title_view = title_builder->build();
     item_row->add_view(title_view, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
 
     if (item->is_category) {
         auto chevron = TextViewBuilder::create()
             ->text("›")
-            ->textSize(config->metrics.font_size)
-            ->textColor(config->colors.on_surface_variant.with_alpha(0.5f))
+            ->muted()
             ->build();
         item_row->add_view(chevron, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::CenterVertical));
     } else if (!item->size_formatted.empty()) {
         auto size_view = TextViewBuilder::create()
             ->text(item->size_formatted)
             ->caption(true)
-            ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+            ->muted()
             ->build();
         item_row->add_view(size_view, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::CenterVertical));
     }

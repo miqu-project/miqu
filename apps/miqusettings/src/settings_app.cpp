@@ -1,4 +1,5 @@
 #include "settings_app.hpp"
+#include "preview_common.hpp"
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include <iostream>
 
@@ -36,6 +37,7 @@ bool SettingsApp::init() {
     m_engine->register_window(m_window);
     sync_theme();
     update_header();
+    ensure_active_theme_initialized();
 
     return true;
 }

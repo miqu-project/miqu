@@ -13,7 +13,7 @@ Website & Documentation: [**miqu-project.github.io**](https://miqu-project.githu
 - **Desktop Icon Grid**: Scans `~/Desktop/*.desktop` files automatically; supports drag-and-drop repositioning with persistent coordinate memory.
 - **Custom Widget Engine**: Embeds lightweight system status cards and information widgets directly on the desktop canvas.
 - **Layer Shell Background**: Maps directly to the Wayland background layer (`wlr-layer-shell`) with zero window manager interference.
-- **Dynamic Theming**: Synchronizes typography, colors, and icon styles instantly with `miqutheme`.
+- **Dynamic Theming**: Synchronizes typography, colors, and icon styles instantly with `miqusettings`.
 
 ---
 

@@ -109,7 +109,7 @@ private:
     std::function<void()> m_on_open_brightness;
 };
 
-// Dark Mode Toggle Button (Triggers miqutheme headless toggle)
+// Dark Mode Toggle Button
 class DarkModeModuleView : public miqu::Button {
 public:
     DarkModeModuleView();

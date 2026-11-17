@@ -98,9 +98,9 @@ BINARIES=(
     "miqufiles"
     "miqumusic"
     "miqugallery"
-    "miqutheme"
     "miquinfo"
     # Legacy
+    "miqutheme"
     "miqutest"
     "miqucontrolpanel"
     "miquphotos"

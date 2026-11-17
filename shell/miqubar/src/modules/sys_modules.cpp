@@ -497,14 +497,17 @@ DarkModeModuleView::DarkModeModuleView() {
 }
 
 void DarkModeModuleView::sync_theme_state() {
-    // 1. Check user theme preference file from miqutheme
+    // 1. Check user theme preference file from miqusettings
     const char* home = getenv("HOME");
-    std::string mode_path = home ? std::string(home) + "/.config/miqutheme/mode" : ".config/miqutheme/mode";
+    std::string mode_path = home ? std::string(home) + "/.config/miqusettings/darkmode" : ".config/miqusettings/darkmode";
+    if (!fs::exists(mode_path) && home) {
+        mode_path = std::string(home) + "/.config/miqutheme/mode";
+    }
     if (fs::exists(mode_path)) {
         std::ifstream f(mode_path);
         std::string mode_str;
         if (f >> mode_str) {
-            m_is_dark = (mode_str != "light");
+            m_is_dark = (mode_str == "on" || (mode_str != "light" && mode_str != "off"));
         }
     } else {
         // Fallback to active toolkit surface color luminance

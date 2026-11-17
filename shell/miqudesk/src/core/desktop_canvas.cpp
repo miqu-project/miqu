@@ -42,7 +42,7 @@ CanvasRootView::CanvasRootView(DesktopCanvas* canvas) : m_canvas(canvas) {
             })
             ->item("Change Appearance", "preferences-desktop-wallpaper", []() {
                 if (fork() == 0) {
-                    execlp("miqutheme", "miqutheme", nullptr);
+                    execlp("miqusettings", "miqusettings", nullptr);
                     _exit(1);
                 }
             })

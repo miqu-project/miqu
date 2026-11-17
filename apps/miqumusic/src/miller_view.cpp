@@ -310,6 +310,9 @@ void MillerView::sync_theme() {
     }
     update_preview_ribbon();
     update_pillar_styles();
+    rebuild_parent_column();
+    rebuild_current_column();
+    rebuild_preview_column();
     request_redraw();
 }
 
@@ -607,15 +610,13 @@ std::shared_ptr<View> MillerView::create_empty_search_box(const std::shared_ptr<
 
     auto empty_text = TextViewBuilder::create()
         ->text("No songs found")
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.on_surface)
         ->build();
     empty_box->add_view(empty_text);
 
     auto empty_hint = TextViewBuilder::create()
         ->text("No matches for \"" + m_search_query + "\"")
         ->caption(true)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+        ->muted()
         ->build();
     empty_box->add_view(empty_hint);
 
@@ -641,8 +642,6 @@ std::shared_ptr<View> MillerView::create_list_row_item(const std::shared_ptr<Mus
 
     auto title_view = TextViewBuilder::create()
         ->text(item->title)
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.on_surface)
         ->ellipsize(true)
         ->build();
     item_row->add_view(title_view, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));

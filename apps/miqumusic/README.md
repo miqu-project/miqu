@@ -14,7 +14,7 @@ Website & Documentation: [**miqu-project.github.io**](https://miqu-project.githu
 - **Playback & Seek Engine**: Responsive seek bar, volume slider, track skip, shuffle, and repeat modes.
 - **Queue & Playlist Controls**: Real-time playlist viewer, dynamic queue reordering, and search filtering.
 - **Artwork & Metadata**: Embedded album artwork viewer and clean track typography.
-- **Dynamic Theming**: Instant color palette updates via `miqutheme`.
+- **Dynamic Theming**: Instant color palette updates via `miqusettings`.
 
 ---
 

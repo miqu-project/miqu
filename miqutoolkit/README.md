@@ -15,7 +15,7 @@ Website & Documentation: [**miqu-project.github.io/#docs**](https://miqu-project
   - `AppWindow`: Standard floating or tiled Wayland client application surfaces.
   - `LayerSurface`: Desktop shell panels, bars, drawers, and overlays using `wlr-layer-shell`.
 - **Two-Tier Configuration Model**: Runs out of the box from `/usr/share/miqutoolkit/miqutoolkit.conf`, with on-demand user customization in `~/.config/miqutoolkit/miqutoolkit.conf` (`init_user_config()` with safe timestamped archiving).
-- **Decoupled Dynamic Theming**: Transparently sources active wallpaper palettes via `source = ~/.config/miqutheme/current/miqutoolkit.conf` with inotify live reload.
+- **Decoupled Dynamic Theming**: Transparently sources active wallpaper palettes via `source = ~/.config/miqusettings/current/miqutoolkit.conf` with inotify live reload.
 - **Strict RAII Safety**: Smart pointers with custom deleters for Cairo contexts, buffers, and Wayland protocols; zero manual memory leaks.
 
 ---

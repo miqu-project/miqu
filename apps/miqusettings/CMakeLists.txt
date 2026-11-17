@@ -78,6 +78,8 @@ target_compile_options(miqusettings PRIVATE
 include(GNUInstallDirs)
 install(TARGETS miqusettings RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES assets/miqusettings.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/miqusettings)
+install(FILES assets/schemes.toml DESTINATION ${CMAKE_INSTALL_DATADIR}/miqusettings)
+install(FILES assets/darkmode DESTINATION ${CMAKE_INSTALL_DATADIR}/miqusettings)
 install(FILES assets/miqusettings.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES assets/miquland.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps)
 install(FILES assets/miquland-128.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps RENAME miquland.png)
