@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
 
     // Load independent launcher configuration & theme
     miqu::ConfigManager::load(config);
+    engine->setup_config_watcher();
     auto t_config = std::chrono::steady_clock::now();
 
     // Parse CLI options (CLI options override config file settings)

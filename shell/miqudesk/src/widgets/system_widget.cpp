@@ -74,7 +74,7 @@ SystemWidget::SystemWidget() {
         ->fontFamily(cfg.font_family)
         ->textSize(cfg.font_size)
         ->bold(cfg.font_bold)
-        ->textColor(cfg.accent_color.mix(miqu::Color::rgba(0.85f, 0.55f, 1.0f, 1.0f), 0.5f))
+        ->textColor(cfg.accent_color)
         ->build();
 
     m_ram_text = miqu::TextViewBuilder::create()
@@ -275,7 +275,7 @@ void SystemWidget::on_config_reload() {
         m_ram_label->set_font_family(cfg.font_family);
         m_ram_label->set_text_size(cfg.font_size);
         m_ram_label->set_bold(cfg.font_bold);
-        m_ram_label->set_text_color(cfg.accent_color.mix(miqu::Color::rgba(0.85f, 0.55f, 1.0f, 1.0f), 0.5f));
+        m_ram_label->set_text_color(cfg.accent_color);
     }
 
     if (m_ram_text) {

@@ -89,7 +89,7 @@ void AuthDialogManager::show_dialog(
         ->bold(true)
         ->textSize(11)
         ->textAlignment(TextAlignment::Center)
-        ->textColor(Color::rgb(0.95f, 0.54f, 0.65f)) // #f38ba8 Catppuccin red
+        ->textColor(config->colors.primary)
         ->build();
 
     // 6. Password Input Field

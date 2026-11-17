@@ -203,6 +203,20 @@ void OverviewConfig::load() {
     set_defaults();
     m_watched_files.clear();
 
+    // 1. Ecosystem Baseline: Inherit active miqutoolkit theme palette if present
+    std::string active_tk = expand_home("~/.config/miqusettings/current/miqutoolkit.conf");
+    std::string user_tk   = expand_home("~/.config/miqutoolkit/miqutoolkit.conf");
+    std::string sys_tk    = "/usr/share/miqutoolkit/miqutoolkit.conf";
+
+    if (fs::exists(active_tk)) {
+        load_file(active_tk, 0);
+    } else if (fs::exists(user_tk)) {
+        load_file(user_tk, 0);
+    } else if (fs::exists(sys_tk)) {
+        load_file(sys_tk, 0);
+    }
+
+    // 2. Component Authority: Load miquoverview.conf (overlays user-specified overrides)
     m_loaded_file = resolve_config_path();
     if (!m_loaded_file.empty()) {
         load_file(m_loaded_file, 0);
@@ -281,33 +295,33 @@ void OverviewConfig::apply_key_value(const std::string& key, const std::string& 
         return default_val;
     };
 
-    if (key == "source") {
+    if (key == "source" || key == "include") {
         load_file(val, depth + 1);
-    } else if (key == "background") {
+    } else if (key == "background" || key == "color_background" || key == "bg_color" || key == "col.background") {
         m_theme.background = Color::from_hex(val);
-    } else if (key == "backdrop") {
+    } else if (key == "backdrop" || key == "color_backdrop" || key == "col.backdrop") {
         m_theme.backdrop = Color::from_hex(val);
-    } else if (key == "surface") {
+    } else if (key == "surface" || key == "color_surface" || key == "col.surface") {
         m_theme.surface = Color::from_hex(val);
-    } else if (key == "surface_variant") {
+    } else if (key == "surface_variant" || key == "color_surface_variant" || key == "col.surface_variant") {
         m_theme.surface_variant = Color::from_hex(val);
-    } else if (key == "on_surface") {
+    } else if (key == "on_surface" || key == "color_on_surface" || key == "col.on_surface") {
         m_theme.on_surface = Color::from_hex(val);
-    } else if (key == "on_surface_variant") {
+    } else if (key == "on_surface_variant" || key == "color_on_surface_variant" || key == "col.on_surface_variant") {
         m_theme.on_surface_variant = Color::from_hex(val);
-    } else if (key == "primary" || key == "accent") {
+    } else if (key == "primary" || key == "accent" || key == "color_primary" || key == "col.primary") {
         m_theme.primary = Color::from_hex(val);
-    } else if (key == "on_primary" || key == "on_accent") {
+    } else if (key == "on_primary" || key == "on_accent" || key == "color_on_primary" || key == "col.on_primary") {
         m_theme.on_primary = Color::from_hex(val);
-    } else if (key == "outline") {
+    } else if (key == "outline" || key == "color_outline" || key == "col.outline") {
         m_theme.outline = Color::from_hex(val);
-    } else if (key == "outline_variant") {
+    } else if (key == "outline_variant" || key == "color_outline_variant" || key == "col.outline_variant") {
         m_theme.outline_variant = Color::from_hex(val);
     } else if (key == "edge_margin" || key == "margin") {
         try { m_edge_margin = std::clamp(std::stoi(val), 0, 400); } catch (...) {}
-    } else if (key == "corner_radius") {
+    } else if (key == "corner_radius" || key == "border_radius" || key == "rounding") {
         try { m_corner_radius = std::clamp(std::stoi(val), 0, 32); } catch (...) {}
-    } else if (key == "font") {
+    } else if (key == "font" || key == "font_family") {
         m_font = val;
     } else if (key == "animation") {
         m_animation = parse_bool(val, true);
@@ -369,7 +383,15 @@ void OverviewConfig::setup_watcher(struct wl_event_loop* loop) {
         }
     }
 
-    // 3. Sourced files (e.g. ~/.config/miqusettings/current/miqutoolkit.conf)
+    // 3. Sourced & inherited toolkit files (e.g. ~/.config/miqusettings/current/miqutoolkit.conf)
+    std::string settings_dir = expand_home("~/.config/miqusettings");
+    if (fs::exists(settings_dir)) {
+        int wd = inotify_add_watch(m_inotify_fd, settings_dir.c_str(), IN_CLOSE_WRITE | IN_MOVED_TO | IN_CREATE | IN_MODIFY);
+        if (wd >= 0) {
+            m_wd_to_targets[wd].push_back("current");
+        }
+    }
+
     for (const auto& file_path : m_watched_files) {
         fs::path p(file_path);
         fs::path parent = p.parent_path();
