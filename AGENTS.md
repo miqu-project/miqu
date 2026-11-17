@@ -50,32 +50,41 @@ Every component across the entire Miqu ecosystem (`miquland`, `miqutoolkit`, and
   - A fresh, fully documented template is then written to `~/.config/<component>/<component>.conf`.
   - This prevents accidental data loss even if `--init-config` is invoked repeatedly.
 
-#### 3. Single-File Standalone Authority (Tier 2: User Configuration)
-- Once `~/.config/<component>/<component>.conf` exists, the component loads **only** that user file.
-- There is **no hidden C++ background inheritance, no implicit layered merging, and no silent magic**. Every setting is explicitly visible and editable in one place.
+#### 3. Single-File Standalone Authority (Tier 2: User Configuration) & Token Inheritance
+- **Intra-Component Authority (No System Baseline Layering)**: Once `~/.config/<component>/<component>.conf` exists, the component loads **only** that user file for its application settings. Tier 2 completely replaces Tier 1; there is no implicit merging between `/usr/share/<component>/<component>.conf` and `~/.config/<component>/<component>.conf`.
+- **Ecosystem Token Inheritance**: Downstream applications (`miqufiles`, `miqumusic`, `miqubar`, etc.) automatically inherit shared design tokens (colors, fonts, metrics, icon themes) from `miqutoolkit.conf` via `Config::get()`. Applications do not need to duplicate toolkit color palettes. Any styling or color tokens explicitly declared in the application's `.conf` file cleanly overlay on top of the `miqutoolkit` baseline.
 
 #### 4. Decoupled Dynamic Theming via Explicit `source`
 - `miqutoolkit` C++ code contains **zero hardcoded internal connections to `miqusettings` or theming backends**.
 - Instead, dynamic theming is completely decoupled and transparent:
   - Configuration files use the standard `source = ~/.config/miqusettings/current/miqutoolkit.conf` directive.
   - In `miqutoolkit.conf`, users who want dynamic wallpaper/palette changes from `miqusettings` explicitly include the `source` line.
+  - Downstream applications automatically inherit these active palette tokens through `miqutoolkit`. Users can also specify `source = /path/to/custom-theme.conf` in any application config to decouple that specific app's colors.
   - Users who want completely static, pinned colors simply comment out or remove the `source` line and define their colors directly.
-- Sourced files are automatically watched via inotify for live dynamic reload.
+- Sourced files and directories are automatically tracked and watched via inotify for live dynamic reload.
 
 ---
 
 ### Canonical Component Lifecycle Sequence
 All ecosystem binaries implement the uniform configuration lifecycle:
 ```cpp
-// 1. Resolve configuration path
+// 1. Resolve configuration path (Tier 2 user authority > Tier 1 system baseline)
 std::string user_conf = FsUtils::get_user_config_file(app_name);
 std::string target_conf = fs::exists(user_conf) ? user_conf : FsUtils::get_system_config_file(app_name);
 
-// 2. Load exclusive configuration file (processes any internal 'source =' directives)
+// 2. Load exclusive configuration file (processes internal 'source =' directives and overlays onto miqutoolkit)
 Config::get()->load_from_file(target_conf);
 
-// 3. Register inotify watcher on loaded file and all sourced files for live reload
-Config::get()->setup_config_watcher();
+// 3. Initialize AppEngine
+auto engine = AppEngine::create();
+
+// 4. Register inotify watcher on primary config and all sourced files for live reload
+engine->setup_config_watcher();
+
+// 5. Connect live theme changes (re-reads Config::get() tokens and updates active views)
+engine->add_theme_change_listener([&app]() {
+    app.sync_theme(); // or BarConfig::get().sync_defaults_from_toolkit()
+});
 ```
 
 ---
@@ -93,10 +102,9 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
    - Live reloads must only respond to genuine write and creation events: `IN_MODIFY`, `IN_CLOSE_WRITE`, `IN_MOVED_TO`, and `IN_CREATE`.
    - In directory watchers, events targeting the directory itself (`event->len == 0`, such as metadata adjustments or watch invalidations) must **never** trigger reloads. File reloads require `event->len > 0` matching the target filename or `.conf` extension.
 
-3. **Single Inode Watch Authority (No Overlapping Watches)**:
-   - Linux inotify deduplicates watches per inode within an inotify instance (returning the existing `wd`).
-   - The primary application configuration (`<app>.conf`) must be watched strictly through its dedicated primary watch descriptor, while dynamically included files (`source = ...`) are watched via the sourced files collection.
-   - Never add the primary configuration file into the sourced files watch list; doing so creates shared watch descriptors that invalidate primary tracking when sourced watches are updated.
+3. **Inotify Watch Architectures (Directory Watching vs Inode Authority)**:
+   - **`miqutoolkit` Apps (`AppEngine::setup_config_watcher()`)**: Uses directory-level watching (`dir_to_files[parent_dir]`). Watching parent directories with `IN_CLOSE_WRITE | IN_MOVED_TO | IN_CREATE` ensures that atomic editor writes (`.tmp` -> `rename`) and symlink swapping (e.g. `current -> scheme`) are seamlessly captured without inode churn.
+   - **`miquland` Compositor Core**: Uses dedicated single inode authority (`<app>.conf` tracked strictly through its dedicated primary watch descriptor, while dynamically included files are tracked in the sourced collection) to prevent shared descriptor invalidation.
 
 4. **Zero Watch Descriptor Churn (Idempotent Watch Syncing)**:
    - On dynamic reload, components must diff the list of active sourced files against previous registrations (`new_sourced == m_watched_sourced_files`).
@@ -108,9 +116,9 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 
 ---
 
-### Zero Source-Code Appearance Defaults
-- Shared appearance tokens (colors, fonts, metrics, `icon_theme`) must **NEVER** have fallback magic literals in C++ struct initializers.
-- All downstream applications must implement a `sync_defaults_from_toolkit()` pattern that queries `Config::get()`.
+### Zero Source-Code Appearance Defaults & Dynamic Sync
+- Shared appearance tokens (colors, fonts, metrics, `icon_theme`) must **NEVER** have fallback magic literals in C++ widget styling methods.
+- All downstream applications must implement a theme synchronization method (`sync_theme()` in `miqufiles`, `miqumusic`, `miqugallery`; or `sync_defaults_from_toolkit()` in `miqubar`) that queries `Config::get()`.
 - This sync must be executed unconditionally on application startup and dynamically whenever an `engine->add_theme_change_listener()` callback is triggered.
 
 ---
