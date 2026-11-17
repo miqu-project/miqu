@@ -109,20 +109,6 @@ private:
     std::function<void()> m_on_open_brightness;
 };
 
-// Dark Mode Toggle Button
-class DarkModeModuleView : public miqu::Button {
-public:
-    DarkModeModuleView();
-    void sync_theme_state();
-
-    bool is_dark() const { return m_is_dark; }
-
-private:
-    void toggle_mode();
-
-    bool m_is_dark = true;
-};
-
 // Notification Status & History Toggle Button
 class NotificationModuleView : public miqu::Button {
 public:

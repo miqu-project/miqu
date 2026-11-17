@@ -1054,6 +1054,9 @@ static bool apply_scheme_preset(const std::string& scheme_id, bool dark_mode, bo
         "gsettings set org.gnome.desktop.interface gtk-theme '" + gtk_theme + "' 2>/dev/null &";
     std::system(gsettings_cmd.c_str());
 
+    // Live-reload running kitty terminals with updated colors and transparency
+    std::system("killall -SIGUSR1 kitty 2>/dev/null &");
+
     // Send desktop notification via notify-send
     if (show_notification) {
         std::string notif_cmd = "notify-send -t 2000 -i preferences-desktop-theme \"Theme Applied\" \"Active Scheme: " + data.display_name + " (" + mode_str + ")\" 2>/dev/null &";

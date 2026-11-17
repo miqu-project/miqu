@@ -65,7 +65,6 @@ private:
     std::shared_ptr<VolumeModuleView> m_volume;
     std::shared_ptr<BrightnessModuleView> m_brightness;
     std::shared_ptr<BatteryModuleView> m_battery;
-    std::shared_ptr<DarkModeModuleView> m_dark_mode;
     std::shared_ptr<NotificationModuleView> m_notifications;
     std::shared_ptr<ClockModuleView> m_clock;
     std::shared_ptr<PowerButtonView> m_power;

@@ -477,63 +477,6 @@ void BrightnessModuleView::set_brightness(int pct) {
 }
 
 // ==========================================
-// Dark Mode Toggle Button
-// ==========================================
-DarkModeModuleView::DarkModeModuleView() {
-    const auto& cfg = BarConfig::get();
-    int item_h = cfg.get_item_height();
-
-    set_flat(true);
-    set_text_size(get_toolkit_font_size());
-    set_icon_size(20);
-    set_padding(6, 2);
-    set_layout_params(miqu::LayoutParams(item_h, item_h));
-    set_text(""); // icon-only by default
-    set_on_click_listener([this]() {
-        toggle_mode();
-    });
-    set_focusable(false);
-    sync_theme_state();
-}
-
-void DarkModeModuleView::sync_theme_state() {
-    // 1. Check user theme preference file from miqusettings
-    const char* home = getenv("HOME");
-    std::string mode_path = home ? std::string(home) + "/.config/miqusettings/darkmode" : ".config/miqusettings/darkmode";
-    if (!fs::exists(mode_path) && home) {
-        mode_path = std::string(home) + "/.config/miqutheme/mode";
-    }
-    if (fs::exists(mode_path)) {
-        std::ifstream f(mode_path);
-        std::string mode_str;
-        if (f >> mode_str) {
-            m_is_dark = (mode_str == "on" || (mode_str != "light" && mode_str != "off"));
-        }
-    } else {
-        // Fallback to active toolkit surface color luminance
-        auto tk = miqu::Config::get();
-        if (tk) {
-            float lum = 0.299f * tk->colors.surface.r + 0.587f * tk->colors.surface.g + 0.114f * tk->colors.surface.b;
-            m_is_dark = (lum < 0.5f);
-        }
-    }
-
-    set_icon(m_is_dark ? "weather-clear-night" : "weather-clear");
-    set_tooltip(m_is_dark ? "Dark Mode (Click to toggle)" : "Light Mode (Click to toggle)");
-    request_redraw();
-}
-
-void DarkModeModuleView::toggle_mode() {
-    // Launch headless toggle asynchronously
-    std::system("miqutheme -t &");
-    // Optimistically toggle icon state immediately for responsive feedback
-    m_is_dark = !m_is_dark;
-    set_icon(m_is_dark ? "weather-clear-night" : "weather-clear");
-    set_tooltip(m_is_dark ? "Dark Mode (Click to toggle)" : "Light Mode (Click to toggle)");
-    request_redraw();
-}
-
-// ==========================================
 // Clock Module
 // ==========================================
 ClockModuleView::ClockModuleView(std::function<void()> on_open_calendar)

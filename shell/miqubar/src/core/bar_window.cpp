@@ -121,11 +121,6 @@ BarRootView::BarRootView() {
         m_battery->set_focusable(false);
         m_right_box->add_view(m_battery);
     }
-    if (cfg.show_dark_mode) {
-        m_dark_mode = std::make_shared<DarkModeModuleView>();
-        m_dark_mode->set_focusable(false);
-        m_right_box->add_view(m_dark_mode);
-    }
     if (cfg.show_notifications) {
         m_notifications = std::make_shared<NotificationModuleView>();
         m_notifications->set_focusable(false);
@@ -161,7 +156,6 @@ void BarRootView::sync_theme() {
     set_padding(cfg.padding_left, cfg.padding_top, cfg.padding_right, cfg.padding_bottom);
     if (m_start_btn) m_start_btn->sync_style();
     if (m_search_btn) m_search_btn->sync_style();
-    if (m_dark_mode) m_dark_mode->sync_theme_state();
     request_redraw();
 }
 
