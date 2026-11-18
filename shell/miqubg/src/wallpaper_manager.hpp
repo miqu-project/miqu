@@ -30,6 +30,7 @@ public:
     OutputConfig get_current_config(const std::string& output_name = "*") const;
 
     static miqu::FitMode parse_mode(const std::string& mode_str);
+    static std::string resolve_default_wallpaper();
 
 private:
     OutputConfig get_config_for_output(const std::string& name) const;

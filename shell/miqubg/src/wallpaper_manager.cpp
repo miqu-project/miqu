@@ -1,11 +1,65 @@
 #include "wallpaper_manager.hpp"
 #include <iostream>
 #include <set>
+#include <vector>
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <filesystem>
+#include <climits>
+#include <unistd.h>
 
 namespace miqubg {
+
+std::string WallpaperManager::resolve_default_wallpaper() {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+
+    // 1. Resolve directory of running executable
+    std::string exe_dir;
+    char exe_buf[PATH_MAX];
+    ssize_t len = ::readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
+    if (len > 0) {
+        exe_buf[len] = '\0';
+        exe_dir = fs::path(exe_buf).parent_path().string();
+    }
+
+    std::vector<std::string> candidates;
+
+    // Installed system asset paths
+#ifdef MIQUBG_ASSET_DIR
+    candidates.push_back(std::string(MIQUBG_ASSET_DIR) + "/wallpaper.png");
+#endif
+    candidates.push_back("/usr/share/miqubg/wallpaper.png");
+    candidates.push_back("/usr/local/share/miqubg/wallpaper.png");
+
+    // Relative to executable location
+    if (!exe_dir.empty()) {
+        candidates.push_back(exe_dir + "/assets/wallpaper.png");
+        candidates.push_back(exe_dir + "/../assets/wallpaper.png");
+        candidates.push_back(exe_dir + "/../share/miqubg/wallpaper.png");
+        candidates.push_back(exe_dir + "/../../shell/miqubg/assets/wallpaper.png");
+    }
+
+    // Relative to working directory
+    candidates.push_back("assets/wallpaper.png");
+    candidates.push_back("../assets/wallpaper.png");
+    candidates.push_back("shell/miqubg/assets/wallpaper.png");
+
+    // Distribution / desktop fallback paths
+    candidates.push_back("/usr/share/backgrounds/biway/wallpaper.png");
+    candidates.push_back("/usr/share/backgrounds/biway/lightwallpaper.png");
+    candidates.push_back("/usr/share/backgrounds/biway/darkwallpaper.jpg");
+    candidates.push_back("/usr/share/backgrounds/wallpaper.png");
+
+    for (const auto& path : candidates) {
+        if (!path.empty() && fs::exists(path, ec) && fs::is_regular_file(path, ec)) {
+            return path;
+        }
+    }
+
+    return "";
+}
 
 miqu::FitMode WallpaperManager::parse_mode(const std::string& mode_str) {
     std::string s = mode_str;
@@ -34,19 +88,31 @@ OutputConfig WallpaperManager::get_config_for_output(const std::string& name) co
     if (it != m_output_configs.end()) {
         cfg = it->second;
     }
+    if (cfg.image_path.empty()) {
+        cfg.image_path = resolve_default_wallpaper();
+    }
     return cfg;
 }
 
 OutputConfig WallpaperManager::get_current_config(const std::string& output_name) const {
     if (output_name.empty() || output_name == "*") {
-        return m_default_config;
+        OutputConfig cfg = m_default_config;
+        if (cfg.image_path.empty()) {
+            cfg.image_path = resolve_default_wallpaper();
+        }
+        return cfg;
     }
     return get_config_for_output(output_name);
 }
 
 static std::shared_ptr<miqu::Window> create_wallpaper_window(const miqu::OutputInfo& out, const OutputConfig& cfg) {
+    std::string img_path = cfg.image_path;
+    if (img_path.empty()) {
+        img_path = WallpaperManager::resolve_default_wallpaper();
+    }
+
     auto imageView = miqu::ImageViewBuilder::create()
-        ->source(cfg.image_path)
+        ->source(img_path)
         ->fitMode(cfg.mode)
         ->backgroundColor(cfg.bg_color)
         ->build();

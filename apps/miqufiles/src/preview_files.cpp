@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 
 namespace fs = std::filesystem;
 
@@ -50,164 +51,6 @@ void MillerView::render_empty_preview(const std::shared_ptr<Config>& config) {
     add_preview_card(card);
 }
 
-void MillerView::render_empty_folder_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config) {
-    if (!item) return;
-
-    m_preview_layout->set_padding(Padding(14, 4, 14, 14));
-    m_preview_layout->set_divider_spacing(10);
-
-    // 1. Hero Folder Card
-    auto hero_card = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->padding(16, 16)
-        ->spacing(14)
-        ->backgroundColor(config->colors.surface)
-        ->stroke(1, config->colors.outline.with_alpha(0.3f))
-        ->cornerRadius(get_card_radius(config))
-        ->build();
-
-    auto header_row = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Horizontal)
-        ->spacing(14)
-        ->gravity(Gravity::CenterVertical)
-        ->build();
-
-    // Folder Icon Box
-    auto icon_box = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->gravity(Gravity::Center)
-        ->backgroundColor(config->colors.surface_variant.with_alpha(0.4f))
-        ->cornerRadius(get_inner_radius(config))
-        ->build();
-
-    auto folder_icon = ImageViewBuilder::create()
-        ->source(item->icon.empty() ? "folder" : item->icon)
-        ->targetSize(56)
-        ->fitMode(FitMode::Contain)
-        ->build();
-    icon_box->add_view(folder_icon, LayoutParams(56, 56, Gravity::Center));
-    header_row->add_view(icon_box, LayoutParams(80, 80));
-
-    // Info Column
-    auto info_col = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->spacing(4)
-        ->gravity(Gravity::CenterVertical)
-        ->build();
-
-    auto title_view = TextViewBuilder::create()
-        ->text(item->title)
-        ->textSize(static_cast<int>(config->metrics.font_size * 1.2f))
-        ->bold(true)
-        ->textColor(config->colors.on_surface)
-        ->ellipsize(true)
-        ->build();
-    info_col->add_view(title_view);
-
-    auto cat_view = TextViewBuilder::create()
-        ->text("Folder • Empty (0 items)")
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.primary)
-        ->ellipsize(true)
-        ->build();
-    info_col->add_view(cat_view);
-
-    if (!item->mtime_formatted.empty()) {
-        auto date_view = TextViewBuilder::create()
-            ->text("Modified: " + item->mtime_formatted)
-            ->caption(true)
-            ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
-            ->build();
-        info_col->add_view(date_view);
-    }
-
-    header_row->add_view(info_col, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
-    hero_card->add_view(header_row);
-
-    // Divider
-    auto div = LinearLayoutBuilder::create()
-        ->backgroundColor(config->colors.outline.with_alpha(0.2f))
-        ->build();
-    hero_card->add_view(div, LayoutParams(MATCH_PARENT, 1));
-
-    // Action Buttons Row
-    auto action_row = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Horizontal)
-        ->spacing(10)
-        ->gravity(Gravity::CenterVertical)
-        ->build();
-
-    auto term_btn = ButtonBuilder::create()
-        ->icon("utilities-terminal")
-        ->text("Terminal")
-        ->padding(12, 6)
-        ->cornerRadius(get_btn_radius(config))
-        ->textSize(config->metrics.font_size)
-        ->build();
-    term_btn->set_focusable(true);
-    term_btn->set_on_click_listener([item]() {
-        if (!item || item->path.empty()) return;
-        std::string cmd = "alacritty --working-directory \"" + item->path.string() + "\" &";
-        (void)std::system(cmd.c_str());
-    });
-    action_row->add_view(term_btn, LayoutParams(WRAP_CONTENT, 32));
-
-    auto copy_btn = ButtonBuilder::create()
-        ->icon("edit-copy")
-        ->text("Copy Path")
-        ->flat(true)
-        ->padding(12, 6)
-        ->cornerRadius(get_btn_radius(config))
-        ->textSize(config->metrics.font_size)
-        ->build();
-    copy_btn->set_focusable(true);
-    copy_btn->set_on_click_listener([item]() {
-        if (!item || item->path.empty()) return;
-        std::string p = item->path.string();
-        std::string cmd = "printf '%s' " + p + " | wl-copy 2>/dev/null || true";
-        (void)std::system(cmd.c_str());
-    });
-    action_row->add_view(copy_btn, LayoutParams(WRAP_CONTENT, 32));
-
-    hero_card->add_view(action_row);
-    add_preview_card(hero_card);
-
-    // 2. Path & Status Details Card
-    auto detail_card = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->padding(16, 14)
-        ->spacing(8)
-        ->backgroundColor(config->colors.surface)
-        ->stroke(1, config->colors.outline.with_alpha(0.3f))
-        ->cornerRadius(get_card_radius(config))
-        ->build();
-
-    auto location_label = TextViewBuilder::create()
-        ->text("Location")
-        ->caption(true)
-        ->bold(true)
-        ->textColor(config->colors.on_surface_variant)
-        ->build();
-    detail_card->add_view(location_label);
-
-    auto path_view = TextViewBuilder::create()
-        ->text(item->path.string())
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.on_surface)
-        ->ellipsize(true)
-        ->build();
-    detail_card->add_view(path_view);
-
-    auto empty_status = TextViewBuilder::create()
-        ->text("This folder is empty. Create or paste files here to populate it.")
-        ->caption(true)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
-        ->build();
-    detail_card->add_view(empty_status);
-
-    add_preview_card(detail_card);
-}
-
 void MillerView::render_category_children_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config) {
     if (!item) return;
     item->ensure_children();
@@ -221,158 +64,73 @@ void MillerView::render_category_children_preview(const std::shared_ptr<FileItem
     if (m_preview_scroll) {
         m_preview_scroll->set_visibility(Visibility::Gone);
     }
+    if (m_preview_frame) {
+        m_preview_frame->set_visibility(Visibility::Gone);
+    }
+}
+
+void MillerView::render_photo_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config) {
+    if (!item || !m_preview_frame) return;
+
+    // 1. Full-size photo ImageView taking almost entire pillar
+    if (fs::exists(item->path)) {
+        auto img = ImageViewBuilder::create()
+            ->imageResource(item->path.string())
+            ->fitMode(FitMode::Contain)
+            ->qualityMode(ImageQuality::FullOriginal)
+            ->cornerRadius(get_card_radius(config))
+            ->padding(4, 4)
+            ->build();
+        m_preview_frame->add_view(img, LayoutParams(MATCH_PARENT, MATCH_PARENT));
+    }
+
+    // 2. Query dimensions
+    int img_w = 0, img_h = 0;
+    std::string dim_str;
+    if (gdk_pixbuf_get_file_info(item->path.string().c_str(), &img_w, &img_h) && img_w > 0 && img_h > 0) {
+        dim_str = std::to_string(img_w) + " × " + std::to_string(img_h);
+    }
+
+    std::string meta_line;
+    if (!dim_str.empty()) meta_line += dim_str;
+    if (!item->size_formatted.empty()) {
+        if (!meta_line.empty()) meta_line += "  •  ";
+        meta_line += item->size_formatted;
+    }
+    if (!item->mtime_formatted.empty()) {
+        if (!meta_line.empty()) meta_line += "  •  ";
+        meta_line += item->mtime_formatted;
+    }
+
+    // 3. Floating HUD overlay pill centered horizontally at the bottom
+    if (!meta_line.empty()) {
+        auto overlay_card = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Horizontal)
+            ->padding(16, 8)
+            ->gravity(Gravity::Center)
+            ->backgroundColor(config->colors.surface.with_alpha(0.85f))
+            ->stroke(1, config->colors.outline.with_alpha(0.35f))
+            ->cornerRadius(get_card_radius(config))
+            ->margin(0, 0, 0, 16)
+            ->build();
+
+        auto meta_view = TextViewBuilder::create()
+            ->text(meta_line)
+            ->caption(true)
+            ->textColor(config->colors.on_surface_variant.with_alpha(0.9f))
+            ->center(true)
+            ->build();
+        overlay_card->add_view(meta_view, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::Center));
+
+        m_preview_frame->add_view(overlay_card, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::CenterHorizontal | Gravity::Bottom));
+    }
 }
 
 void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config) {
     if (!item) return;
 
-    // 1. Hero File Card
-    auto hero_card = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->padding(16, 16)
-        ->spacing(14)
-        ->backgroundColor(config->colors.surface)
-        ->stroke(1, config->colors.outline.with_alpha(0.3f))
-        ->cornerRadius(get_card_radius(config))
-        ->build();
-
-    auto header_row = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Horizontal)
-        ->spacing(14)
-        ->gravity(Gravity::CenterVertical)
-        ->build();
-
-    // Image thumbnail or Icon Box
-    if (item->category == FileCategory::Image && fs::exists(item->path)) {
-        auto img = ImageViewBuilder::create()
-            ->source(item->path.string())
-            ->cornerRadius(get_inner_radius(config))
-            ->build();
-        header_row->add_view(img, LayoutParams(96, 96));
-    } else {
-        auto icon_box = LinearLayoutBuilder::create()
-            ->orientation(Orientation::Vertical)
-            ->gravity(Gravity::Center)
-            ->backgroundColor(config->colors.surface_variant.with_alpha(0.4f))
-            ->cornerRadius(get_inner_radius(config))
-            ->build();
-
-        auto file_icon = ImageViewBuilder::create()
-            ->source(item->icon.empty() ? "text-x-generic" : item->icon)
-            ->targetSize(64)
-            ->fitMode(FitMode::Contain)
-            ->build();
-        icon_box->add_view(file_icon, LayoutParams(64, 64, Gravity::Center));
-        header_row->add_view(icon_box, LayoutParams(96, 96));
-    }
-
-    // Info Column
-    auto info_col = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->spacing(4)
-        ->gravity(Gravity::CenterVertical)
-        ->build();
-
-    auto title_view = TextViewBuilder::create()
-        ->text(item->title)
-        ->textSize(static_cast<int>(config->metrics.font_size * 1.2f))
-        ->bold(true)
-        ->textColor(config->colors.on_surface)
-        ->ellipsize(true)
-        ->build();
-    info_col->add_view(title_view);
-
-    auto cat_view = TextViewBuilder::create()
-        ->text(item->category_label)
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.primary)
-        ->ellipsize(true)
-        ->build();
-    info_col->add_view(cat_view);
-
-    auto size_view = TextViewBuilder::create()
-        ->text(item->size_formatted)
-        ->caption(true)
-        ->textColor(config->colors.on_surface_variant)
-        ->build();
-    info_col->add_view(size_view);
-
-    auto date_view = TextViewBuilder::create()
-        ->text(item->mtime_formatted)
-        ->caption(true)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
-        ->build();
-    info_col->add_view(date_view);
-
-    header_row->add_view(info_col, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
-    hero_card->add_view(header_row);
-
-    // Divider
-    auto div = LinearLayoutBuilder::create()
-        ->backgroundColor(config->colors.outline.with_alpha(0.2f))
-        ->build();
-    hero_card->add_view(div, LayoutParams(MATCH_PARENT, 1));
-
-    // Action Buttons Row
-    auto action_row = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Horizontal)
-        ->spacing(10)
-        ->gravity(Gravity::CenterVertical)
-        ->build();
-
-    auto open_btn = ButtonBuilder::create()
-        ->icon("media-playback-start")
-        ->text("Open")
-        ->padding(12, 6)
-        ->cornerRadius(get_btn_radius(config))
-        ->textSize(config->metrics.font_size)
-        ->build();
-    open_btn->set_focusable(true);
-    open_btn->set_on_click_listener([item]() {
-        if (!item || item->path.empty()) return;
-        std::string cmd = "xdg-open \"" + item->path.string() + "\" &";
-        (void)std::system(cmd.c_str());
-    });
-    action_row->add_view(open_btn, LayoutParams(WRAP_CONTENT, 32));
-
-    auto term_btn = ButtonBuilder::create()
-        ->icon("utilities-terminal")
-        ->text("Terminal")
-        ->flat(true)
-        ->padding(12, 6)
-        ->cornerRadius(get_btn_radius(config))
-        ->textSize(config->metrics.font_size)
-        ->build();
-    term_btn->set_focusable(true);
-    term_btn->set_on_click_listener([item]() {
-        if (!item) return;
-        fs::path target_dir = item->is_dir ? item->path : item->path.parent_path();
-        std::string cmd = "alacritty --working-directory \"" + target_dir.string() + "\" &";
-        (void)std::system(cmd.c_str());
-    });
-    action_row->add_view(term_btn, LayoutParams(WRAP_CONTENT, 32));
-
-    auto copy_btn = ButtonBuilder::create()
-        ->icon("edit-copy")
-        ->text("Copy Path")
-        ->flat(true)
-        ->padding(12, 6)
-        ->cornerRadius(get_btn_radius(config))
-        ->textSize(config->metrics.font_size)
-        ->build();
-    copy_btn->set_focusable(true);
-    copy_btn->set_on_click_listener([item]() {
-        if (!item || item->path.empty()) return;
-        std::string p = item->path.string();
-        std::string cmd = "printf '%s' " + p + " | wl-copy 2>/dev/null || true";
-        (void)std::system(cmd.c_str());
-    });
-    action_row->add_view(copy_btn, LayoutParams(WRAP_CONTENT, 32));
-
-    hero_card->add_view(action_row);
-    add_preview_card(hero_card);
-
-    // 2. Text / Code Preview Card (if applicable)
+    // 1. Text / Code Preview Card (if applicable)
+    bool has_text_preview = false;
     if ((item->category == FileCategory::CodeText || item->category == FileCategory::Document) &&
         item->size_bytes > 0 && item->size_bytes < 1024 * 1024 * 5) {
         std::ifstream ifs(item->path);
@@ -380,16 +138,17 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
             std::string preview_content;
             std::string line;
             int count = 0;
-            while (std::getline(ifs, line) && count < 40) {
+            while (std::getline(ifs, line) && count < 100) {
                 preview_content += line + "\n";
                 count++;
             }
 
             if (!preview_content.empty()) {
+                has_text_preview = true;
                 auto code_card = LinearLayoutBuilder::create()
                     ->orientation(Orientation::Vertical)
                     ->padding(14, 12)
-                    ->spacing(6)
+                    ->spacing(8)
                     ->backgroundColor(config->colors.surface)
                     ->stroke(1, config->colors.outline.with_alpha(0.3f))
                     ->cornerRadius(get_card_radius(config))
@@ -404,62 +163,171 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
 
                 auto code_text = TextViewBuilder::create()
                     ->text(preview_content)
-                    ->caption(true)
+                    ->fontFamily("Monospace")
+                    ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
+                    ->multiline(true)
+                    ->wrapMode(WrapMode::WordChar)
                     ->textColor(config->colors.on_surface)
                     ->build();
-                code_card->add_view(code_text);
+                code_card->add_view(code_text, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+                code_card->set_focusable(true);
 
                 add_preview_card(code_card);
             }
         }
     }
 
-    // 3. Metadata Info Card
-    auto meta_card = LinearLayoutBuilder::create()
+    // 2. If no text preview (e.g. binary, empty file, archive, media), show a clean overview card
+    if (!has_text_preview) {
+        auto overview_card = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->gravity(Gravity::Center)
+            ->padding(24, 32)
+            ->spacing(12)
+            ->backgroundColor(config->colors.surface)
+            ->stroke(1, config->colors.outline.with_alpha(0.3f))
+            ->cornerRadius(get_card_radius(config))
+            ->build();
+        overview_card->set_focusable(true);
+
+        auto icon = ImageViewBuilder::create()
+            ->source(item->icon.empty() ? "text-x-generic" : item->icon)
+            ->targetSize(56)
+            ->fitMode(FitMode::Contain)
+            ->build();
+        overview_card->add_view(icon, LayoutParams(56, 56, Gravity::CenterHorizontal));
+
+        auto title = TextViewBuilder::create()
+            ->text(item->title)
+            ->bold(true)
+            ->textSize(static_cast<int>(config->metrics.font_size * 1.15f))
+            ->textColor(config->colors.on_surface)
+            ->center(true)
+            ->ellipsize(true)
+            ->build();
+        overview_card->add_view(title);
+
+        auto hint = TextViewBuilder::create()
+            ->text(item->category_label + " • " + item->size_formatted)
+            ->caption(true)
+            ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+            ->center(true)
+            ->build();
+        overview_card->add_view(hint);
+
+        add_preview_card(overview_card);
+    }
+}
+
+void MillerView::show_file_info_popup(const std::shared_ptr<FileItem>& item, View* anchor, const std::shared_ptr<Config>& config) {
+    if (!item || !anchor || !config) return;
+
+    if (m_active_popup && m_active_popup->is_showing()) {
+        m_active_popup->dismiss();
+        m_active_popup = nullptr;
+    }
+
+    auto popup_col = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
-        ->padding(16, 14)
-        ->spacing(8)
+        ->padding(16, 16)
+        ->spacing(12)
         ->backgroundColor(config->colors.surface)
-        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->stroke(1, config->colors.outline.with_alpha(0.35f))
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto add_meta_row = [&meta_card, config](const std::string& key, const std::string& value) {
-        if (value.empty()) return;
+    // 1. Header with file icon, title, and category
+    auto header = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->spacing(12)
+        ->gravity(Gravity::CenterVertical)
+        ->build();
+
+    auto icon = ImageViewBuilder::create()
+        ->source(item->icon.empty() ? "text-x-generic" : item->icon)
+        ->targetSize(40)
+        ->fitMode(FitMode::Contain)
+        ->build();
+    header->add_view(icon, LayoutParams(40, 40));
+
+    auto title_col = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->spacing(2)
+        ->build();
+
+    auto title_view = TextViewBuilder::create()
+        ->text(item->title)
+        ->bold(true)
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.on_surface)
+        ->ellipsize(true)
+        ->build();
+    title_col->add_view(title_view);
+
+    auto cat_view = TextViewBuilder::create()
+        ->text(item->category_label)
+        ->caption(true)
+        ->textColor(config->colors.primary)
+        ->build();
+    title_col->add_view(cat_view);
+
+    header->add_view(title_col, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+    popup_col->add_view(header);
+
+    // Divider
+    auto div = LinearLayoutBuilder::create()
+        ->backgroundColor(config->colors.outline.with_alpha(0.2f))
+        ->build();
+    popup_col->add_view(div, LayoutParams(MATCH_PARENT, 1));
+
+    // Metadata details
+    auto add_row = [&](const std::string& label, const std::string& val) {
+        if (val.empty()) return;
         auto row = LinearLayoutBuilder::create()
             ->orientation(Orientation::Horizontal)
-            ->spacing(8)
+            ->spacing(10)
             ->gravity(Gravity::CenterVertical)
             ->build();
 
-        auto k_view = TextViewBuilder::create()
-            ->text(key)
-            ->textSize(static_cast<int>(config->metrics.font_size * 0.9f))
+        auto lbl = TextViewBuilder::create()
+            ->text(label)
+            ->caption(true)
             ->textColor(config->colors.on_surface_variant)
             ->build();
-        row->add_view(k_view, LayoutParams(100, WRAP_CONTENT));
+        row->add_view(lbl, LayoutParams(72, WRAP_CONTENT));
 
-        auto v_view = TextViewBuilder::create()
-            ->text(value)
-            ->textSize(static_cast<int>(config->metrics.font_size * 0.9f))
+        auto v = TextViewBuilder::create()
+            ->text(val)
+            ->caption(true)
             ->textColor(config->colors.on_surface)
             ->ellipsize(true)
             ->build();
-        row->add_view(v_view, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+        row->add_view(v, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
 
-        meta_card->add_view(row);
+        popup_col->add_view(row);
     };
 
-    add_meta_row("Location", item->path.string());
-    add_meta_row("File Size", item->size_formatted + " (" + std::to_string(item->size_bytes) + " bytes)");
-    add_meta_row("Category", item->category_label);
-    add_meta_row("Permissions", item->permissions_str);
-    add_meta_row("Modified", item->mtime_formatted);
+    add_row("Size", item->size_formatted + " (" + std::to_string(item->size_bytes) + " B)");
+    add_row("Location", item->path.string());
+    add_row("Modified", item->mtime_formatted);
+    add_row("Perms", item->permissions_str);
     if (item->is_symlink && !item->symlink_target.empty()) {
-        add_meta_row("Symlink To", item->symlink_target);
+        add_row("Target", item->symlink_target);
     }
 
-    add_preview_card(meta_card);
+    m_active_popup = PopupWindowBuilder::create()
+        ->content(popup_col)
+        ->width(320)
+        ->elevation(6)
+        ->cornerRadius(get_card_radius(config))
+        ->dismissOnOutsideClick(true)
+        ->dismissOnEscape(true)
+        ->onDismiss([this]() {
+            m_active_popup = nullptr;
+        })
+        ->build();
+
+    m_active_popup->show_as_dropdown(anchor, PopupGravity::BottomEnd, 0, 4);
 }
 
 void MillerView::render_multi_selection_preview(const std::vector<std::shared_ptr<FileItem>>& items, const std::shared_ptr<Config>& config) {

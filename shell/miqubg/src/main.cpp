@@ -43,7 +43,8 @@ static std::string color_to_hex(const miqu::Color& c) {
 static void print_usage(const char* prog) {
     std::cout << "Usage: " << prog << " [options...] [image_path]\n\n"
               << "Options:\n"
-              << "  -i, --image <path>    Path to the wallpaper image\n"
+              << "  -i, --image <path>    Path to the wallpaper image (falls back to system asset wallpaper)\n"
+              << "  -d, --default         Reset to system default asset wallpaper\n"
               << "  -o, --output <name>   Target specific output name (e.g. HDMI-A-1, eDP-1, or * for all)\n"
               << "  -m, --mode <mode>     Scaling mode: fill/cover, fit, stretch, center, tile (default: fill)\n"
               << "  -c, --color <#hex>    Solid background color in hex (e.g. #1e1e2e, default: #000000)\n"
@@ -57,8 +58,10 @@ static void print_usage(const char* prog) {
               << "  center         Center image at 1:1 scale without scaling\n"
               << "  tile           Tile the image repeatedly across output\n\n"
               << "Examples:\n"
+              << "  " << prog << "\n"
               << "  " << prog << " -i /path/to/wallpaper.jpg\n"
               << "  " << prog << " /path/to/wallpaper.jpg\n"
+              << "  " << prog << " --default\n"
               << "  " << prog << " -i /path/to/wallpaper.jpg -m fit -c '#1e1e2e'\n"
               << "  " << prog << " -i default.png -o HDMI-A-1 -i monitor.png -m stretch\n";
 }
@@ -74,6 +77,10 @@ int main(int argc, char* argv[]) {
     std::map<std::string, OutputConfig> output_cfgs;
     std::string current_output = ""; // empty means modifying default_cfg
     bool reload_requested = false;
+    bool explicit_image_set = false;
+    bool default_requested = false;
+    bool mode_set = false;
+    bool color_set = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -86,6 +93,14 @@ int main(int argc, char* argv[]) {
             return 0;
         } else if (arg == "-r" || arg == "--reload") {
             reload_requested = true;
+        } else if (arg == "-d" || arg == "--default") {
+            default_requested = true;
+            std::string def_path = WallpaperManager::resolve_default_wallpaper();
+            if (current_output.empty()) {
+                default_cfg.image_path = def_path;
+            } else {
+                output_cfgs[current_output].image_path = def_path;
+            }
         } else if (arg == "-i" || arg == "--image") {
             if (i + 1 < argc) {
                 std::string path = argv[++i];
@@ -94,6 +109,7 @@ int main(int argc, char* argv[]) {
                 } else {
                     output_cfgs[current_output].image_path = path;
                 }
+                explicit_image_set = true;
             } else {
                 std::cerr << "Error: " << arg << " requires a file path\n";
                 return 1;
@@ -118,6 +134,7 @@ int main(int argc, char* argv[]) {
                 } else {
                     output_cfgs[current_output].mode = mode;
                 }
+                mode_set = true;
             } else {
                 std::cerr << "Error: " << arg << " requires a mode name\n";
                 return 1;
@@ -130,6 +147,7 @@ int main(int argc, char* argv[]) {
                 } else {
                     output_cfgs[current_output].bg_color = col;
                 }
+                color_set = true;
             } else {
                 std::cerr << "Error: " << arg << " requires a color string (e.g. #000000)\n";
                 return 1;
@@ -141,10 +159,21 @@ int main(int argc, char* argv[]) {
             } else {
                 output_cfgs[current_output].image_path = arg;
             }
+            explicit_image_set = true;
         } else {
             std::cerr << "Unknown option: " << arg << "\n";
             print_usage(argv[0]);
             return 1;
+        }
+    }
+
+    // If no wallpaper was explicitly specified, fall back to default asset wallpaper
+    if (default_cfg.image_path.empty()) {
+        default_cfg.image_path = WallpaperManager::resolve_default_wallpaper();
+    }
+    for (auto& pair : output_cfgs) {
+        if (pair.second.image_path.empty()) {
+            pair.second.image_path = default_cfg.image_path;
         }
     }
 
@@ -157,7 +186,9 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (!default_cfg.image_path.empty() || !output_cfgs.empty()) {
+    bool has_explicit_action = explicit_image_set || default_requested || !output_cfgs.empty() || mode_set || color_set;
+
+    if (has_explicit_action) {
         std::string resp;
         bool sent_any = false;
 
@@ -169,9 +200,29 @@ int main(int argc, char* argv[]) {
                     sent_any = true;
                 }
             }
-        } else if (!default_cfg.image_path.empty()) {
+        } else {
+            std::string img = default_cfg.image_path;
+            // If only mode or color was updated without image or default reset, preserve running daemon's image
+            if (!explicit_image_set && !default_requested) {
+                std::string get_resp;
+                if (IPC::send_command("GET *", get_resp) && get_resp.rfind("OK ", 0) == 0) {
+                    std::istringstream iss(get_resp.substr(3));
+                    std::string cur_m, cur_c, cur_img;
+                    if (iss >> cur_m >> cur_c) {
+                        std::getline(iss, cur_img);
+                        size_t f = cur_img.find_first_not_of(" \t");
+                        if (f != std::string::npos) {
+                            cur_img = cur_img.substr(f);
+                            if (!cur_img.empty()) {
+                                img = cur_img;
+                            }
+                        }
+                    }
+                }
+            }
+
             std::string cmd = "SET * " + mode_to_string(default_cfg.mode) + " "
-                              + color_to_hex(default_cfg.bg_color) + " " + default_cfg.image_path;
+                              + color_to_hex(default_cfg.bg_color) + " " + img;
             if (IPC::send_command(cmd, resp)) {
                 sent_any = true;
             }
@@ -179,6 +230,17 @@ int main(int argc, char* argv[]) {
 
         if (sent_any) {
             std::cout << "[miqubg] Wallpaper updated via running daemon.\n";
+            return 0;
+        }
+    } else {
+        // No explicit wallpaper, mode, or output changes requested.
+        // Check if an existing daemon is already running so we avoid trying to bind a duplicate daemon.
+        std::string ping_resp;
+        if (IPC::send_command("PING", ping_resp)) {
+            std::cout << "[miqubg] Daemon is already running.\n"
+                      << "  Use 'miqubg -i <path>' to set a new wallpaper,\n"
+                      << "  'miqubg --default' to restore the default asset wallpaper, or\n"
+                      << "  'miqubg --reload' to reload current outputs.\n";
             return 0;
         }
     }
@@ -206,7 +268,9 @@ int main(int argc, char* argv[]) {
 
     // Initialize IPC Server
     IPCServer server([&manager, &engine](const std::string& cmd) -> std::string {
-        if (cmd.rfind("SET ", 0) == 0) {
+        if (cmd == "PING") {
+            return "PONG";
+        } else if (cmd.rfind("SET ", 0) == 0) {
             std::istringstream iss(cmd.substr(4));
             std::string output_name, mode_str, color_hex, image_path;
             if (iss >> output_name >> mode_str >> color_hex) {
@@ -252,7 +316,9 @@ int main(int argc, char* argv[]) {
         std::cerr << "[miqubg] Warning: Could not bind IPC socket. Running standalone.\n";
     }
 
-    std::cout << "[miqubg] Daemon started successfully.\n";
+    std::cout << "[miqubg] Daemon started successfully with wallpaper: "
+              << (default_cfg.image_path.empty() ? "(solid background color)" : default_cfg.image_path)
+              << "\n";
 
     int ret = engine->enter_loop();
 

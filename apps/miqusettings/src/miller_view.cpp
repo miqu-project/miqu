@@ -128,6 +128,8 @@ void MillerView::init() {
         ->itemCornerRadius(inner_rad)
         ->scrollbar(false)
         ->build();
+    m_parent_list->set_focusable(false);
+    m_parent_list->set_draw_focus_ring(false);
     m_parent_list->set_keyboard_navigation_enabled(false);
     m_parent_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
         handle_parent_item_click(idx);
@@ -153,6 +155,8 @@ void MillerView::init() {
         ->itemCornerRadius(inner_rad)
         ->scrollbar(false)
         ->build();
+    m_current_list->set_focusable(false);
+    m_current_list->set_draw_focus_ring(false);
     m_current_list->set_keyboard_navigation_enabled(false);
     m_current_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
         if (!check_and_update_click_debounce()) return;
@@ -222,7 +226,7 @@ void MillerView::init() {
         if (!check_and_update_click_debounce()) return;
         set_preview_expanded(!m_preview_expanded);
     });
-    m_preview_toggle_btn->set_focusable(false);
+    m_preview_toggle_btn->set_focusable(true);
 
     m_preview_title = TextViewBuilder::create()
         ->text("")
@@ -241,6 +245,8 @@ void MillerView::init() {
         ->itemCornerRadius(inner_rad)
         ->scrollbar(false)
         ->build();
+    m_category_list->set_focusable(false);
+    m_category_list->set_draw_focus_ring(false);
     m_category_list->set_selectable(false);
     m_category_list->set_keyboard_navigation_enabled(false);
     m_category_list->set_margin(10, 0, 10, 0);
@@ -1006,10 +1012,19 @@ void MillerView::navigate_to_depth(size_t target_depth) {
     notify_state_changed();
 }
 
+void MillerView::collect_preview_focusable_views(std::vector<View*>& out) {
+    if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
+        out.push_back(m_preview_toggle_btn.get());
+    }
+    if (m_preview_layout && m_preview_layout->is_visible()) {
+        m_preview_layout->collect_focusable_views(out);
+    }
+}
+
 bool MillerView::focus_first_preview_control() {
-    if (!m_preview_layout || !m_window) return false;
+    if (!m_window) return false;
     std::vector<View*> focusables;
-    m_preview_layout->collect_focusable_views(focusables);
+    collect_preview_focusable_views(focusables);
     if (focusables.empty()) return false;
     set_preview_focused(true);
     m_window->set_focused_view(focusables.front());
@@ -1017,9 +1032,9 @@ bool MillerView::focus_first_preview_control() {
 }
 
 bool MillerView::focus_next_preview_control() {
-    if (!m_preview_layout || !m_window) return false;
+    if (!m_window) return false;
     std::vector<View*> focusables;
-    m_preview_layout->collect_focusable_views(focusables);
+    collect_preview_focusable_views(focusables);
     if (focusables.empty()) return false;
 
     set_preview_focused(true);
@@ -1034,9 +1049,9 @@ bool MillerView::focus_next_preview_control() {
 }
 
 bool MillerView::focus_prev_preview_control() {
-    if (!m_preview_layout || !m_window) return false;
+    if (!m_window) return false;
     std::vector<View*> focusables;
-    m_preview_layout->collect_focusable_views(focusables);
+    collect_preview_focusable_views(focusables);
     if (focusables.empty()) return false;
 
     set_preview_focused(true);
@@ -1046,6 +1061,113 @@ bool MillerView::focus_prev_preview_control() {
         m_window->set_focused_view(focusables.back());
     } else {
         m_window->set_focused_view(*(it - 1));
+    }
+    return true;
+}
+
+bool MillerView::is_preview_content_focused() const {
+    if (!m_window) return false;
+    View* cur = m_window->get_focused_view();
+    if (!cur) return false;
+    if (m_preview_layout) {
+        if (cur == m_preview_layout.get()) return true;
+        ViewGroup* p = cur->get_parent();
+        while (p) {
+            if (p == m_preview_layout.get()) return true;
+            p = p->get_parent();
+        }
+    }
+    return false;
+}
+
+bool MillerView::is_preview_ribbon_focused() const {
+    if (!m_window || !m_preview_ribbon) return false;
+    View* cur = m_window->get_focused_view();
+    if (!cur) return false;
+    if (cur == m_preview_ribbon.get()) return true;
+    ViewGroup* p = cur->get_parent();
+    while (p) {
+        if (p == m_preview_ribbon.get()) return true;
+        p = p->get_parent();
+    }
+    return false;
+}
+
+bool MillerView::focus_preview_ribbon() {
+    if (!m_window) return false;
+    std::vector<View*> ribbon_focusables;
+    if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
+        ribbon_focusables.push_back(m_preview_toggle_btn.get());
+    }
+    if (ribbon_focusables.empty()) return false;
+    set_preview_focused(true);
+    m_window->set_focused_view(ribbon_focusables.front());
+    return true;
+}
+
+bool MillerView::focus_prev_ribbon_control() {
+    if (!m_window) return false;
+    std::vector<View*> ribbon_focusables;
+    if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
+        ribbon_focusables.push_back(m_preview_toggle_btn.get());
+    }
+    if (ribbon_focusables.empty()) return false;
+
+    View* cur = m_window->get_focused_view();
+    auto it = std::find(ribbon_focusables.begin(), ribbon_focusables.end(), cur);
+    if (it != ribbon_focusables.end()) {
+        if (it != ribbon_focusables.begin()) {
+            m_window->set_focused_view(*(it - 1));
+            return true;
+        }
+        return false;
+    }
+    m_window->set_focused_view(ribbon_focusables.back());
+    return true;
+}
+
+bool MillerView::focus_next_ribbon_control() {
+    if (!m_window) return false;
+    std::vector<View*> ribbon_focusables;
+    if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
+        ribbon_focusables.push_back(m_preview_toggle_btn.get());
+    }
+    if (ribbon_focusables.empty()) return false;
+
+    View* cur = m_window->get_focused_view();
+    auto it = std::find(ribbon_focusables.begin(), ribbon_focusables.end(), cur);
+    if (it != ribbon_focusables.end()) {
+        if (it + 1 != ribbon_focusables.end()) {
+            m_window->set_focused_view(*(it + 1));
+        }
+        return true;
+    }
+    m_window->set_focused_view(ribbon_focusables.front());
+    return true;
+}
+
+bool MillerView::focus_preview_content() {
+    if (!m_preview_layout || !m_window) return false;
+    std::vector<View*> content_focusables;
+    m_preview_layout->collect_focusable_views(content_focusables);
+    if (content_focusables.empty()) return false;
+    set_preview_focused(true);
+    m_window->set_focused_view(content_focusables.front());
+    return true;
+}
+
+
+
+bool MillerView::scroll_preview(double delta) {
+    if (m_preview_scroll && m_preview_scroll->is_visible()) {
+        return m_preview_scroll->on_scroll(delta);
+    }
+    return false;
+}
+
+bool MillerView::is_preview_scroll_at_top() const {
+    if (m_preview_scroll && m_preview_scroll->is_visible()) {
+        return m_preview_scroll->get_scroll_y() <= 0.0;
     }
     return true;
 }

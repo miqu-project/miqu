@@ -39,6 +39,14 @@ public:
     bool focus_first_preview_control();
     bool focus_next_preview_control();
     bool focus_prev_preview_control();
+    bool focus_next_ribbon_control();
+    bool focus_prev_ribbon_control();
+    bool focus_preview_ribbon();
+    bool focus_preview_content();
+    bool is_preview_content_focused() const;
+    bool is_preview_ribbon_focused() const;
+    bool scroll_preview(double delta);
+    bool is_preview_scroll_at_top() const;
     bool trigger_active_action();
 
     // State Inspection
@@ -86,6 +94,7 @@ private:
     void render_song_preview(const std::shared_ptr<MusicItem>& item, const std::shared_ptr<Config>& config);
     void render_visualizer_preview(const std::shared_ptr<MusicItem>& item, const std::shared_ptr<Config>& config);
     void render_multi_selection_preview(const std::vector<std::shared_ptr<MusicItem>>& items, const std::shared_ptr<Config>& config);
+    void collect_preview_focusable_views(std::vector<View*>& out);
 
     const std::vector<std::shared_ptr<MusicItem>>& get_current_list() const;
     void notify_state_changed();

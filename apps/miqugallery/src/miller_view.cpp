@@ -129,6 +129,8 @@ void MillerView::init(const std::string& start_path) {
         ->itemCornerRadius(inner_rad)
         ->scrollbar(false)
         ->build();
+    m_parent_list->set_focusable(false);
+    m_parent_list->set_draw_focus_ring(false);
     m_parent_list->set_keyboard_navigation_enabled(false);
     m_parent_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
         handle_parent_item_click(idx);
@@ -148,10 +150,6 @@ void MillerView::init(const std::string& start_path) {
     m_empty_search_box->set_visibility(Visibility::Gone);
     m_current_pillar->add_view(m_empty_search_box, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 
-    m_empty_folder_box = create_empty_folder_box(config);
-    m_empty_folder_box->set_visibility(Visibility::Gone);
-    m_current_pillar->add_view(m_empty_folder_box, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
-
     m_current_list = ListViewBuilder::create()
         ->itemHeight(40)
         ->spacing(4)
@@ -159,6 +157,8 @@ void MillerView::init(const std::string& start_path) {
         ->scrollbar(false)
         ->selectionMode(SelectionMode::Multiple)
         ->build();
+    m_current_list->set_focusable(false);
+    m_current_list->set_draw_focus_ring(false);
     m_current_list->set_on_selection_changed([this](const std::unordered_set<int>&) {
         int sel = m_current_list->get_selected_index();
         if (sel >= 0) {
@@ -234,7 +234,7 @@ void MillerView::init(const std::string& start_path) {
         if (!check_and_update_click_debounce()) return;
         set_preview_expanded(!m_preview_expanded);
     });
-    m_preview_toggle_btn->set_focusable(false);
+    m_preview_toggle_btn->set_focusable(true);
 
     m_preview_title = TextViewBuilder::create()
         ->text("")
@@ -242,9 +242,19 @@ void MillerView::init(const std::string& start_path) {
         ->textColor(config->colors.on_surface_variant)
         ->ellipsize(true)
         ->build();
+
+    m_preview_actions = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->gravity(Gravity::CenterVertical)
+        ->spacing(6)
+        ->backgroundColor(Color::transparent())
+        ->build();
+    m_preview_actions->set_visibility(Visibility::Gone);
+
     m_preview_ribbon->add_view(m_preview_title, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+    m_preview_ribbon->add_view(m_preview_actions, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::CenterVertical));
     m_preview_ribbon->add_view(m_preview_toggle_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
-    m_preview_pillar->add_view(m_preview_ribbon, LayoutParams(MATCH_PARENT, 30));
+    m_preview_pillar->add_view(m_preview_ribbon, LayoutParams(MATCH_PARENT, 32));
 
     // 3b. Category Overview ListView
     m_category_list = ListViewBuilder::create()
@@ -253,6 +263,8 @@ void MillerView::init(const std::string& start_path) {
         ->itemCornerRadius(inner_rad)
         ->scrollbar(false)
         ->build();
+    m_category_list->set_focusable(false);
+    m_category_list->set_draw_focus_ring(false);
     m_category_list->set_selectable(false);
     m_category_list->set_keyboard_navigation_enabled(false);
     m_category_list->set_margin(10, 0, 10, 0);
@@ -359,6 +371,10 @@ void MillerView::update_preview_ribbon() {
                 m_preview_title->set_text_color(config->colors.primary);
             }
         }
+        if (m_preview_actions) {
+            m_preview_actions->clear_views();
+            m_preview_actions->set_visibility(Visibility::Gone);
+        }
         if (m_preview_toggle_btn) {
             m_preview_toggle_btn->set_visibility(Visibility::Gone);
         }
@@ -376,6 +392,10 @@ void MillerView::update_preview_ribbon() {
     // Only show ribbon for leaf items
     if (!item || item->is_category) {
         m_preview_ribbon->set_visibility(Visibility::Gone);
+        if (m_preview_actions) {
+            m_preview_actions->clear_views();
+            m_preview_actions->set_visibility(Visibility::Gone);
+        }
         return;
     }
 
@@ -393,6 +413,61 @@ void MillerView::update_preview_ribbon() {
         if (config) {
             m_preview_toggle_icon->set_text_color(config->colors.primary);
         }
+    }
+
+    if (m_preview_actions) {
+        m_preview_actions->clear_views();
+        m_preview_actions->set_visibility(Visibility::Visible);
+
+        auto open_btn = ButtonBuilder::create()
+            ->icon("media-playback-start")
+            ->text("Open")
+            ->flat(true)
+            ->padding(8, 2)
+            ->cornerRadius(get_btn_radius(config))
+            ->textSize(static_cast<int>(config->metrics.font_size * 0.9f))
+            ->build();
+        open_btn->set_focusable(true);
+        open_btn->set_on_click_listener([item]() {
+            if (!item || item->path.empty()) return;
+            std::string cmd = "xdg-open \"" + item->path.string() + "\" &";
+            (void)std::system(cmd.c_str());
+        });
+        m_preview_actions->add_view(open_btn, LayoutParams(WRAP_CONTENT, 26));
+
+        auto copy_btn = ButtonBuilder::create()
+            ->icon("edit-copy")
+            ->text("Copy Path")
+            ->flat(true)
+            ->padding(8, 2)
+            ->cornerRadius(get_btn_radius(config))
+            ->textSize(static_cast<int>(config->metrics.font_size * 0.9f))
+            ->build();
+        copy_btn->set_focusable(true);
+        copy_btn->set_on_click_listener([item]() {
+            if (!item || item->path.empty()) return;
+            std::string p = item->path.string();
+            std::string cmd = "printf '%s' " + p + " | wl-copy 2>/dev/null || true";
+            (void)std::system(cmd.c_str());
+        });
+        m_preview_actions->add_view(copy_btn, LayoutParams(WRAP_CONTENT, 26));
+
+        auto term_btn = ButtonBuilder::create()
+            ->icon("utilities-terminal")
+            ->text("Terminal")
+            ->flat(true)
+            ->padding(8, 2)
+            ->cornerRadius(get_btn_radius(config))
+            ->textSize(static_cast<int>(config->metrics.font_size * 0.9f))
+            ->build();
+        term_btn->set_focusable(true);
+        term_btn->set_on_click_listener([item]() {
+            if (!item) return;
+            fs::path target_dir = item->is_dir ? item->path : item->path.parent_path();
+            std::string cmd = "alacritty --working-directory \"" + target_dir.string() + "\" &";
+            (void)std::system(cmd.c_str());
+        });
+        m_preview_actions->add_view(term_btn, LayoutParams(WRAP_CONTENT, 26));
     }
 }
 
@@ -617,40 +692,6 @@ std::shared_ptr<View> MillerView::create_empty_search_box(const std::shared_ptr<
     return empty_box;
 }
 
-std::shared_ptr<View> MillerView::create_empty_folder_box(const std::shared_ptr<Config>& config) {
-    auto empty_box = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->gravity(Gravity::Center)
-        ->padding(16, 32)
-        ->spacing(8)
-        ->build();
-
-    auto empty_icon = ImageViewBuilder::create()
-        ->source("folder-pictures")
-        ->targetSize(48)
-        ->fitMode(FitMode::Contain)
-        ->alpha(0.5f)
-        ->build();
-    empty_box->add_view(empty_icon, LayoutParams(48, 48, Gravity::CenterHorizontal));
-
-    auto empty_text = TextViewBuilder::create()
-        ->text("No photos found")
-        ->bold(true)
-        ->center(true)
-        ->build();
-    empty_box->add_view(empty_text);
-
-    auto empty_hint = TextViewBuilder::create()
-        ->text("This folder does not contain any images\nPress ‹ Back or Left (h) to return")
-        ->caption(true)
-        ->muted()
-        ->center(true)
-        ->build();
-    empty_box->add_view(empty_hint);
-
-    return empty_box;
-}
-
 std::shared_ptr<View> MillerView::create_list_row_item(const std::shared_ptr<FileItem>& item,
                                                         const std::shared_ptr<Config>& config) {
     auto item_row = LinearLayoutBuilder::create()
@@ -745,18 +786,13 @@ void MillerView::rebuild_current_column() {
             m_current_list->clear_items();
             m_current_list->set_visibility(Visibility::Gone);
         }
-        if (!m_search_query.empty()) {
-            if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Visible);
-            if (m_empty_folder_box) m_empty_folder_box->set_visibility(Visibility::Gone);
-        } else {
-            if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Gone);
-            if (m_empty_folder_box) m_empty_folder_box->set_visibility(Visibility::Visible);
+        if (m_empty_search_box && !m_search_query.empty()) {
+            m_empty_search_box->set_visibility(Visibility::Visible);
         }
         return;
     }
 
     if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Gone);
-    if (m_empty_folder_box) m_empty_folder_box->set_visibility(Visibility::Gone);
     if (m_current_list) {
         m_current_list->set_visibility(Visibility::Visible);
         int target_index = m_current_index;
@@ -795,11 +831,11 @@ void MillerView::deferred_rebuild_preview(int delay_ms) {
 
 void MillerView::rebuild_preview_column() {
     int focused_index = -1;
-    if (m_window && m_preview_frame) {
+    if (m_window) {
         View* current_focus = m_window->get_focused_view();
         if (current_focus) {
             std::vector<View*> old_focusables;
-            m_preview_frame->collect_focusable_views(old_focusables);
+            collect_preview_focusable_views(old_focusables);
             for (size_t i = 0; i < old_focusables.size(); ++i) {
                 if (old_focusables[i] == current_focus) {
                     focused_index = static_cast<int>(i);
@@ -828,23 +864,12 @@ void MillerView::rebuild_preview_column() {
     if (!item) {
         if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
         if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Visible);
-        if (!m_path.empty()) {
-            render_empty_folder_preview(m_path.back(), config);
-        } else {
-            render_empty_preview(config);
-        }
+        render_empty_preview(config);
         return;
     }
 
     if (item->is_category) {
-        item->ensure_children();
-        if (item->children.empty()) {
-            if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
-            if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Visible);
-            render_empty_folder_preview(item, config);
-        } else {
-            render_category_children_preview(item, config);
-        }
+        render_category_children_preview(item, config);
         return;
     }
 
@@ -855,10 +880,10 @@ void MillerView::rebuild_preview_column() {
     render_photo_preview(item, config);
 
     // Preserve focus across live updates
-    if (m_window && m_preview_frame) {
+    if (m_window) {
         if (m_preview_focused || m_preview_expanded) {
             std::vector<View*> new_focusables;
-            m_preview_frame->collect_focusable_views(new_focusables);
+            collect_preview_focusable_views(new_focusables);
             if (focused_index >= 0) {
                 if (focused_index < static_cast<int>(new_focusables.size())) {
                     m_window->set_focused_view(new_focusables[focused_index]);
@@ -872,7 +897,7 @@ void MillerView::rebuild_preview_column() {
             View* cur = m_window->get_focused_view();
             if (cur) {
                 std::vector<View*> preview_views;
-                m_preview_frame->collect_focusable_views(preview_views);
+                collect_preview_focusable_views(preview_views);
                 for (auto* pv : preview_views) {
                     if (pv == cur) {
                         m_window->clear_focus();
@@ -1088,10 +1113,22 @@ void MillerView::navigate_to_depth(size_t target_depth) {
     notify_state_changed();
 }
 
+void MillerView::collect_preview_focusable_views(std::vector<View*>& out) {
+    if (m_preview_actions && m_preview_actions->is_visible()) {
+        m_preview_actions->collect_focusable_views(out);
+    }
+    if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
+        out.push_back(m_preview_toggle_btn.get());
+    }
+    if (m_preview_frame && m_preview_frame->is_visible()) {
+        m_preview_frame->collect_focusable_views(out);
+    }
+}
+
 bool MillerView::focus_first_preview_control() {
-    if (!m_preview_frame || !m_window) return false;
+    if (!m_window) return false;
     std::vector<View*> focusables;
-    m_preview_frame->collect_focusable_views(focusables);
+    collect_preview_focusable_views(focusables);
     if (focusables.empty()) return false;
     set_preview_focused(true);
     m_window->set_focused_view(focusables.front());
@@ -1099,9 +1136,9 @@ bool MillerView::focus_first_preview_control() {
 }
 
 bool MillerView::focus_next_preview_control() {
-    if (!m_preview_frame || !m_window) return false;
+    if (!m_window) return false;
     std::vector<View*> focusables;
-    m_preview_frame->collect_focusable_views(focusables);
+    collect_preview_focusable_views(focusables);
     if (focusables.empty()) return false;
 
     set_preview_focused(true);
@@ -1115,10 +1152,85 @@ bool MillerView::focus_next_preview_control() {
     return true;
 }
 
+bool MillerView::is_preview_ribbon_focused() const {
+    if (!m_window || !m_preview_ribbon) return false;
+    View* cur = m_window->get_focused_view();
+    if (!cur) return false;
+    if (cur == m_preview_ribbon.get()) return true;
+    ViewGroup* p = cur->get_parent();
+    while (p) {
+        if (p == m_preview_ribbon.get()) return true;
+        p = p->get_parent();
+    }
+    return false;
+}
+
+bool MillerView::focus_preview_ribbon() {
+    if (!m_window) return false;
+    std::vector<View*> ribbon_focusables;
+    if (m_preview_actions && m_preview_actions->is_visible()) {
+        m_preview_actions->collect_focusable_views(ribbon_focusables);
+    }
+    if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
+        ribbon_focusables.push_back(m_preview_toggle_btn.get());
+    }
+    if (ribbon_focusables.empty()) return false;
+    set_preview_focused(true);
+    m_window->set_focused_view(ribbon_focusables.front());
+    return true;
+}
+
+bool MillerView::focus_prev_ribbon_control() {
+    if (!m_window) return false;
+    std::vector<View*> ribbon_focusables;
+    if (m_preview_actions && m_preview_actions->is_visible()) {
+        m_preview_actions->collect_focusable_views(ribbon_focusables);
+    }
+    if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
+        ribbon_focusables.push_back(m_preview_toggle_btn.get());
+    }
+    if (ribbon_focusables.empty()) return false;
+
+    View* cur = m_window->get_focused_view();
+    auto it = std::find(ribbon_focusables.begin(), ribbon_focusables.end(), cur);
+    if (it != ribbon_focusables.end()) {
+        if (it != ribbon_focusables.begin()) {
+            m_window->set_focused_view(*(it - 1));
+            return true;
+        }
+        return false;
+    }
+    m_window->set_focused_view(ribbon_focusables.back());
+    return true;
+}
+
+bool MillerView::focus_next_ribbon_control() {
+    if (!m_window) return false;
+    std::vector<View*> ribbon_focusables;
+    if (m_preview_actions && m_preview_actions->is_visible()) {
+        m_preview_actions->collect_focusable_views(ribbon_focusables);
+    }
+    if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
+        ribbon_focusables.push_back(m_preview_toggle_btn.get());
+    }
+    if (ribbon_focusables.empty()) return false;
+
+    View* cur = m_window->get_focused_view();
+    auto it = std::find(ribbon_focusables.begin(), ribbon_focusables.end(), cur);
+    if (it != ribbon_focusables.end()) {
+        if (it + 1 != ribbon_focusables.end()) {
+            m_window->set_focused_view(*(it + 1));
+        }
+        return true;
+    }
+    m_window->set_focused_view(ribbon_focusables.front());
+    return true;
+}
+
 bool MillerView::focus_prev_preview_control() {
-    if (!m_preview_frame || !m_window) return false;
+    if (!m_window) return false;
     std::vector<View*> focusables;
-    m_preview_frame->collect_focusable_views(focusables);
+    collect_preview_focusable_views(focusables);
     if (focusables.empty()) return false;
 
     set_preview_focused(true);

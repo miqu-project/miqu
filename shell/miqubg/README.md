@@ -20,15 +20,22 @@ Website & Documentation: [**miqu-project.github.io**](https://miqu-project.githu
 ## ⚙️ Usage & Configuration
 
 ```bash
-# Set wallpaper on all monitors:
+# Start daemon with default system asset wallpaper:
+miqubg
+
+# Set custom wallpaper on all monitors:
 miqubg -i /path/to/wallpaper.png
 
-# Set with scaling mode:
+# Set custom wallpaper with scaling mode:
 miqubg -i /path/to/wallpaper.png -m fill
 
-# Generate user config:
-miqubg --init-config
+# Reset to system default asset wallpaper:
+miqubg --default
+
+# Reload active wallpapers across monitors:
+miqubg --reload
 ```
+Default asset wallpaper location: `/usr/share/miqubg/wallpaper.png`.
 Config location: `~/.config/miqubg/miqubg.conf`.
 
 ---

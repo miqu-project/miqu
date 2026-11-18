@@ -1171,17 +1171,6 @@ bool Window::focus_direction(FocusDirection dir) {
     }
 
     if (focusable.size() <= 1) {
-        if (enclosing_sv) {
-            if (dir == FocusDirection::Up && enclosing_sv->get_scroll_y() > 0.0) {
-                enclosing_sv->set_scroll_y(0.0);
-                schedule_redraw();
-                return true;
-            } else if (dir == FocusDirection::Down && enclosing_sv->get_scroll_y() < enclosing_sv->get_max_scroll()) {
-                enclosing_sv->set_scroll_y(enclosing_sv->get_max_scroll());
-                schedule_redraw();
-                return true;
-            }
-        }
         return false;
     }
 
@@ -1244,19 +1233,6 @@ bool Window::focus_direction(FocusDirection dir) {
     if (best_match) {
         set_focused_view(best_match);
         return true;
-    }
-
-    // No further focusable candidate in this direction inside the ScrollView
-    if (enclosing_sv) {
-        if (dir == FocusDirection::Up && enclosing_sv->get_scroll_y() > 0.0) {
-            enclosing_sv->set_scroll_y(0.0);
-            schedule_redraw();
-            return true;
-        } else if (dir == FocusDirection::Down && enclosing_sv->get_scroll_y() < enclosing_sv->get_max_scroll()) {
-            enclosing_sv->set_scroll_y(enclosing_sv->get_max_scroll());
-            schedule_redraw();
-            return true;
-        }
     }
 
     return false;

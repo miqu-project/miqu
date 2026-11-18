@@ -37,6 +37,10 @@ public:
     bool focus_first_preview_control();
     bool focus_next_preview_control();
     bool focus_prev_preview_control();
+    bool focus_next_ribbon_control();
+    bool focus_prev_ribbon_control();
+    bool focus_preview_ribbon();
+    bool is_preview_ribbon_focused() const;
     bool trigger_active_action();
 
     // State Inspection
@@ -74,15 +78,14 @@ private:
     // Column Element Builders
     std::shared_ptr<View> create_parent_hero_box(const std::shared_ptr<Config>& config);
     std::shared_ptr<View> create_empty_search_box(const std::shared_ptr<Config>& config);
-    std::shared_ptr<View> create_empty_folder_box(const std::shared_ptr<Config>& config);
     std::shared_ptr<View> create_list_row_item(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
 
     // Preview Renderers (preview_photos.cpp)
     void render_empty_preview(const std::shared_ptr<Config>& config);
-    void render_empty_folder_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
     void render_category_children_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
     void render_photo_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config);
     void render_multi_selection_preview(const std::vector<std::shared_ptr<FileItem>>& items, const std::shared_ptr<Config>& config);
+    void collect_preview_focusable_views(std::vector<View*>& out);
 
     const std::vector<std::shared_ptr<FileItem>>& get_current_list() const;
     void notify_state_changed();
@@ -119,13 +122,13 @@ private:
     std::shared_ptr<LinearLayout> m_current_pillar;
     std::shared_ptr<ListView> m_current_list;
     std::shared_ptr<View> m_empty_search_box;
-    std::shared_ptr<View> m_empty_folder_box;
 
     std::shared_ptr<LinearLayout> m_preview_pillar;
     std::shared_ptr<LinearLayout> m_preview_ribbon;
     std::shared_ptr<CardView> m_preview_toggle_btn;
     std::shared_ptr<TextView> m_preview_toggle_icon;
     std::shared_ptr<TextView> m_preview_title;
+    std::shared_ptr<LinearLayout> m_preview_actions;
 
     std::shared_ptr<ListView> m_category_list;
     std::shared_ptr<FrameLayout> m_preview_frame;

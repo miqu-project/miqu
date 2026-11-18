@@ -23,6 +23,30 @@ bool GalleryApp::init() {
         ->onClose([this]() {
             if (m_engine) m_engine->quit();
         })
+        ->onShortcut([this](const KeyPressEvent& ev) -> bool {
+            if (!ev.pressed) return false;
+            if (m_miller_view && m_miller_view->is_preview_ribbon_focused()) {
+                if (ev.keysym == XKB_KEY_Up || ev.keysym == XKB_KEY_k) {
+                    return true;
+                }
+                if (ev.keysym == XKB_KEY_Left || ev.keysym == XKB_KEY_h) {
+                    if (m_miller_view->focus_prev_ribbon_control()) {
+                        return true;
+                    }
+                    if (m_miller_view->is_preview_expanded()) {
+                        m_miller_view->set_preview_expanded(false);
+                    } else {
+                        if (m_window) m_window->clear_focus();
+                        m_miller_view->set_preview_focused(false);
+                    }
+                    return true;
+                }
+                if (ev.keysym == XKB_KEY_Right || ev.keysym == XKB_KEY_l) {
+                    return m_miller_view->focus_next_ribbon_control();
+                }
+            }
+            return false;
+        })
         ->onKey([this](const KeyPressEvent& ev) {
             handle_key_press(ev);
         })

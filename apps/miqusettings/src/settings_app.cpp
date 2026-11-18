@@ -24,6 +24,78 @@ bool SettingsApp::init() {
         ->onClose([this]() {
             if (m_engine) m_engine->quit();
         })
+        ->onShortcut([this](const KeyPressEvent& ev) -> bool {
+            if (!ev.pressed) return false;
+            if (m_miller_view && m_miller_view->is_preview_content_focused()) {
+                if (ev.keysym == XKB_KEY_Down || ev.keysym == XKB_KEY_j) {
+                    if (m_window && m_window->focus_direction(FocusDirection::Down)) {
+                        return true;
+                    }
+                    m_miller_view->scroll_preview(1.5);
+                    return true;
+                }
+                if (ev.keysym == XKB_KEY_Up || ev.keysym == XKB_KEY_k) {
+                    if (m_window && m_window->focus_direction(FocusDirection::Up)) {
+                        return true;
+                    }
+                    if (m_miller_view->is_preview_scroll_at_top()) {
+                        m_miller_view->focus_preview_ribbon();
+                    } else {
+                        m_miller_view->scroll_preview(-1.5);
+                    }
+                    return true;
+                }
+                if (ev.keysym == XKB_KEY_Right || ev.keysym == XKB_KEY_l) {
+                    if (m_window && m_window->focus_direction(FocusDirection::Right)) {
+                        return true;
+                    }
+                }
+                if (ev.keysym == XKB_KEY_Page_Down) {
+                    m_miller_view->scroll_preview(8.0);
+                    return true;
+                }
+                if (ev.keysym == XKB_KEY_Page_Up) {
+                    m_miller_view->scroll_preview(-8.0);
+                    return true;
+                }
+                if (ev.keysym == XKB_KEY_Left || ev.keysym == XKB_KEY_h) {
+                    if (m_window && m_window->focus_direction(FocusDirection::Left)) {
+                        return true;
+                    }
+                    if (m_miller_view->is_preview_expanded()) {
+                        m_miller_view->set_preview_expanded(false);
+                    } else {
+                        if (m_window) m_window->clear_focus();
+                        m_miller_view->set_preview_focused(false);
+                    }
+                    return true;
+                }
+            } else if (m_miller_view && m_miller_view->is_preview_ribbon_focused()) {
+                if (ev.keysym == XKB_KEY_Down || ev.keysym == XKB_KEY_j) {
+                    return m_miller_view->focus_preview_content();
+                }
+                if (ev.keysym == XKB_KEY_Up || ev.keysym == XKB_KEY_k) {
+                    return true; // Already at top ribbon
+                }
+                if (ev.keysym == XKB_KEY_Left || ev.keysym == XKB_KEY_h) {
+                    if (m_miller_view->focus_prev_ribbon_control()) {
+                        return true;
+                    }
+                    // Leftmost ribbon control reached: exit preview back to middle pillar
+                    if (m_miller_view->is_preview_expanded()) {
+                        m_miller_view->set_preview_expanded(false);
+                    } else {
+                        if (m_window) m_window->clear_focus();
+                        m_miller_view->set_preview_focused(false);
+                    }
+                    return true;
+                }
+                if (ev.keysym == XKB_KEY_Right || ev.keysym == XKB_KEY_l) {
+                    return m_miller_view->focus_next_ribbon_control();
+                }
+            }
+            return false;
+        })
         ->onKey([this](const KeyPressEvent& ev) {
             handle_key_press(ev);
         })
