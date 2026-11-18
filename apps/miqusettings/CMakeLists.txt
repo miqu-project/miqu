@@ -43,6 +43,7 @@ add_executable(miqusettings
     src/battery_backend.cpp
     src/input_backend.cpp
     src/preview_input.cpp
+    src/hardware_backend.cpp
 )
 
 target_include_directories(miqusettings PRIVATE

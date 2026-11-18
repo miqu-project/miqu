@@ -687,8 +687,8 @@ private:
     std::string m_kb_variant = "";
     std::string m_kb_options = "";
     std::string m_kb_model = "";
-    int m_repeat_rate = 25;
-    int m_repeat_delay = 600;
+    int m_repeat_rate = 40;
+    int m_repeat_delay = 250;
     std::string m_terminal = "kitty";
 
     int m_window_border_width = 1;

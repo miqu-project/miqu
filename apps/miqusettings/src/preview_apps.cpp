@@ -521,12 +521,6 @@ void MillerView::render_installed_app_preview(const std::shared_ptr<SettingItem>
     }
 
     add_preview_card(details_card);
-
-    // 3. Telemetry Card
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "Package & runtime specifications"));
-    }
-
     return;
 }
 
@@ -559,7 +553,7 @@ static std::shared_ptr<View> create_role_header_card(const std::shared_ptr<Setti
         ->build();
 
     auto role_title = TextViewBuilder::create()
-        ->text(item->default_app_role.role_name)
+        ->text("Active Default Handler")
         ->textSize(config->metrics.font_size)
         ->textColor(config->colors.on_surface)
         ->build();
@@ -782,86 +776,32 @@ void MillerView::render_default_app_role_preview(const std::shared_ptr<SettingIt
     }
 
     add_preview_card(cand_card);
-
-    // 3. MIME Telemetry Card
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "MIME handler specifications"));
-    }
-
     return;
 }
 
 void MillerView::render_generic_fallback_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
-// 1. Header Banner
-auto banner = LinearLayoutBuilder::create()
-    ->orientation(Orientation::Horizontal)
-    ->spacing(12)
-    ->padding(16, 14)
-    ->backgroundColor(config->colors.surface)
-    ->stroke(1, config->colors.outline.with_alpha(0.3f))
-    ->cornerRadius(get_card_radius(config))
-    ->build();
+    if (!item) return;
 
-auto left_info = LinearLayoutBuilder::create()
-    ->orientation(Orientation::Vertical)
-    ->spacing(2)
-    ->build();
+    // 1. Description card (only when no other controls exist on this leaf and a subtitle is present)
+    if (!item->has_switch && !item->has_secondary_switch && !item->has_slider && !item->has_action && !item->subtitle.empty()) {
+        auto desc_card = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->padding(16, 14)
+            ->spacing(6)
+            ->backgroundColor(config->colors.surface)
+            ->stroke(1, config->colors.outline.with_alpha(0.3f))
+            ->cornerRadius(get_card_radius(config))
+            ->build();
 
-auto title_row = LinearLayoutBuilder::create()
-    ->orientation(Orientation::Horizontal)
-    ->spacing(8)
-    ->build();
-
-auto title_text = TextViewBuilder::create()
-    ->text(item->icon + "  " + item->title)
-    ->h2()
-    ->textColor(config->colors.on_surface)
-    ->build();
-title_row->add_view(title_text);
-left_info->add_view(title_row);
-
-if (!item->subtitle.empty()) {
-    auto sub_text = TextViewBuilder::create()
-        ->text(item->subtitle)
-        ->textColor(config->colors.on_surface_variant)
-        ->build();
-    left_info->add_view(sub_text);
-}
-
-LayoutParams left_lp;
-left_lp.width = static_cast<int>(LayoutDimension::MatchParent);
-left_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-left_lp.weight = 1.0f;
-banner->add_view(left_info, left_lp);
-
-// Status pill
-if (item->has_switch) {
-    std::string badge_text = item->switch_val ? "Active" : "Disabled";
-    Color badge_bg = item->switch_val ? config->colors.primary_container : config->colors.surface_variant;
-    Color badge_fg = item->switch_val ? config->colors.primary : config->colors.on_surface_variant;
-
-    auto status_pill = TextViewBuilder::create()
-        ->text(badge_text)
-        ->caption(true)
-        ->textColor(badge_fg)
-        ->padding(10, 6)
-        ->build();
-
-    auto pill_card = CardViewBuilder::create()
-        ->style(CardStyle::Filled)
-        ->backgroundColor(badge_bg)
-        ->cornerRadius(get_inner_radius(config))
-        ->elevation(0)
-        ->addView(status_pill)
-        ->build();
-
-    LayoutParams pill_lp;
-    pill_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-    pill_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-    pill_lp.gravity = Gravity::CenterVertical;
-    banner->add_view(pill_card, pill_lp);
-}
-add_preview_card(banner);
+        auto desc_v = TextViewBuilder::create()
+            ->text(item->subtitle)
+            ->caption(true)
+            ->multiline(true)
+            ->textColor(config->colors.on_surface_variant)
+            ->build();
+        desc_card->add_view(desc_v);
+        add_preview_card(desc_card);
+    }
 
 // 2. Primary Toggle Card
 if (item->has_switch) {
@@ -1060,31 +1000,6 @@ if (item->has_secondary_switch || item->has_slider || item->has_action) {
     }
 
     add_preview_card(sub_box);
-}
-
-// 4. Telemetry / Diagnostics Card
-if (!item->telemetry.empty()) {
-    std::string telem_title = "Technical specifications";
-    if (!item->telemetry_title.empty()) {
-        telem_title = item->telemetry_title;
-    } else if (item->id.rfind("theme_", 0) == 0) {
-        telem_title = "Theme specifications";
-    } else if (item->id.rfind("fx_", 0) == 0) {
-        telem_title = "Compositor specifications";
-    } else if (item->id.rfind("nl_", 0) == 0 || item->id.rfind("disp_", 0) == 0) {
-        telem_title = "Display specifications";
-    } else if (item->id.rfind("audio_", 0) == 0) {
-        telem_title = "Audio specifications";
-    } else if (item->id.rfind("fw_", 0) == 0) {
-        telem_title = "Firewall specifications";
-    } else if (item->id.rfind("lock_", 0) == 0) {
-        telem_title = "Security specifications";
-    } else if (item->id.rfind("power_", 0) == 0) {
-        telem_title = "Power specifications";
-    } else if (item->id.rfind("diag_", 0) == 0) {
-        telem_title = "System specifications";
-    }
-    add_preview_card(create_telemetry_card(item->telemetry, config, telem_title));
 }
 }
 

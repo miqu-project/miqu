@@ -595,11 +595,6 @@ void MillerView::render_wifi_preview(const std::shared_ptr<SettingItem>& item, c
         add_preview_card(net_card);
     }
 
-    // 3. Interface Specifications (Live telemetry from backend)
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "Wireless interface specifications"));
-    }
-
     return;
 }
 
@@ -1626,11 +1621,6 @@ void MillerView::render_bluetooth_preview(const std::shared_ptr<SettingItem>& it
         add_preview_card(dev_card);
     }
 
-    // 3. Controller Specifications
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "Bluetooth controller specifications"));
-    }
-
     return;
 }
 
@@ -2332,11 +2322,6 @@ void MillerView::render_ethernet_preview(const std::shared_ptr<SettingItem>& ite
 
         add_preview_card(profile_card);
 
-    // 3. Hardware & Link Telemetry (Live telemetry from backend)
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "Hardware & link specifications"));
-    }
-
     return;
 }
 
@@ -2587,11 +2572,6 @@ void MillerView::render_airplane_preview(const std::shared_ptr<SettingItem>& ite
             rf_card->add_view(dev_row);
         }
         add_preview_card(rf_card);
-    }
-
-    // 4. Telemetry Card
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "Hardware & subsystem specifications"));
     }
 }
 
@@ -2976,11 +2956,6 @@ void MillerView::render_vpn_preview(const std::shared_ptr<SettingItem>& item, co
             ->textColor(is_err ? Color(0.9f, 0.3f, 0.3f, 1.0f) : config->colors.primary)
             ->build();
         add_preview_card(feedback);
-    }
-
-    // 4. Telemetry Card
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "VPN tunnel specifications"));
     }
 }
 
@@ -3442,12 +3417,6 @@ void MillerView::render_dns_preview(const std::shared_ptr<SettingItem>& item, co
     ep_card->add_view(ip_box);
 
     add_preview_card(ep_card);
-
-    // 4. DNS & Encryption Specifications Telemetry
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "DNS & encryption specifications"));
-    }
-
     return;
 }
 

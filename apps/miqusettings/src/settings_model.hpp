@@ -432,6 +432,8 @@ public:
     bool is_input_pointers = false;
     bool is_input_touch = false;
 
+    bool is_hardware_spec = false;
+
     static std::shared_ptr<SettingItem> create_category(
         std::string id, std::string title, std::string icon,
         std::vector<std::shared_ptr<SettingItem>> children = {}

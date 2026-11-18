@@ -4,6 +4,7 @@
 #include "monitor_backend.hpp"
 #include "sound_backend.hpp"
 #include "battery_backend.hpp"
+#include "hardware_backend.hpp"
 #include <miqutoolkit/view/popup_window.hpp>
 #include <algorithm>
 #include <chrono>
@@ -468,11 +469,6 @@ void MillerView::render_sound_preview(const std::shared_ptr<SettingItem>& item, 
     // 4. Audio Endpoints / Destinations Card
     const auto& devices = is_speaker ? state.output_devices : state.input_devices;
     add_preview_card(create_sound_devices_card(config, devices, is_speaker));
-
-    // 5. Technical Specifications / Telemetry Card
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, item->telemetry_title));
-    }
 }
 
 
@@ -676,11 +672,6 @@ void MillerView::render_brightness_preview(const std::shared_ptr<SettingItem>& i
     }
     presets_card->add_view(presets_row);
     add_preview_card(presets_card);
-
-    // 3. Backlight & Panel Specifications (Telemetry from hardware backend)
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, item->telemetry_title.empty() ? "Backlight & panel specifications" : item->telemetry_title));
-    }
     return;
 }
 
@@ -839,9 +830,6 @@ void MillerView::render_night_light_preview(const std::shared_ptr<SettingItem>& 
         add_preview_card(warmth_card);
     }
 
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, item->telemetry_title.empty() ? "Gamma & color specifications" : item->telemetry_title));
-    }
     return;
 }
 
@@ -953,10 +941,6 @@ void MillerView::render_battery_preview(const std::shared_ptr<SettingItem>& item
 
     // 1. Battery Master Status Card
     add_preview_card(create_battery_master_card(item, config));
-
-    // 2. Battery Specifications Telemetry Card
-    BatteryBackend::populate_battery_telemetry(*item->battery_cfg, item->telemetry);
-    add_preview_card(create_telemetry_card(item->telemetry, config, "Battery specifications"));
     return;
 }
 
@@ -1051,61 +1035,48 @@ void MillerView::render_power_mode_preview(const std::shared_ptr<SettingItem>& i
     prof_card->add_view(prof_desc);
 
     add_preview_card(prof_card);
-
-    // 2. Power Management Specifications Telemetry Card
-    BatteryBackend::populate_power_telemetry(*item->battery_cfg, item->telemetry);
-    add_preview_card(create_telemetry_card(item->telemetry, config, "Power management specifications"));
     return;
 }
 
 void MillerView::render_monitors_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
-    // 1. Monitor Banner & Primary Display Status Card
-    auto mon_card = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Horizontal)
+    // Interactive Display Settings Card (Primary Status, Resolution, Refresh Rate, Scale, Orientation as Spinners)
+    auto cfg_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->spacing(10)
         ->padding(16, 14)
-        ->spacing(12)
         ->backgroundColor(config->colors.surface)
         ->stroke(1, config->colors.outline.with_alpha(0.3f))
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    auto mon_icon = ImageViewBuilder::create()
-        ->source("video-display")
-        ->targetSize(24)
-        ->fitMode(FitMode::Contain)
+    // Primary Display Control Row
+    auto prim_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->gravity(Gravity::CenterVertical)
+        ->padding(6, 4)
+        ->cornerRadius(get_inner_radius(config))
         ->build();
-    LayoutParams micon_lp;
-    micon_lp.width = 24;
-    micon_lp.height = 24;
-    micon_lp.gravity = Gravity::CenterVertical;
-    mon_card->add_view(mon_icon, micon_lp);
 
-    auto mon_lbl_box = LinearLayoutBuilder::create()
+    auto prim_lbl_box = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->spacing(2)
         ->build();
 
-    auto mon_title = TextViewBuilder::create()
-        ->text(item->monitor_cfg.model_name)
+    auto prim_lbl = TextViewBuilder::create()
+        ->text("Primary display")
         ->textSize(config->metrics.font_size)
         ->textColor(config->colors.on_surface)
         ->build();
-    mon_lbl_box->add_view(mon_title);
+    prim_lbl_box->add_view(prim_lbl);
 
-    std::string mon_sub = item->monitor_cfg.connector + " • " + item->monitor_cfg.current_resolution + " @ " + item->monitor_cfg.current_refresh_rate;
-    auto mon_hint = TextViewBuilder::create()
-        ->text(mon_sub)
+    auto prim_hint = TextViewBuilder::create()
+        ->text("Default display for notifications and status bar")
         ->caption(true)
         ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
         ->build();
-    mon_lbl_box->add_view(mon_hint);
+    prim_lbl_box->add_view(prim_hint);
 
-    LayoutParams mlbl_lp;
-    mlbl_lp.width = static_cast<int>(LayoutDimension::MatchParent);
-    mlbl_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-    mlbl_lp.weight = 1.0f;
-    mlbl_lp.gravity = Gravity::CenterVertical;
-    mon_card->add_view(mon_lbl_box, mlbl_lp);
+    prim_row->add_view(prim_lbl_box, LayoutParams(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent), 1.0f));
 
     if (item->monitor_cfg.is_primary) {
         auto prim_badge = TextViewBuilder::create()
@@ -1123,11 +1094,9 @@ void MillerView::render_monitors_preview(const std::shared_ptr<SettingItem>& ite
             ->addView(prim_badge)
             ->build();
 
-        LayoutParams pill_lp;
-        pill_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-        pill_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+        LayoutParams pill_lp(static_cast<int>(LayoutDimension::WrapContent), static_cast<int>(LayoutDimension::WrapContent));
         pill_lp.gravity = Gravity::CenterVertical;
-        mon_card->add_view(pill_card, pill_lp);
+        prim_row->add_view(pill_card, pill_lp);
     } else {
         auto on_make_primary = [this, item]() {
             MonitorBackend::set_primary(item->monitor_cfg.connector);
@@ -1150,39 +1119,14 @@ void MillerView::render_monitors_preview(const std::shared_ptr<SettingItem>& ite
             ->onClick(on_make_primary)
             ->build();
 
-        LayoutParams prim_lp;
-        prim_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-        prim_lp.height = 28;
+        LayoutParams prim_lp(static_cast<int>(LayoutDimension::WrapContent), 28);
         prim_lp.gravity = Gravity::CenterVertical;
-        mon_card->add_view(make_prim_btn, prim_lp);
+        prim_row->add_view(make_prim_btn, prim_lp);
     }
 
-    add_preview_card(mon_card);
+    cfg_card->add_view(prim_row);
 
-    // 2. Interactive Display Settings Card (Resolution, Refresh Rate, Scale, Orientation as Spinners)
-    auto cfg_card = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->spacing(10)
-        ->padding(16, 14)
-        ->backgroundColor(config->colors.surface)
-        ->stroke(1, config->colors.outline.with_alpha(0.3f))
-        ->cornerRadius(get_card_radius(config))
-        ->build();
-
-    auto cfg_title = TextViewBuilder::create()
-        ->text("Display configuration")
-        ->caption(true)
-        ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
-        ->build();
-    cfg_card->add_view(cfg_title);
-
-    auto update_mon_sub = [this, item, mon_hint]() {
-        std::string sub = item->monitor_cfg.connector + " • " + item->monitor_cfg.current_resolution + " @ " + item->monitor_cfg.current_refresh_rate;
-        if (item->monitor_cfg.is_primary) sub += " • Primary";
-        if (mon_hint) {
-            mon_hint->set_text(sub);
-            mon_hint->request_redraw();
-        }
+    auto update_mon_sub = [this]() {
         rebuild_current_column();
     };
 
@@ -1287,14 +1231,104 @@ void MillerView::render_monitors_preview(const std::shared_ptr<SettingItem>& ite
     }));
 
     add_preview_card(cfg_card);
-
-    // 3. Hardware & Panel Telemetry
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, "Display panel specifications"));
-    }
-
     return;
 }
 
+void MillerView::render_hardware_spec_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
+    // 1. Fetch real hardware telemetry based on item->id
+    std::vector<HardwareSection> sections = HardwareBackend::get_spec_by_id(item->id);
+
+    // 2. Render Hardware Section Cards directly (ribbon already displays item title and refresh action)
+    for (const auto& sec : sections) {
+        auto card = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->spacing(8)
+            ->padding(16, 14)
+            ->backgroundColor(config->colors.surface)
+            ->stroke(1, config->colors.outline.with_alpha(0.3f))
+            ->cornerRadius(get_card_radius(config))
+            ->build();
+
+        // Only add section header if there are multiple sections with distinct titles
+        if (sections.size() > 1 && !sec.title.empty() && sec.title != item->title) {
+            auto sec_header = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Horizontal)
+                ->gravity(Gravity::CenterVertical)
+                ->spacing(8)
+                ->build();
+
+            auto sec_title = TextViewBuilder::create()
+                ->text(sec.title)
+                ->h3()
+                ->textColor(config->colors.primary)
+                ->build();
+            sec_header->add_view(sec_title, LayoutParams(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent), 1.0f));
+
+            if (!sec.badge.empty()) {
+                Color badge_fg = config->colors.primary;
+                Color badge_bg = config->colors.primary_container;
+                if (sec.badge == "Disconnected" || sec.badge == "Down" || sec.badge == "0 recharge cycles") {
+                    badge_fg = config->colors.on_surface_variant;
+                    badge_bg = config->colors.surface_variant;
+                }
+
+                auto badge_text = TextViewBuilder::create()
+                    ->text(sec.badge)
+                    ->caption(true)
+                    ->textColor(badge_fg)
+                    ->padding(8, 4)
+                    ->build();
+
+                auto badge_card = CardViewBuilder::create()
+                    ->style(CardStyle::Filled)
+                    ->backgroundColor(badge_bg)
+                    ->elevation(0)
+                    ->cornerRadius(config->metrics.corner_radius / 2.0f)
+                    ->addView(badge_text)
+                    ->build();
+                sec_header->add_view(badge_card);
+            }
+
+            card->add_view(sec_header);
+        }
+
+        // Telemetry entries
+        for (const auto& entry : sec.entries) {
+            auto row = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Horizontal)
+                ->padding(2, 3)
+                ->build();
+
+            auto k = TextViewBuilder::create()
+                ->text(entry.key)
+                ->caption(true)
+                ->textColor(config->colors.on_surface_variant)
+                ->build();
+            LayoutParams k_lp;
+            k_lp.width = 160;
+            row->add_view(k, k_lp);
+
+            auto v = TextViewBuilder::create()
+                ->text(entry.value)
+                ->caption(true)
+                ->multiline(true)
+                ->textColor(config->colors.on_surface)
+                ->build();
+            LayoutParams v_lp;
+            v_lp.width = static_cast<int>(LayoutDimension::MatchParent);
+            v_lp.weight = 1.0f;
+            row->add_view(v, v_lp);
+
+            card->add_view(row);
+        }
+
+        LayoutParams card_lp;
+        card_lp.width = static_cast<int>(LayoutDimension::MatchParent);
+        card_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+        card->set_layout_params(card_lp);
+
+        add_preview_card(card);
+    }
+}
 
 } // namespace miqu

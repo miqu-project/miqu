@@ -1045,14 +1045,21 @@ static bool apply_scheme_preset(const std::string& scheme_id, bool dark_mode, bo
     std::string gtk_theme = dark_mode ? "Adwaita-dark" : "Adwaita";
     std::string opp_gtk_theme = dark_mode ? "Adwaita" : "Adwaita-dark";
 
+    // Touch user gtk.css files so file monitors detect the updated stylesheet
+    std::string touch_cmd = "touch " + std::string(home) + "/.config/gtk-3.0/gtk.css " + std::string(home) + "/.config/gtk-4.0/gtk.css 2>/dev/null; ";
+
     // Pulse the theme settings to force GTK 3 & 4 D-Bus reload signals across all windows
     std::string gsettings_cmd =
+        touch_cmd +
         "gsettings set org.gnome.desktop.interface color-scheme '" + opp_scheme + "' 2>/dev/null; "
         "gsettings set org.gnome.desktop.interface gtk-theme '" + opp_gtk_theme + "' 2>/dev/null; "
         "sleep 0.05; "
         "gsettings set org.gnome.desktop.interface color-scheme '" + scheme + "' 2>/dev/null; "
         "gsettings set org.gnome.desktop.interface gtk-theme '" + gtk_theme + "' 2>/dev/null &";
     std::system(gsettings_cmd.c_str());
+
+    // Restart xdg-desktop-portal-gtk daemon so file chooser dialogs immediately reflect the active theme
+    std::system("systemctl --user restart xdg-desktop-portal-gtk 2>/dev/null || pkill -f xdg-desktop-portal-gtk 2>/dev/null &");
 
     // Live-reload running kitty terminals with updated colors and transparency
     std::system("killall -SIGUSR1 kitty 2>/dev/null &");
@@ -2343,10 +2350,6 @@ void MillerView::render_timeout_lock_preview(const std::shared_ptr<SettingItem>&
     add_def_entry("Clamshell Docking", "Allows you to close your laptop lid without triggering sleep or lock when an external monitor and keyboard/mouse are connected.");
 
     add_preview_card(defs_card);
-
-    if (!item->telemetry.empty()) {
-        add_preview_card(create_telemetry_card(item->telemetry, config, item->telemetry_title.empty() ? "Inactivity & security specifications" : item->telemetry_title));
-    }
 }
 
 

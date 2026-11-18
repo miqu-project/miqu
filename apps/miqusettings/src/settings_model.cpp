@@ -58,14 +58,6 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Cafe-Express-WiFi", "Connect", "network-wireless", false, "FE:DC:BA:98:76:54", 85, "2.4 GHz", "6", "Open", "144 Mbit/s", "Open • 2.4 GHz (Ch 6) • 85% • 144 Mbit/s • FE:DC:BA:98:76:54"},
             {"Airport-Free-5G", "Connect", "network-wireless", false, "00:11:22:33:44:55", 52, "5 GHz", "157", "Open", "300 Mbit/s", "Open • 5 GHz (Ch 157) • 52% • 300 Mbit/s • 00:11:22:33:44:55"}
         };
-        wifi->telemetry = {
-            {"Interface", "wlan0 (Intel Wi-Fi 6 AX200)"},
-            {"MAC Address", "a4:bb:6d:42:ee:18"},
-            {"IPv4 Address", "192.168.1.104"},
-            {"Link Speed", "866 Mbps (5 GHz, 80 MHz)"},
-            {"Signal Strength", "-46 dBm (Excellent)"}
-        };
-
         // 1.2 Bluetooth (Leaf)
         auto bt = SettingItem::create_leaf("net_bluetooth", "Bluetooth", "", "bluetooth");
         bt->has_switch = true;
@@ -76,12 +68,6 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             {"Logitech MX Master 3S", "Paired", "input-mouse", ""},
             {"Keychron K2 Pro", "Paired", "input-keyboard", ""},
             {"DualSense Wireless Controller", "Tap to pair", "input-gaming", ""}
-        };
-        bt->telemetry = {
-            {"Controller", "hci0 (Intel AX200 Bluetooth 5.2)"},
-            {"BD_ADDR", "DC:41:A9:8E:22:1B"},
-            {"Active Codec", "Sony LDAC (96 kHz / 24-bit)"},
-            {"Profiles", "A2DP Sink, AVRCP, HFP/HSP"}
         };
 
         // 1.3 Ethernet (Leaf)
@@ -104,20 +90,12 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             true,
             1500
         };
-        eth->telemetry = {
-            {"Interface", "enp0s31f6"},
-            {"MAC Address", "e4:54:e8:1b:9a:2c"},
-            {"Carrier Status", "Physical Link Active"},
-            {"Link Speed", "1000 Mbps (Full Duplex)"},
-            {"MTU", "1500 bytes"}
-        };
 
         // 1.4 VPN (Leaf)
         auto vpn = SettingItem::create_leaf("net_vpn", "VPN", "", "network-vpn");
         vpn->is_vpn = true;
         vpn->has_switch = true;
         vpn->switch_label = "VPN Tunnel";
-        vpn->telemetry_title = "VPN tunnel specifications";
 
         // 1.5 Airplane Mode (Leaf)
         auto airplane = SettingItem::create_leaf("net_airplane", "Airplane Mode", "", "airplane-mode");
@@ -127,7 +105,6 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         // 1.6 Private DNS (Leaf)
         auto private_dns = SettingItem::create_leaf("net_private_dns", "Private DNS", "", "security-high");
         private_dns->is_private_dns = true;
-        private_dns->telemetry_title = "DNS & encryption specifications";
 
         // 1.7 Firewall (Leaf)
         auto firewall = SettingItem::create_leaf("net_firewall", "Firewall", "", "security-high");
@@ -426,13 +403,6 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         auto disp_bright = SettingItem::create_leaf("disp_bright", "Brightness", "", "display-brightness");
         disp_bright->is_display_brightness = true;
         disp_bright->brightness_val = 0.85f;
-        disp_bright->telemetry_title = "Backlight & panel specifications";
-        disp_bright->telemetry = {
-            {"Backlight Interface", "intel_backlight (/sys/class/backlight)"},
-            {"Current Level", "217 / 255 steps (85%)"},
-            {"Minimum Brightness", "1% (Prevents full blackout)"},
-            {"PWM Frequency", "20000 Hz (Flicker-Free)"}
-        };
 
         // 5.2 Screen Timeout & Lock (Unified Inactivity & Security)
         auto disp_timeout_lock = SettingItem::create_leaf("disp_timeout_lock", "Screen Timeout & Lock", "", "system-lock-screen");
@@ -455,22 +425,10 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         disp_timeout_lock->timeout_lock_cfg.grace_period_seconds = 0;
         disp_timeout_lock->timeout_lock_cfg.lockscreen_show_power_actions = true;
         disp_timeout_lock->timeout_lock_cfg.lockscreen_24h_clock = true;
-        disp_timeout_lock->telemetry_title = "Inactivity & security specifications";
-        disp_timeout_lock->telemetry = {
-            {"Inactivity Manager", "miquidle (ext-idle-notify-v1)"},
-            {"Screen Locker", "miqulock (ext-session-lock-v1)"},
-            {"Display DPMS", "wlr-output-power-management-v1"},
-            {"Sleep / Suspend Daemon", "systemd-logind (suspend-then-hibernate)"},
-            {"Lid & Power Keys", "/etc/systemd/logind.conf"},
-            {"Battery & Power Events", "UPower & systemd-udev"},
-            {"Clamshell Docking", "Monitored via seat0 & DRM connectors"},
-            {"Authentication Provider", "PAM (system-auth)"}
-        };
 
         // 5.3 Night Light
         auto disp_nightlight = SettingItem::create_leaf("disp_nightlight", "Night Light", "", "preferences-desktop-display");
         disp_nightlight->is_display_nightlight = true;
-        disp_nightlight->telemetry_title = "Gamma & color specifications";
 
         root.push_back(SettingItem::create_category(
             "cat_display", "Display", "video-display",
@@ -506,12 +464,6 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         speaker->switch_label = "Mute";
         speaker->has_secondary_switch = false;
         speaker->has_action = false;
-        speaker->telemetry = {
-            {"Device", "ALC1220 High Definition Audio"},
-            {"Audio Server", "PipeWire 1.0 (PulseAudio/ALSA)"},
-            {"Sample Rate", "48.0 kHz / 32-bit Float Stereo"},
-            {"Active Port", "Line Out (Green Rear)"}
-        };
 
         // 3.2 Mic (Leaf)
         auto mic = SettingItem::create_leaf("sound_mic", "Mic", "", "audio-input-microphone");
@@ -524,12 +476,6 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         mic->switch_label = "Mute";
         mic->has_secondary_switch = false;
         mic->has_action = false;
-        mic->telemetry = {
-            {"Device", "Blue Yeti Pro USB"},
-            {"Audio Server", "PipeWire 1.0 (PulseAudio)"},
-            {"Format", "24-bit / 48.0 kHz Cardioid"},
-            {"Noise Floor", "-54 dBFS"}
-        };
 
         root.push_back(SettingItem::create_category(
             "cat_audio", "Sound", "audio-volume-high",
@@ -544,22 +490,18 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         // 9.1 Keyboards & Layout (Leaf)
         auto in_kb = SettingItem::create_leaf("input_keyboards", "Keyboards & Layout", "", "input-keyboard");
         in_kb->is_input_keyboards = true;
-        in_kb->telemetry_title = "Hardware keyboard specifications";
 
         // 9.2 Typing & Repeat Speed (Leaf)
         auto in_rep = SettingItem::create_leaf("input_repeat", "Typing & Repeat Speed", "", "preferences-desktop-keyboard");
         in_rep->is_input_repeat = true;
-        in_rep->telemetry_title = "Typing & repeat specifications";
 
         // 9.3 Pointers & Touchpad (Leaf)
         auto in_ptr = SettingItem::create_leaf("input_pointers", "Pointers & Touchpad", "", "input-mouse");
         in_ptr->is_input_pointers = true;
-        in_ptr->telemetry_title = "Pointing device specifications";
 
         // 9.4 Touchscreen & Gestures (Leaf)
         auto in_touch = SettingItem::create_leaf("input_touch", "Touchscreen & Gestures", "", "input-touchpad");
         in_touch->is_input_touch = true;
-        in_touch->telemetry_title = "Digitizer & gesture specifications";
 
         root.push_back(SettingItem::create_category(
             "cat_input", "Keyboard & Mouse", "input-keyboard",
@@ -585,15 +527,6 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         stor_root->secondary_switch_label = "ZSTD Transparent Compression";
         stor_root->has_action = true;
         stor_root->action_label = "Run Drive Health Diagnostic (SMART)";
-        stor_root->telemetry_title = "Block device & filesystem specifications";
-        stor_root->telemetry = {
-            {"Filesystem Type", "Btrfs (rw, noatime, compress=zstd:3)"},
-            {"Drive Model", "Samsung SSD 990 PRO 1TB NVMe"},
-            {"Total Capacity", "1,000.2 GB (931.5 GiB)"},
-            {"Used Space", "420.5 GB (42%)"},
-            {"Available Space", "579.7 GB (58%)"},
-            {"SMART Health Status", "PASSED (100% remaining lifetime)"}
-        };
 
         auto stor_home = SettingItem::create_leaf("stor_home", "User Data (~/)", "", "folder");
         stor_home->has_slider = true;
@@ -607,23 +540,12 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         stor_home->has_secondary_switch = false;
         stor_home->has_action = true;
         stor_home->action_label = "Clean Package & App Cache";
-        stor_home->telemetry_title = "Directory usage specifications";
-        stor_home->telemetry = {
-            {"Mount Point", "/home/anisur"},
-            {"Documents & Code", "54.2 GB"},
-            {"Pictures & Videos", "112.8 GB"},
-            {"Downloads", "24.6 GB"},
-            {"Application Cache (~/.cache)", "18.4 GB"},
-            {"Snapshots / Backups", "70.4 GB"}
-        };
 
         root.push_back(SettingItem::create_category(
             "cat_storage", "Storage", "drive-harddisk",
             {stor_root, stor_home}
         ));
     }
-
-
 
     // ==============================================================================
     // 7. Battery (Depth 1)
@@ -635,13 +557,11 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         auto battery_info = SettingItem::create_leaf("bat_info", "Battery Info", "", "battery");
         battery_info->is_battery_info = true;
         battery_info->battery_cfg = shared_battery_cfg;
-        battery_info->telemetry_title = "Battery specifications";
 
         // 7.2 Power & Performance Mode (Leaf) - loaded lazily on visibility
         auto power_mode = SettingItem::create_leaf("bat_power_mode", "Power & Performance Mode", "Balanced", "preferences-system-power");
         power_mode->is_power_mode = true;
         power_mode->battery_cfg = shared_battery_cfg;
-        power_mode->telemetry_title = "Power management specifications";
 
         auto cat_battery = SettingItem::create_category(
             "cat_battery", "Battery", "battery",
@@ -652,23 +572,143 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     }
 
     // ==============================================================================
-    // 10. System (Depth 1)
+    // 8. Specifications & Diagnostics (Depth 1)
     // ==============================================================================
     {
-        // 10.1 About (Leaf)
-        auto sys_about = SettingItem::create_leaf("sys_about", "About", "", "help-about");
+        // 8.1 Device Specifications (Subcategory)
+        auto sys_board = SettingItem::create_leaf("spec_sys_board", "Computer & Motherboard", "", "computer");
+        sys_board->is_hardware_spec = true;
+        auto sys_firmware = SettingItem::create_leaf("spec_sys_firmware", "BIOS & Firmware", "", "security-high");
+        sys_firmware->is_hardware_spec = true;
+        auto sys_cpu = SettingItem::create_leaf("spec_sys_cpu", "Processor (CPU)", "", "cpu");
+        sys_cpu->is_hardware_spec = true;
+        auto sys_thermals = SettingItem::create_leaf("spec_sys_thermals", "Thermals & Cooling", "", "temperature-warm");
+        sys_thermals->is_hardware_spec = true;
+        auto sys_memory = SettingItem::create_leaf("spec_sys_memory", "Memory (RAM & Swap)", "", "drive-harddisk");
+        sys_memory->is_hardware_spec = true;
+        auto sys_uptime = SettingItem::create_leaf("spec_sys_uptime", "System Activity & Uptime", "", "preferences-system-time");
+        sys_uptime->is_hardware_spec = true;
+
+        auto cat_spec_sys = SettingItem::create_category(
+            "cat_spec_system", "Device Specifications", "computer",
+            {sys_board, sys_firmware, sys_cpu, sys_thermals, sys_memory, sys_uptime}
+        );
+
+        // 8.2 Operating System & Services (Subcategory)
+        auto srv_os = SettingItem::create_leaf("spec_srv_os", "Operating System & Shell", "", "distributor-logo");
+        srv_os->is_hardware_spec = true;
+        auto srv_desktop = SettingItem::create_leaf("spec_srv_desktop", "Desktop Daemons", "", "preferences-desktop-theme");
+        srv_desktop->is_hardware_spec = true;
+        auto srv_network = SettingItem::create_leaf("spec_srv_network", "Network Services", "", "network-wireless");
+        srv_network->is_hardware_spec = true;
+        auto srv_security = SettingItem::create_leaf("spec_srv_security", "Security & Firewalls", "", "security-high");
+        srv_security->is_hardware_spec = true;
+        auto srv_sound = SettingItem::create_leaf("spec_srv_sound", "Sound & Media", "", "audio-volume-high");
+        srv_sound->is_hardware_spec = true;
+        auto srv_power = SettingItem::create_leaf("spec_srv_power", "Power Daemons", "", "battery");
+        srv_power->is_hardware_spec = true;
+        auto srv_packages = SettingItem::create_leaf("spec_srv_packages", "Package Ecosystem", "", "system-software-install");
+        srv_packages->is_hardware_spec = true;
+
+        auto cat_spec_srv = SettingItem::create_category(
+            "cat_spec_services", "Operating System & Services", "applications-system",
+            {srv_os, srv_desktop, srv_network, srv_security, srv_sound, srv_power, srv_packages}
+        );
+
+        // 8.3 Displays & Graphics (Subcategory)
+        auto disp_gpu = SettingItem::create_leaf("spec_disp_gpu", "Graphics Processor (GPU)", "", "video-display");
+        disp_gpu->is_hardware_spec = true;
+        auto disp_monitors = SettingItem::create_leaf("spec_disp_monitors", "Connected Displays", "", "video-display");
+        disp_monitors->is_hardware_spec = true;
+        auto disp_backlight = SettingItem::create_leaf("spec_disp_backlight", "Backlight Controller", "", "display-brightness");
+        disp_backlight->is_hardware_spec = true;
+
+        auto cat_spec_disp = SettingItem::create_category(
+            "cat_spec_display", "Displays & Graphics", "video-display",
+            {disp_gpu, disp_monitors, disp_backlight}
+        );
+
+        // 8.4 Audio Subsystem (Subcategory)
+        auto aud_cards = SettingItem::create_leaf("spec_aud_cards", "Controllers & Codecs", "", "audio-card");
+        aud_cards->is_hardware_spec = true;
+        auto aud_endpoints = SettingItem::create_leaf("spec_aud_endpoints", "Endpoints & Graph", "", "audio-volume-high");
+        aud_endpoints->is_hardware_spec = true;
+
+        auto cat_spec_aud = SettingItem::create_category(
+            "cat_spec_audio", "Audio Subsystem", "audio-volume-high",
+            {aud_cards, aud_endpoints}
+        );
+
+        // 8.5 Network Adapters (Subcategory)
+        auto net_wifi = SettingItem::create_leaf("spec_net_wifi", "Wireless Interfaces", "", "network-wireless");
+        net_wifi->is_hardware_spec = true;
+        auto net_ethernet = SettingItem::create_leaf("spec_net_ethernet", "Ethernet Interfaces", "", "network-wired");
+        net_ethernet->is_hardware_spec = true;
+        auto net_bluetooth = SettingItem::create_leaf("spec_net_bluetooth", "Bluetooth Controllers", "", "bluetooth");
+        net_bluetooth->is_hardware_spec = true;
+        auto net_routing = SettingItem::create_leaf("spec_net_routing", "DNS & Routing", "", "network-workgroup");
+        net_routing->is_hardware_spec = true;
+
+        auto cat_spec_net = SettingItem::create_category(
+            "cat_spec_network", "Network Adapters", "network-wireless",
+            {net_wifi, net_ethernet, net_bluetooth, net_routing}
+        );
+
+        // 8.6 Storage & Drives (Subcategory)
+        auto stor_drives = SettingItem::create_leaf("spec_stor_drives", "Physical Drives", "", "drive-harddisk");
+        stor_drives->is_hardware_spec = true;
+        auto stor_mounts = SettingItem::create_leaf("spec_stor_mounts", "Filesystem Mounts", "", "folder");
+        stor_mounts->is_hardware_spec = true;
+        auto stor_zram = SettingItem::create_leaf("spec_stor_zram", "In-Memory Swap (ZRAM)", "", "memory");
+        stor_zram->is_hardware_spec = true;
+
+        auto cat_spec_stor = SettingItem::create_category(
+            "cat_spec_storage", "Storage & Drives", "drive-harddisk",
+            {stor_drives, stor_mounts, stor_zram}
+        );
+
+        // 8.7 Battery & Power (Subcategory)
+        auto pwr_battery = SettingItem::create_leaf("spec_pwr_battery", "Battery Telemetry", "", "battery");
+        pwr_battery->is_hardware_spec = true;
+        auto pwr_adapter = SettingItem::create_leaf("spec_pwr_adapter", "AC Power Adapter", "", "battery-charging");
+        pwr_adapter->is_hardware_spec = true;
+        auto pwr_profile = SettingItem::create_leaf("spec_pwr_profile", "Platform Power Profile", "", "preferences-system-power");
+        pwr_profile->is_hardware_spec = true;
+
+        auto cat_spec_pwr = SettingItem::create_category(
+            "cat_spec_power", "Battery & Power", "battery",
+            {pwr_battery, pwr_adapter, pwr_profile}
+        );
+
+        // 8.8 Input Devices (Subcategory)
+        auto inp_keyboards = SettingItem::create_leaf("spec_inp_keyboards", "Keyboards", "", "input-keyboard");
+        inp_keyboards->is_hardware_spec = true;
+        auto inp_pointers = SettingItem::create_leaf("spec_inp_pointers", "Mice & Touchpads", "", "input-mouse");
+        inp_pointers->is_hardware_spec = true;
+        auto inp_touch = SettingItem::create_leaf("spec_inp_touch", "Touchscreens & Digitizers", "", "input-touchpad");
+        inp_touch->is_hardware_spec = true;
+        auto inp_switches = SettingItem::create_leaf("spec_inp_switches", "Chassis Switches", "", "preferences-system");
+        inp_switches->is_hardware_spec = true;
+
+        auto cat_spec_inp = SettingItem::create_category(
+            "cat_spec_input", "Input Devices", "input-keyboard",
+            {inp_keyboards, inp_pointers, inp_touch, inp_switches}
+        );
+
+        root.push_back(SettingItem::create_category(
+            "cat_hardware_specs", "Specifications & Diagnostics", "preferences-system-hardware",
+            {cat_spec_sys, cat_spec_srv, cat_spec_disp, cat_spec_aud, cat_spec_net, cat_spec_stor, cat_spec_pwr, cat_spec_inp}
+        ));
+    }
+
+    // ==============================================================================
+    // 9. System (Depth 1)
+    // ==============================================================================
+    {
+        // 9.1 About (Leaf)
+        auto sys_about = SettingItem::create_leaf("sys_about", "About", "Arch Linux • miquland desktop", "help-about");
         sys_about->has_action = true;
         sys_about->action_label = "Check for Ecosystem Updates";
-        sys_about->telemetry_title = "System specifications";
-        sys_about->telemetry = {
-            {"Distribution", "Arch Linux (Rolling Release)"},
-            {"Linux Kernel", "6.11.7-arch1-1"},
-            {"Desktop Compositor", "miquland (C++20)"},
-            {"Toolkit Version", "miqutoolkit 1.0"},
-            {"Hardware Architecture", "x86_64 (Zen 4 / AMD Ryzen)"},
-            {"Memory (RAM)", "32.0 GB LPDDR5-6400"},
-            {"Firmware / UEFI", "UEFI v2.8 (Secure Boot: Active)"}
-        };
 
         root.push_back(SettingItem::create_category(
             "cat_system", "System", "preferences-system",

@@ -120,8 +120,8 @@ void Config::set_defaults() {
     m_kb_variant = "";
     m_kb_options = "";
     m_kb_model = "";
-    m_repeat_rate = 25;
-    m_repeat_delay = 600;
+    m_repeat_rate = 40;
+    m_repeat_delay = 250;
     m_window_opacity_active = 1.0f;
     m_window_opacity_inactive = 1.0f;
     m_prefer_server_decorations = true;

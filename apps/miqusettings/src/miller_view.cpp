@@ -202,6 +202,32 @@ void MillerView::init() {
         ->backgroundColor(Color::transparent())
         ->build();
 
+    m_preview_refresh_icon = TextViewBuilder::create()
+        ->text("↻")
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.primary)
+        ->build();
+
+    auto refresh_box = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->padding(8, 2)
+        ->gravity(Gravity::Center)
+        ->addView(m_preview_refresh_icon)
+        ->build();
+
+    m_preview_refresh_btn = CardViewBuilder::create()
+        ->style(CardStyle::Filled)
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
+        ->elevation(0)
+        ->tooltip("Refresh specifications")
+        ->addView(refresh_box)
+        ->build();
+    m_preview_refresh_btn->set_on_click_listener([this]() {
+        if (!check_and_update_click_debounce()) return;
+        rebuild_preview_column();
+    });
+    m_preview_refresh_btn->set_focusable(true);
+
     m_preview_toggle_icon = TextViewBuilder::create()
         ->text("|‹")
         ->textSize(config->metrics.font_size)
@@ -235,6 +261,7 @@ void MillerView::init() {
         ->ellipsize(true)
         ->build();
     m_preview_ribbon->add_view(m_preview_title, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+    m_preview_ribbon->add_view(m_preview_refresh_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_ribbon->add_view(m_preview_toggle_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_pillar->add_view(m_preview_ribbon, LayoutParams(MATCH_PARENT, 30));
 
@@ -297,8 +324,16 @@ void MillerView::init() {
 
 void MillerView::sync_theme() {
     auto config = Config::get();
-    if (config && m_preview_toggle_btn) {
-        m_preview_toggle_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
+    if (config) {
+        if (m_preview_toggle_btn) {
+            m_preview_toggle_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
+        }
+        if (m_preview_refresh_btn) {
+            m_preview_refresh_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
+        }
+        if (m_preview_refresh_icon) {
+            m_preview_refresh_icon->set_text_color(config->colors.primary);
+        }
     }
     update_preview_ribbon();
     update_pillar_styles();
@@ -361,6 +396,11 @@ void MillerView::update_preview_ribbon() {
         if (config) {
             m_preview_title->set_text_color(config->colors.on_surface_variant);
         }
+    }
+
+    bool is_spec = item && (item->is_hardware_spec || item->id.rfind("spec_", 0) == 0);
+    if (m_preview_refresh_btn) {
+        m_preview_refresh_btn->set_visibility(is_spec ? Visibility::Visible : Visibility::Gone);
     }
 
     if (m_preview_toggle_icon) {
@@ -764,6 +804,8 @@ void MillerView::rebuild_preview_column() {
         render_pointers_preview(item, config);
     } else if (item->is_input_touch || item->id == "input_touch") {
         render_touch_preview(item, config);
+    } else if (item->is_hardware_spec || item->id.rfind("spec_", 0) == 0) {
+        render_hardware_spec_preview(item, config);
     } else {
         render_generic_fallback_preview(item, config);
     }

@@ -13,73 +13,7 @@ namespace {
 constexpr int MATCH_PARENT = static_cast<int>(LayoutDimension::MatchParent);
 constexpr int WRAP_CONTENT = static_cast<int>(LayoutDimension::WrapContent);
 
-std::shared_ptr<View> create_input_hero_card(
-    const std::string& icon_str,
-    const std::string& title_str,
-    const std::string& subtitle_str,
-    const std::string& badge_str,
-    const std::shared_ptr<Config>& config
-) {
-    auto card = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->padding(16, 14)
-        ->spacing(8)
-        ->backgroundColor(config->colors.surface)
-        ->stroke(1, config->colors.outline.with_alpha(0.3f))
-        ->cornerRadius(get_card_radius(config))
-        ->build();
 
-    auto row = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Horizontal)
-        ->spacing(12)
-        ->gravity(Gravity::CenterVertical)
-        ->build();
-
-    auto icon = ImageViewBuilder::create()
-        ->source(icon_str)
-        ->targetSize(36)
-        ->fitMode(FitMode::Contain)
-        ->build();
-    row->add_view(icon, LayoutParams(36, 36, Gravity::CenterVertical));
-
-    auto col = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Vertical)
-        ->spacing(3)
-        ->build();
-
-    auto title = TextViewBuilder::create()
-        ->text(title_str)
-        ->textSize(static_cast<int>(config->metrics.font_size * 1.25f))
-        ->bold(true)
-        ->textColor(config->colors.on_surface)
-        ->build();
-    col->add_view(title);
-
-    auto subtitle = TextViewBuilder::create()
-        ->text(subtitle_str)
-        ->caption(true)
-        ->textColor(config->colors.on_surface_variant)
-        ->build();
-    col->add_view(subtitle);
-
-    row->add_view(col, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
-    card->add_view(row);
-
-    if (!badge_str.empty()) {
-        auto badge = TextViewBuilder::create()
-            ->text(badge_str)
-            ->caption(true)
-            ->textColor(config->colors.primary)
-            ->build();
-        card->add_view(badge);
-    }
-
-    LayoutParams card_lp;
-    card_lp.width = MATCH_PARENT;
-    card_lp.height = WRAP_CONTENT;
-    card->set_layout_params(card_lp);
-    return card;
-}
 
 std::shared_ptr<View> create_keyboards_list_card(
     const std::vector<KeyboardDevice>& keyboards,
@@ -886,11 +820,6 @@ void MillerView::render_keyboards_preview(const std::shared_ptr<SettingItem>& it
     (void)item;
     auto state = InputBackend::get_state();
 
-    size_t count = state.keyboards.size();
-    std::string sub = std::to_string(count) + " hardware keyboard" + (count == 1 ? "" : "s") + " detected · wlroots libinput Introspection ✓";
-    std::string badge = "Active Keymap: English (US) [" + state.active_layout + "]";
-
-    add_preview_card(create_input_hero_card("input-keyboard", "Keyboards & Keymap", sub, badge, config));
     add_preview_card(create_keyboards_list_card(state.keyboards, config));
 
     add_preview_card(create_layout_selector_card(
@@ -907,24 +836,11 @@ void MillerView::render_keyboards_preview(const std::shared_ptr<SettingItem>& it
         "Click the test box below and type to test layout mapping and keystrokes live:",
         config
     ));
-
-    std::vector<TelemetryEntry> telem = {
-        {"Keyboards Detected", std::to_string(count)},
-        {"Driver Layer", "libinput (Kernel evdev)"},
-        {"Wayland Protocol", "wl_keyboard / text-input-v3"},
-        {"Keymap Engine", "libxkbcommon v1.7.0"},
-        {"Active XKB Keymap", state.active_layout + " (ANSI pc105+inet)"},
-        {"Modifier Mapping", "Caps, Ctrl, Super, Alt, AltGr, NumLock"}
-    };
-    add_preview_card(create_telemetry_card(telem, config, "Hardware keyboard specifications"));
 }
 
 void MillerView::render_repeat_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     (void)item;
     auto state = InputBackend::get_state();
-
-    std::string sub = "Repeat Delay: " + std::to_string(state.repeat_delay) + " ms  •  Repeat Rate: " + std::to_string(state.repeat_rate) + " char/s";
-    add_preview_card(create_input_hero_card("preferences-desktop-keyboard", "Typing & Repeat Speed", sub, "libinput Key Repeat Solver ✓", config));
 
     add_preview_card(create_repeat_delay_card(
         state.repeat_delay,
@@ -947,24 +863,11 @@ void MillerView::render_repeat_preview(const std::shared_ptr<SettingItem>& item,
         "Hold down any key inside the test field below to test repeat delay and speed:",
         config
     ));
-
-    std::vector<TelemetryEntry> telem = {
-        {"Repeat Rate", std::to_string(state.repeat_rate) + " characters/second"},
-        {"Repeat Delay", std::to_string(state.repeat_delay) + " milliseconds"},
-        {"Kinematics Engine", "wl_keyboard repeat_info"},
-        {"Precision Timer", "Linux timerfd / event-loop polling"},
-        {"Auto-Repeat Filter", "POSIX compliant / XKB rate model"}
-    };
-    add_preview_card(create_telemetry_card(telem, config, "Typing & repeat specifications"));
 }
 
 void MillerView::render_pointers_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     (void)item;
     auto state = InputBackend::get_state();
-
-    size_t count = state.pointers.size();
-    std::string sub = std::to_string(count) + " pointing device" + (count == 1 ? "" : "s") + " detected · libinput acceleration active";
-    add_preview_card(create_input_hero_card("input-mouse", "Pointers & Touchpad", sub, "Precision Touchpad & Pointer Introspection ✓", config));
 
     add_preview_card(create_touchpad_ergonomics_card(
         state.tap_to_click,
@@ -991,26 +894,11 @@ void MillerView::render_pointers_preview(const std::shared_ptr<SettingItem>& ite
     ));
 
     add_preview_card(create_pointers_list_card(state.pointers, config));
-
-    std::vector<TelemetryEntry> telem = {
-        {"Pointing Devices", std::to_string(count)},
-        {"Driver Subsystem", "libinput (Kernel evdev)"},
-        {"Touchpad Tap-to-Click", state.tap_to_click ? "Active (1/2/3 fingers)" : "Disabled"},
-        {"Natural Scrolling", state.natural_scroll ? "Natural (Content follows finger)" : "Traditional"},
-        {"Palm Rejection", state.disable_while_typing ? "Enabled (Disable while typing)" : "Disabled"},
-        {"Acceleration Profile", state.accel_profile == "adaptive" ? "Adaptive (Dynamic curve)" : "Flat (1:1)"},
-        {"Polling Frequency", "1000 Hz (High Precision)"}
-    };
-    add_preview_card(create_telemetry_card(telem, config, "Pointing device specifications"));
 }
 
 void MillerView::render_touch_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     (void)item;
     auto state = InputBackend::get_state();
-
-    size_t count = state.touch_devices.size();
-    std::string sub = std::to_string(count) + " touch digitizer" + (count == 1 ? "" : "s") + " active · Wayland touch protocol";
-    add_preview_card(create_input_hero_card("input-touchpad", "Touchscreen & Gestures", sub, "Hardware Multi-Touch Introspection ✓", config));
 
     add_preview_card(create_touch_devices_card(state.touch_devices, config));
 
@@ -1023,16 +911,6 @@ void MillerView::render_touch_preview(const std::shared_ptr<SettingItem>& item, 
         },
         config
     ));
-
-    std::vector<TelemetryEntry> telem = {
-        {"Digitizers Detected", std::to_string(count)},
-        {"Touch Protocol", "wl_touch / libinput direct"},
-        {"Multi-Touch Points", "10 simultaneous touch points"},
-        {"Output Association", !state.touch_devices.empty() ? state.touch_devices[0].mapped_output : "None"},
-        {"Gesture Engine", "miquland Internal Kinematics Solver"},
-        {"Edge Swipe Resistance", "0.15 threshold"}
-    };
-    add_preview_card(create_telemetry_card(telem, config, "Digitizer & gesture specifications"));
 }
 
 } // namespace miqu

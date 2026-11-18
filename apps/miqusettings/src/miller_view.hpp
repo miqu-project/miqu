@@ -127,6 +127,7 @@ private:
     void render_repeat_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_pointers_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_touch_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
+    void render_hardware_spec_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_generic_fallback_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void collect_preview_focusable_views(std::vector<View*>& out);
 
@@ -169,6 +170,8 @@ private:
 
     std::shared_ptr<LinearLayout> m_preview_pillar;
     std::shared_ptr<LinearLayout> m_preview_ribbon;
+    std::shared_ptr<CardView> m_preview_refresh_btn;
+    std::shared_ptr<TextView> m_preview_refresh_icon;
     std::shared_ptr<CardView> m_preview_toggle_btn;
     std::shared_ptr<TextView> m_preview_toggle_icon;
     std::shared_ptr<TextView> m_preview_title;
