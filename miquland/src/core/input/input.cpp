@@ -507,8 +507,12 @@ void InputManager::reapply_cursor_config() {
     }
 
     m_cursor_mgr = wlr_xcursor_manager_create(theme_name, csize);
+    if (!m_cursor_mgr && theme_name != nullptr) {
+        log_warn("Failed to create xcursor manager for theme: " + ctheme + ", falling back to default");
+        m_cursor_mgr = wlr_xcursor_manager_create(nullptr, csize);
+    }
     if (!m_cursor_mgr) {
-        log_error("Failed to create xcursor manager for theme: " + ctheme);
+        log_error("Failed to create fallback xcursor manager");
         return;
     }
 

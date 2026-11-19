@@ -2501,30 +2501,37 @@ static std::vector<std::string> get_icon_roots() {
 }
 
 static std::vector<std::string> get_theme_search_hierarchy(const std::string& theme_name, const std::vector<std::string>& roots, const std::string& fallback_theme) {
-    std::vector<std::string> themes = {theme_name};
+    std::string actual_theme = (theme_name == "Miqu (Default)") ? "miqu-cursors" : theme_name;
+    std::vector<std::string> themes = {actual_theme};
+    std::vector<std::string> cand_names = {actual_theme};
+    if (actual_theme == "Default") cand_names.push_back("default");
+    else if (actual_theme == "default") cand_names.push_back("Default");
+
     std::error_code ec;
     for (const auto& r : roots) {
-        fs::path idx_path = fs::path(r) / theme_name / "index.theme";
-        if (fs::is_regular_file(idx_path, ec)) {
-            std::ifstream f(idx_path);
-            std::string line;
-            while (std::getline(f, line)) {
-                if (line.rfind("Inherits=", 0) == 0) {
-                    std::stringstream ss(line.substr(9));
-                    std::string item;
-                    while (std::getline(ss, item, ',')) {
-                        size_t first = item.find_first_not_of(" \t\r\n");
-                        size_t last = item.find_last_not_of(" \t\r\n");
-                        if (first != std::string::npos && last != std::string::npos) {
-                            std::string clean = item.substr(first, last - first + 1);
-                            if (!clean.empty() && std::find(themes.begin(), themes.end(), clean) == themes.end()) {
-                                themes.push_back(clean);
+        for (const auto& nm : cand_names) {
+            fs::path idx_path = fs::path(r) / nm / "index.theme";
+            if (fs::is_regular_file(idx_path, ec)) {
+                std::ifstream f(idx_path);
+                std::string line;
+                while (std::getline(f, line)) {
+                    if (line.rfind("Inherits=", 0) == 0) {
+                        std::stringstream ss(line.substr(9));
+                        std::string item;
+                        while (std::getline(ss, item, ',')) {
+                            size_t first = item.find_first_not_of(" \t\r\n");
+                            size_t last = item.find_last_not_of(" \t\r\n");
+                            if (first != std::string::npos && last != std::string::npos) {
+                                std::string clean = item.substr(first, last - first + 1);
+                                if (!clean.empty() && std::find(themes.begin(), themes.end(), clean) == themes.end()) {
+                                    themes.push_back(clean);
+                                }
                             }
                         }
                     }
                 }
+                break;
             }
-            break;
         }
     }
     if (!fallback_theme.empty() && std::find(themes.begin(), themes.end(), fallback_theme) == themes.end()) {
@@ -2570,6 +2577,7 @@ static std::vector<std::string> get_system_cursor_themes() {
             if (!entry.is_directory(ec)) continue;
             std::string id = entry.path().filename().string();
             if (id.empty() || id[0] == '.') continue;
+            if (id == "default" || id == "Default" || id == "miqu-cursors") continue;
 
             fs::path cursor_dir = entry.path() / "cursors";
             if (fs::is_directory(cursor_dir, ec)) {
@@ -2577,16 +2585,18 @@ static std::vector<std::string> get_system_cursor_themes() {
             }
         }
     }
-    return std::vector<std::string>(themes.begin(), themes.end());
+    std::vector<std::string> result = {"Miqu (Default)"};
+    result.insert(result.end(), themes.begin(), themes.end());
+    return result;
 }
 
 static std::vector<std::string> get_theme_sample_icons(const std::string& theme_name) {
-    const std::vector<std::pair<std::string, std::vector<std::string>>> categories = {
-        {"Files", {"folder", "system-file-manager", "inode-directory"}},
-        {"Terminal", {"utilities-terminal", "terminal", "org.gnome.Terminal"}},
-        {"Browser", {"web-browser", "internet-web-browser", "firefox", "google-chrome"}},
-        {"Editor", {"accessories-text-editor", "text-editor", "gedit", "org.gnome.TextEditor"}},
-        {"Settings", {"preferences-system", "system-settings", "gnome-control-center"}}
+    static const char* const categories[][6] = {
+        {"folder", "system-file-manager", "inode-directory", nullptr},
+        {"utilities-terminal", "terminal", "org.gnome.Terminal", nullptr},
+        {"web-browser", "internet-web-browser", "firefox", "google-chrome", nullptr},
+        {"accessories-text-editor", "text-editor", "gedit", "org.gnome.TextEditor", nullptr},
+        {"preferences-system", "system-settings", "gnome-control-center", nullptr}
     };
 
     auto roots = get_icon_roots();
@@ -2610,11 +2620,12 @@ static std::vector<std::string> get_theme_sample_icons(const std::string& theme_
                 fs::path th_dir = fs::path(r) / th;
                 if (!fs::is_directory(th_dir, ec)) continue;
 
-                for (const auto& icon_name : cat.second) {
+                for (int i = 0; cat[i] != nullptr; ++i) {
+                    const char* icon_name = cat[i];
                     for (const auto& sub : subdirs) {
                         fs::path dir = sub.empty() ? th_dir : (th_dir / sub);
                         for (const auto& ext : extensions) {
-                            fs::path cand = dir / (icon_name + ext);
+                            fs::path cand = dir / (std::string(icon_name) + ext);
                             if (fs::is_regular_file(cand, ec)) {
                                 found_path = cand.string();
                                 break;
@@ -2629,8 +2640,8 @@ static std::vector<std::string> get_theme_sample_icons(const std::string& theme_
             if (!found_path.empty()) break;
         }
 
-        if (found_path.empty()) {
-            found_path = cat.second.front();
+        if (found_path.empty() && cat[0] != nullptr) {
+            found_path = cat[0];
         }
         result.push_back(found_path);
     }
@@ -2698,16 +2709,20 @@ static bool extract_cursor_to_tga(const std::string& cursor_file, const std::str
 }
 
 static std::vector<std::string> get_theme_sample_cursors(const std::string& theme_name) {
-    const std::vector<std::pair<std::string, std::vector<std::string>>> cursor_states = {
-        {"default", {"default", "left_ptr", "arrow"}},
-        {"pointer", {"pointer", "hand2", "pointing_hand"}},
-        {"text", {"text", "xterm", "ibeam"}},
-        {"crosshair", {"crosshair", "cross"}},
-        {"wait", {"wait", "watch", "progress"}}
+    struct CursorStateDef {
+        const char* name;
+        const char* aliases[4];
+    };
+    static const CursorStateDef cursor_states[] = {
+        {"default", {"default", "left_ptr", "arrow", nullptr}},
+        {"pointer", {"pointer", "hand2", "pointing_hand", nullptr}},
+        {"text", {"text", "xterm", "ibeam", nullptr}},
+        {"crosshair", {"crosshair", "cross", nullptr, nullptr}},
+        {"wait", {"wait", "watch", "progress", nullptr}}
     };
 
     auto roots = get_icon_roots();
-    auto themes_to_search = get_theme_search_hierarchy(theme_name, roots, "Adwaita");
+    auto themes_to_search = get_theme_search_hierarchy(theme_name, roots, "miqu-cursors");
     if (std::find(themes_to_search.begin(), themes_to_search.end(), "default") == themes_to_search.end()) {
         themes_to_search.push_back("default");
     }
@@ -2727,8 +2742,8 @@ static std::vector<std::string> get_theme_sample_cursors(const std::string& them
                 fs::path cur_dir = fs::path(r) / th / "cursors";
                 if (!fs::is_directory(cur_dir, ec)) continue;
 
-                for (const auto& alias : state.second) {
-                    fs::path cand = cur_dir / alias;
+                for (int i = 0; state.aliases[i] != nullptr; ++i) {
+                    fs::path cand = cur_dir / state.aliases[i];
                     if (fs::exists(cand, ec)) {
                         found_cursor_file = cand.string();
                         break;
@@ -2739,7 +2754,7 @@ static std::vector<std::string> get_theme_sample_cursors(const std::string& them
             if (!found_cursor_file.empty()) break;
         }
 
-        std::string img_path = "/tmp/miqu_cur_" + safe_theme + "_" + state.first + ".tga";
+        std::string img_path = "/tmp/miqu_cur_" + safe_theme + "_" + state.name + ".tga";
         bool has_img = fs::is_regular_file(img_path, ec) && fs::file_size(img_path, ec) > 0;
 
         if (!has_img && !found_cursor_file.empty()) {
@@ -2768,21 +2783,10 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
         }
         if (cur_gtk.empty()) cur_gtk = "Papirus-Dark";
         cfg.icon_theme = cur_gtk;
-
-        cfg.available_cursor_themes = get_system_cursor_themes();
-        std::string cur_cur = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null");
-        if (!cur_cur.empty() && cur_cur.front() == '\'' && cur_cur.back() == '\'') {
-            cur_cur = cur_cur.substr(1, cur_cur.size() - 2);
-        }
-        if (cur_cur.empty()) {
-            const char* xcur = std::getenv("XCURSOR_THEME");
-            cur_cur = (xcur && *xcur) ? xcur : "default";
-        }
-        cfg.cursor_theme = cur_cur;
         cfg.loaded = true;
     }
 
-    // --- 1. SYSTEM ICON PACK SECTION ---
+    // --- SYSTEM ICON PACK SECTION ---
     auto sys_preview_card = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->padding(16, 14)
@@ -2844,7 +2848,7 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
     add_form_spinner(
         sys_main_card, config,
         "System Icon Pack",
-        "",
+        "Select active application icon theme",
         cfg.available_icon_packs,
         cur_icon_idx,
         [this, item](int idx, const std::string& val) {
@@ -2858,8 +2862,131 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
         }
     );
     add_preview_card(sys_main_card);
+}
 
-    // --- 2. CURSOR ICON PACK SECTION ---
+static void load_cursor_config(CursorConfig& cfg) {
+    if (cfg.loaded) return;
+    cfg.available_cursor_themes = get_system_cursor_themes();
+    cfg.available_cursor_sizes = {16, 24, 30, 32, 36, 48, 64};
+
+    std::string cur_cur = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null");
+    if (!cur_cur.empty() && cur_cur.front() == '\'' && cur_cur.back() == '\'') {
+        cur_cur = cur_cur.substr(1, cur_cur.size() - 2);
+    }
+    if (cur_cur.empty() || cur_cur == "default" || cur_cur == "Default" || cur_cur == "miqu-cursors") {
+        cur_cur = "Miqu (Default)";
+    }
+    cfg.cursor_theme = cur_cur;
+
+    std::string cur_sz = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-size 2>/dev/null");
+    try {
+        if (!cur_sz.empty()) cfg.cursor_size = std::stoi(cur_sz);
+    } catch (...) {
+        cfg.cursor_size = 30;
+    }
+    cfg.loaded = true;
+}
+
+
+static void sync_miquland_cursor_config(const std::string& theme, int size) {
+    const char* home = std::getenv("HOME");
+    if (!home) return;
+
+    fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
+    std::error_code ec;
+    if (!fs::exists(miqu_dir, ec)) {
+        // Fresh install: initialize complete standard configuration via miquland
+        std::system("miquland --init-config >/dev/null 2>&1");
+    }
+    if (!fs::exists(miqu_dir, ec)) {
+        fs::create_directories(miqu_dir, ec);
+    }
+
+    fs::path cursor_conf = miqu_dir / "cursor.conf";
+    fs::path miquland_conf = miqu_dir / "miquland.conf";
+
+    // 1. Always write/update cursor.conf (the modular cursor configuration)
+    {
+        std::string new_content =
+            "# ==============================================================================\n"
+            "# cursor.conf — Cursor & Appearance (Modular Sourced File)\n"
+            "# ==============================================================================\n"
+            "cursor {\n"
+            "    # XCursor theme name (located in /usr/share/icons or ~/.icons)\n"
+            "    theme = " + theme + "\n\n"
+            "    # Cursor size in pixels (typical values: 16, 24, 32, 48)\n"
+            "    size = " + std::to_string(size) + "\n"
+            "}\n";
+
+        std::ofstream out(cursor_conf);
+        if (out.is_open()) {
+            out << new_content;
+            out.flush();
+        }
+    }
+
+    // 2. If miquland.conf has an inline cursor block, keep it updated as well
+    if (fs::is_regular_file(miquland_conf, ec)) {
+        std::ifstream in(miquland_conf);
+        if (in.is_open()) {
+            std::vector<std::string> lines;
+            std::string line;
+            bool inside_cursor = false;
+            bool has_cursor_section = false;
+            bool has_theme = false, has_size = false;
+
+            while (std::getline(in, line)) {
+                std::string trimmed = line;
+                size_t s = trimmed.find_first_not_of(" \t");
+                std::string t = (s != std::string::npos) ? trimmed.substr(s) : "";
+
+                if (!inside_cursor) {
+                    if (t.rfind("cursor", 0) == 0) {
+                        size_t brace = t.find('{');
+                        if (brace != std::string::npos) {
+                            inside_cursor = true;
+                            has_cursor_section = true;
+                            lines.push_back(line);
+                            continue;
+                        }
+                    }
+                    lines.push_back(line);
+                } else {
+                    if (t.find('}') != std::string::npos) {
+                        if (!has_theme) lines.push_back("    theme = " + theme);
+                        if (!has_size) lines.push_back("    size = " + std::to_string(size));
+                        inside_cursor = false;
+                        lines.push_back(line);
+                    } else if (t.rfind("theme", 0) == 0 && t.find('=') != std::string::npos) {
+                        lines.push_back("    theme = " + theme);
+                        has_theme = true;
+                    } else if (t.rfind("size", 0) == 0 && t.find('=') != std::string::npos) {
+                        lines.push_back("    size = " + std::to_string(size));
+                        has_size = true;
+                    } else {
+                        lines.push_back(line);
+                    }
+                }
+            }
+            in.close();
+
+            if (has_cursor_section) {
+                std::ofstream out(miquland_conf);
+                if (out.is_open()) {
+                    for (const auto& l : lines) out << l << "\n";
+                    out.flush();
+                }
+            }
+        }
+    }
+}
+
+void MillerView::render_cursor_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
+    if (!item || !item->cursor_cfg) return;
+    auto& cfg = *item->cursor_cfg;
+    load_cursor_config(cfg);
+
+    // --- 1. CURSOR PREVIEW CARD ---
     auto cur_preview_card = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->padding(16, 14)
@@ -2869,12 +2996,21 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
         ->cornerRadius(get_card_radius(config))
         ->build();
 
+    std::string display_name = (cfg.cursor_theme == "Miqu (Default)") ? "Miqu" : cfg.cursor_theme;
+    auto p_title = TextViewBuilder::create()
+        ->text("Preview (" + display_name + ", " + std::to_string(cfg.cursor_size) + " px)")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant)
+        ->build();
+    cur_preview_card->add_view(p_title);
+
     auto cursor_row = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
         ->spacing(6)
         ->gravity(Gravity::Center)
         ->build();
 
+    int target_disp_size = std::clamp(cfg.cursor_size, 20, 48);
     auto cursor_imgs = get_theme_sample_cursors(cfg.cursor_theme);
     for (const auto& img_path : cursor_imgs) {
         auto item_box = LinearLayoutBuilder::create()
@@ -2888,10 +3024,10 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
 
         auto ic = ImageViewBuilder::create()
             ->source(img_path)
-            ->targetSize(36)
+            ->targetSize(target_disp_size)
             ->fitMode(FitMode::Contain)
             ->build();
-        LayoutParams ic_lp(36, 36);
+        LayoutParams ic_lp(target_disp_size, target_disp_size);
         ic_lp.gravity = Gravity::Center;
         item_box->add_view(ic, ic_lp);
 
@@ -2901,11 +3037,14 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
     cur_preview_card->add_view(cursor_row);
     add_preview_card(cur_preview_card);
 
+    // --- 2. FORM CONTROLS (Theme & Size) ---
     auto cur_main_card = create_form_card(config);
 
     int cur_cursor_idx = 0;
     for (size_t i = 0; i < cfg.available_cursor_themes.size(); ++i) {
-        if (cfg.available_cursor_themes[i] == cfg.cursor_theme) {
+        if (cfg.available_cursor_themes[i] == cfg.cursor_theme ||
+            ((cfg.cursor_theme == "default" || cfg.cursor_theme == "Default" || cfg.cursor_theme == "miqu-cursors") &&
+             cfg.available_cursor_themes[i] == "Miqu (Default)")) {
             cur_cursor_idx = static_cast<int>(i);
             break;
         }
@@ -2913,20 +3052,60 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
 
     add_form_spinner(
         cur_main_card, config,
-        "Cursor Icon Pack",
-        "",
+        "Cursor Theme",
+        "Select active pointer theme",
         cfg.available_cursor_themes,
         cur_cursor_idx,
         [this, item](int idx, const std::string& val) {
             (void)idx;
-            if (!item || !item->icon_packs_cfg) return;
-            item->icon_packs_cfg->cursor_theme = val;
-            item->last_action_message = "Cursor icon pack set to: " + val;
+            if (!item || !item->cursor_cfg) return;
+            item->cursor_cfg->cursor_theme = val;
+            std::string target = (val == "Miqu (Default)") ? "miqu-cursors" : val;
+            std::string cmd = "gsettings set org.gnome.desktop.interface cursor-theme '" + target + "' 2>/dev/null &";
+            std::system(cmd.c_str());
+            sync_miquland_cursor_config(target, item->cursor_cfg->cursor_size);
+            item->last_action_message = "Cursor theme set to: " + val;
             deferred_rebuild_preview(10);
         }
     );
+
+    std::vector<std::string> size_labels;
+    int cur_size_idx = 0;
+    for (size_t i = 0; i < cfg.available_cursor_sizes.size(); ++i) {
+        int sz = cfg.available_cursor_sizes[i];
+        std::string lbl = std::to_string(sz) + " px";
+        if (sz == 30) lbl += " (Default)";
+        size_labels.push_back(lbl);
+        if (sz == cfg.cursor_size) {
+            cur_size_idx = static_cast<int>(i);
+        }
+    }
+
+    add_form_spinner(
+        cur_main_card, config,
+        "Cursor Size",
+        "Pointer scale in pixels",
+        size_labels,
+        cur_size_idx,
+        [this, item](int idx, const std::string& val) {
+            (void)val;
+            if (!item || !item->cursor_cfg) return;
+            if (idx >= 0 && idx < static_cast<int>(item->cursor_cfg->available_cursor_sizes.size())) {
+                int sz = item->cursor_cfg->available_cursor_sizes[idx];
+                item->cursor_cfg->cursor_size = sz;
+                std::string cmd = "gsettings set org.gnome.desktop.interface cursor-size " + std::to_string(sz) + " 2>/dev/null &";
+                std::system(cmd.c_str());
+                std::string target = (item->cursor_cfg->cursor_theme == "Miqu (Default)") ? "miqu-cursors" : item->cursor_cfg->cursor_theme;
+                sync_miquland_cursor_config(target, sz);
+                item->last_action_message = "Cursor size set to: " + std::to_string(sz) + " px";
+                deferred_rebuild_preview(10);
+            }
+        }
+    );
+
     add_preview_card(cur_main_card);
 }
+
 
 static void load_login_screen_config(LoginScreenConfig& cfg) {
     if (cfg.is_loaded) return;

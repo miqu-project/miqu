@@ -202,8 +202,8 @@ void Config::set_defaults() {
     m_gamma_temperature = 4500;
     m_allow_tearing = false;
     m_xwayland_force_zero_scaling = true;
-    m_cursor_theme = "";
-    m_cursor_size = 24;
+    m_cursor_theme = "miqu-cursors";
+    m_cursor_size = 30;
     m_default_split_ratio = 0.5;
     m_dwindle_split_focus = true;
     m_dwindle_split_width_multiplier = 1.2;

@@ -116,6 +116,7 @@ private:
     void render_tiling_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_wallpaper_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_icon_packs_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
+    void render_cursor_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_login_screen_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_keybindings_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_timeout_lock_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);

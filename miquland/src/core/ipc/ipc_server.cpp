@@ -293,6 +293,8 @@ void IpcServer::handle_client_message(ClientConnection& client, ipc::MessageType
         send_response(client, ipc::MessageType::Response, handle_getoption_query(args));
     } else if (cmd == "gamma") {
         send_response(client, ipc::MessageType::Response, handle_gamma_query(args));
+    } else if (cmd == "cursor") {
+        send_response(client, ipc::MessageType::Response, handle_cursor_query(args));
     } else if (cmd == "activewindow") {
         send_response(client, ipc::MessageType::Response, handle_activewindow_query());
     } else if (cmd == "activeworkspace") {
@@ -537,7 +539,9 @@ std::string IpcServer::handle_getoption_query(const std::string& key) {
            << "\"blur\":" << (cfg.is_blur_enabled() ? "true" : "false") << ","
            << "\"smart_gaps\":" << (cfg.is_smart_gaps_enabled() ? "true" : "false") << ","
            << "\"gamma_enabled\":" << (m_server->is_gamma_enabled() ? "true" : "false") << ","
-           << "\"gamma_temperature\":" << m_server->get_gamma_temperature()
+           << "\"gamma_temperature\":" << m_server->get_gamma_temperature() << ","
+           << "\"cursor_theme\":\"" << cfg.get_cursor_theme() << "\","
+           << "\"cursor_size\":" << cfg.get_cursor_size()
            << "}";
         return ss.str();
     }
@@ -554,6 +558,8 @@ std::string IpcServer::handle_getoption_query(const std::string& key) {
     if (k == "smart_gaps") return "{\"option\":\"smart_gaps\",\"value\":" + std::string(cfg.is_smart_gaps_enabled() ? "true" : "false") + "}";
     if (k == "gamma_enabled") return "{\"option\":\"gamma_enabled\",\"value\":" + std::string(m_server->is_gamma_enabled() ? "true" : "false") + "}";
     if (k == "gamma_temperature") return "{\"option\":\"gamma_temperature\",\"value\":" + std::to_string(m_server->get_gamma_temperature()) + "}";
+    if (k == "cursor_theme") return "{\"option\":\"cursor_theme\",\"value\":\"" + cfg.get_cursor_theme() + "\"}";
+    if (k == "cursor_size") return "{\"option\":\"cursor_size\",\"value\":" + std::to_string(cfg.get_cursor_size()) + "}";
 
     return "{\"status\":\"error\",\"message\":\"Unknown option: " + ipc::escape_json(k) + "\"}";
 }
@@ -613,6 +619,40 @@ std::string IpcServer::handle_gamma_query(const std::string& args) {
     }
 }
 
+std::string IpcServer::handle_cursor_query(const std::string& args) {
+    Config& cfg = Config::get();
+    std::string a = args;
+    while (!a.empty() && a.front() == ' ') a.erase(0, 1);
+    while (!a.empty() && a.back() == ' ') a.pop_back();
+
+    if (a.empty() || a == "status" || a == "get") {
+        std::ostringstream ss;
+        ss << "{\"theme\":\"" << cfg.get_cursor_theme() << "\""
+           << ",\"size\":" << cfg.get_cursor_size() << "}";
+        return ss.str();
+    }
+
+    std::istringstream iss(a);
+    std::string theme;
+    int size = 0;
+    if (iss >> theme) {
+        iss >> size;
+        cfg.set_cursor_theme(theme);
+        if (size > 0) {
+            cfg.set_cursor_size(size);
+        }
+        if (m_server->get_input_manager()) {
+            m_server->get_input_manager()->reapply_device_config();
+        }
+        std::ostringstream ss;
+        ss << "{\"status\":\"ok\",\"theme\":\"" << cfg.get_cursor_theme() << "\""
+           << ",\"size\":" << cfg.get_cursor_size() << "}";
+        return ss.str();
+    }
+
+    return R"({"status":"error","message":"Usage: cursor [theme] [size]"})";
+}
+
 std::string IpcServer::handle_activewindow_query() {
     View* v = m_server->get_focused_view();
     if (!v || !v->is_mapped()) return "null";
@@ -668,6 +708,24 @@ std::string IpcServer::handle_dispatch(const std::string& args) {
     iss >> sub_action;
 
     WorkspaceManager* wm = m_server->get_workspace_manager();
+
+    if (sub_action == "cursor" || sub_action == "set_cursor") {
+        std::string theme;
+        int size = 0;
+        if (iss >> theme) {
+            iss >> size;
+            Config::get().set_cursor_theme(theme);
+            if (size > 0) {
+                Config::get().set_cursor_size(size);
+            }
+            if (m_server->get_input_manager()) {
+                m_server->get_input_manager()->reapply_device_config();
+            }
+            return R"({"status":"ok","action":"cursor","theme":")" + theme +
+                   R"(","size":)" + std::to_string(Config::get().get_cursor_size()) + "}";
+        }
+        return R"({"status":"error","message":"Usage: dispatch cursor <theme> [size]"})";
+    }
 
     if (sub_action == "close") {
         uint64_t target_id = 0;

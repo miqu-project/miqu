@@ -9,6 +9,7 @@
 #include "xdg-shell-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "ext-session-lock-v1-client-protocol.h"
+#include "cursor-shape-v1-client-protocol.h"
 #include <wayland-cursor.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -1014,15 +1015,28 @@ void Window::request_close() {
 void Window::update_cursor(uint32_t serial) {
     if (!m_pointer) return;
     auto* engine = AppEngine::instance();
-    if (!engine || !engine->get_shm() || !engine->get_compositor()) return;
+    if (!engine) return;
+
+    if (engine->get_cursor_shape_manager()) {
+        struct wp_cursor_shape_device_v1* device =
+            wp_cursor_shape_manager_v1_get_pointer(engine->get_cursor_shape_manager(), m_pointer);
+        if (device) {
+            wp_cursor_shape_device_v1_set_shape(device, serial, WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
+            wp_cursor_shape_device_v1_destroy(device);
+            return;
+        }
+    }
+
+    if (!engine->get_shm() || !engine->get_compositor()) return;
+
+    const char* xcursor_theme = getenv("XCURSOR_THEME");
+    const char* xcursor_size = getenv("XCURSOR_SIZE");
+    int size = 24;
+    if (xcursor_size && *xcursor_size) {
+        try { size = std::stoi(xcursor_size); } catch (...) {}
+    }
 
     if (!m_cursor_theme) {
-        const char* xcursor_theme = getenv("XCURSOR_THEME");
-        const char* xcursor_size = getenv("XCURSOR_SIZE");
-        int size = 24;
-        if (xcursor_size && *xcursor_size) {
-            try { size = std::stoi(xcursor_size); } catch (...) {}
-        }
         m_cursor_theme = wl_cursor_theme_load(xcursor_theme, size, engine->get_shm());
     }
     if (!m_cursor_theme) return;

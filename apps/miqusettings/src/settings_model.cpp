@@ -440,12 +440,15 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         auto ws_icon_packs = SettingItem::create_leaf("ws_icon_packs", "Icon Packs", "", "preferences-desktop-icons");
         ws_icon_packs->is_icon_packs = true;
 
+        auto ws_cursor = SettingItem::create_leaf("ws_cursor", "Cursor", "", "input-mouse");
+        ws_cursor->is_cursor = true;
+
         auto ws_login_screen = SettingItem::create_leaf("ws_login_screen", "Login Screen (Display Manager)", "", "system-lock-screen");
         ws_login_screen->is_login_screen = true;
 
         root.push_back(SettingItem::create_category(
             "cat_appearance", "Appearance", "preferences-desktop-theme",
-            {ws_wallpaper, ws_icon_packs, ws_login_screen}
+            {ws_wallpaper, ws_icon_packs, ws_cursor, ws_login_screen}
         ));
     }
 

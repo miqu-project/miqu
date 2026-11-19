@@ -338,8 +338,14 @@ struct WallpaperConfig {
 struct IconPacksConfig {
     std::string icon_theme = "";
     std::vector<std::string> available_icon_packs;
-    std::string cursor_theme = "";
+    bool loaded = false;
+};
+
+struct CursorConfig {
+    std::string cursor_theme = "Miqu (Default)";
+    int cursor_size = 30;
     std::vector<std::string> available_cursor_themes;
+    std::vector<int> available_cursor_sizes = {16, 24, 30, 32, 36, 48, 64};
     bool loaded = false;
 };
 
@@ -450,6 +456,9 @@ public:
 
     bool is_icon_packs = false;
     std::shared_ptr<IconPacksConfig> icon_packs_cfg = std::make_shared<IconPacksConfig>();
+
+    bool is_cursor = false;
+    std::shared_ptr<CursorConfig> cursor_cfg = std::make_shared<CursorConfig>();
 
     bool is_login_screen = false;
     std::shared_ptr<LoginScreenConfig> login_screen_cfg = std::make_shared<LoginScreenConfig>();

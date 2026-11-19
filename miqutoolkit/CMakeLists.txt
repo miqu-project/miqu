@@ -99,6 +99,19 @@ add_custom_command(
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/protocols/ext-session-lock-v1.xml
 )
 
+# Generate cursor-shape protocol
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-client-protocol.h
+    COMMAND ${WAYLAND_SCANNER} client-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/cursor-shape-v1.xml ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-client-protocol.h
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/protocols/cursor-shape-v1.xml
+)
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-client-protocol.c
+    COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/cursor-shape-v1.xml ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-client-protocol.c
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/protocols/cursor-shape-v1.xml
+)
+
 # Shared Library
 add_library(miqutoolkit SHARED
     src/core/app_engine.cpp
@@ -155,6 +168,8 @@ add_library(miqutoolkit SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/ext-idle-notify-v1-client-protocol.c
     ${CMAKE_CURRENT_BINARY_DIR}/ext-session-lock-v1-client-protocol.h
     ${CMAKE_CURRENT_BINARY_DIR}/ext-session-lock-v1-client-protocol.c
+    ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-client-protocol.h
+    ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-client-protocol.c
 )
 
 set_target_properties(miqutoolkit PROPERTIES

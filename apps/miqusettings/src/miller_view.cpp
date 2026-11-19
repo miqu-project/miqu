@@ -397,6 +397,8 @@ void MillerView::update_preview_ribbon() {
             title_str = "Wallpaper";
         } else if (item && (item->id == "ws_icon_packs" || item->is_icon_packs)) {
             title_str = "Icon Packs";
+        } else if (item && (item->id == "ws_cursor" || item->is_cursor)) {
+            title_str = "Cursor";
         } else if (item && (item->id == "ws_login_screen" || item->is_login_screen)) {
             title_str = "Login Screen";
         }
@@ -833,6 +835,8 @@ void MillerView::rebuild_preview_column() {
         render_wallpaper_preview(item, config);
     } else if (item->is_icon_packs || item->id == "ws_icon_packs") {
         render_icon_packs_preview(item, config);
+    } else if (item->is_cursor || item->id == "ws_cursor") {
+        render_cursor_preview(item, config);
     } else if (item->is_login_screen || item->id == "ws_login_screen") {
         render_login_screen_preview(item, config);
     } else if (item->is_keybinding_group) {

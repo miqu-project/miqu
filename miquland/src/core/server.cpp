@@ -651,6 +651,10 @@ void Server::reload_config() {
         m_plugin_manager->sync_configured_plugins();
     }
 
+    if (m_input_manager) {
+        m_input_manager->reapply_device_config();
+    }
+
     for (const auto& cmd : Config::get().get_exec_commands()) {
         if (m_input_manager) {
             m_input_manager->spawn_command(cmd.c_str());

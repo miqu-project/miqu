@@ -18,6 +18,7 @@ struct ext_session_lock_v1_listener;
 struct ext_session_lock_surface_v1;
 struct xdg_wm_base;
 struct xdg_wm_base_listener;
+struct wp_cursor_shape_manager_v1;
 
 namespace miqu {
 
@@ -48,6 +49,7 @@ public:
     struct ext_session_lock_manager_v1* get_session_lock_manager() const { return m_session_lock_manager; }
     struct ext_session_lock_v1* get_session_lock() const { return m_session_lock; }
     struct xdg_wm_base* get_xdg_wm_base() const { return m_xdg_wm_base; }
+    struct wp_cursor_shape_manager_v1* get_cursor_shape_manager() const { return m_cursor_shape_manager; }
     struct wl_seat* get_seat() const { return m_seat; }
     uint32_t get_seat_capabilities() const { return m_seat_capabilities; }
 
@@ -97,6 +99,7 @@ private:
     struct ext_session_lock_v1* m_session_lock = nullptr;
     std::function<void(bool success)> m_on_locked_cb;
     struct xdg_wm_base* m_xdg_wm_base = nullptr;
+    struct wp_cursor_shape_manager_v1* m_cursor_shape_manager = nullptr;
     struct wl_seat* m_seat = nullptr;
     uint32_t m_seat_capabilities = 0;
 

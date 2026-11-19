@@ -235,9 +235,11 @@ void print_help(const char* prog) {
               << "                              cycle_layout [next|prev]    Cycle through available tiling layouts\n"
               << "                              swap_main [id]              Swap window with master\n"
               << "                              togglesplit, toggle_split   Toggle split orientation (horizontal/vertical)\n"
+              << "                              cursor <theme> [size]       Set active pointer theme and size\n"
               << "                              shutdown [timeout_ms]       Trigger graceful shutdown\n\n"
               << "Compositor & Session Control:\n"
               << "  gamma [temp|on|off|toggle] Get or set display color warmth / night light\n"
+              << "  cursor [theme] [size]      Get or set active pointer theme and size in RAM\n"
               << "  exit                      Terminate miquland session immediately\n"
               << "  reload                    Reload miquland.conf configuration\n"
               << "  exec <command>            Execute a program in the compositor environment\n"
@@ -530,6 +532,28 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "Night Light / Gamma: " << (enabled ? "ON" : "OFF")
                   << " (" << temp << "K)" << std::endl;
+        return 0;
+    }
+
+    if (command == "cursor" && !force_json) {
+        if (response.find("\"status\":\"error\"") != std::string::npos) {
+            std::cerr << "Error: " << response << std::endl;
+            return 1;
+        }
+        std::string theme = "unknown";
+        int size = 24;
+        size_t th_pos = response.find("\"theme\":\"");
+        if (th_pos != std::string::npos) {
+            size_t end_pos = response.find("\"", th_pos + 9);
+            if (end_pos != std::string::npos) {
+                theme = response.substr(th_pos + 9, end_pos - (th_pos + 9));
+            }
+        }
+        size_t sz_pos = response.find("\"size\":");
+        if (sz_pos != std::string::npos) {
+            try { size = std::stoi(response.substr(sz_pos + 7)); } catch (...) {}
+        }
+        std::cout << "Cursor: " << theme << " (" << size << "px)" << std::endl;
         return 0;
     }
 
