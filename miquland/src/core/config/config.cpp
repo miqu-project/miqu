@@ -1109,6 +1109,28 @@ std::string Config::init_user_config() {
                 copied = true;
                 std::cout << "[miquland] Initialized default configuration: copied " << cand << " to " << config_path << "\n";
                 log_info("Installed default configuration to " + config_path + " from " + cand);
+
+                // Also copy companion modular config templates if present
+                for (const char* mod_conf : {"appearance.conf", "cursor.conf"}) {
+                    std::string mod_src = std::string(t_dir) + "/" + mod_conf;
+                    if (!fs::exists(mod_src)) {
+                        for (const char* f_dir : {"assets", "/usr/share/miquland", "/etc/xdg/miquland", "/usr/local/share/miquland"}) {
+                            std::string f_cand = std::string(f_dir) + "/" + mod_conf;
+                            if (fs::exists(f_cand)) {
+                                mod_src = f_cand;
+                                break;
+                            }
+                        }
+                    }
+                    std::string mod_dest = dir + "/" + mod_conf;
+                    if (fs::exists(mod_src) && !fs::exists(mod_dest)) {
+                        fs::copy_file(mod_src, mod_dest, ec);
+                        if (!ec) {
+                            std::cout << "[miquland] Copied companion template: " << mod_conf << "\n";
+                            log_info("Installed modular template to " + mod_dest);
+                        }
+                    }
+                }
                 break;
             }
         }
@@ -2479,6 +2501,17 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
 
         if (key == "source") {
             std::string resolved = resolve_path(value);
+            if (resolved.empty() || !fs::exists(resolved)) {
+                // If not found in user path, check system fallback directories
+                std::string fname = fs::path(resolved.empty() ? value : resolved).filename().string();
+                for (const char* t_dir : {"/usr/share/miquland", "assets", "/etc/xdg/miquland", "/etc/miquland", "/usr/local/share/miquland"}) {
+                    std::string sys_cand = std::string(t_dir) + "/" + fname;
+                    if (fs::exists(sys_cand)) {
+                        resolved = sys_cand;
+                        break;
+                    }
+                }
+            }
             if (!resolved.empty() && fs::exists(resolved)) {
                 log_info("Sourcing configuration from " + resolved);
                 load_file(resolved, file_bindings, has_bindings_in_file, file_gestures, has_gestures_in_file,
