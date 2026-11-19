@@ -83,39 +83,45 @@ void WallpaperManager::init(miqu::AppEngine* engine) {
 }
 
 OutputConfig WallpaperManager::get_config_for_output(const std::string& name) const {
+    std::lock_guard<std::mutex> lock(m_config_mutex);
     OutputConfig cfg = m_default_config;
     auto it = m_output_configs.find(name);
     if (it != m_output_configs.end()) {
         cfg = it->second;
-    }
-    if (cfg.image_path.empty()) {
-        cfg.image_path = resolve_default_wallpaper();
     }
     return cfg;
 }
 
 OutputConfig WallpaperManager::get_current_config(const std::string& output_name) const {
     if (output_name.empty() || output_name == "*") {
-        OutputConfig cfg = m_default_config;
-        if (cfg.image_path.empty()) {
-            cfg.image_path = resolve_default_wallpaper();
-        }
-        return cfg;
+        std::lock_guard<std::mutex> lock(m_config_mutex);
+        return m_default_config;
     }
     return get_config_for_output(output_name);
 }
 
-static std::shared_ptr<miqu::Window> create_wallpaper_window(const miqu::OutputInfo& out, const OutputConfig& cfg) {
-    std::string img_path = cfg.image_path;
-    if (img_path.empty()) {
-        img_path = WallpaperManager::resolve_default_wallpaper();
+std::map<std::string, OutputConfig> WallpaperManager::get_all_active_configs() const {
+    std::map<std::string, OutputConfig> result;
+    auto outputs = miqu::OutputManager::get()->get_outputs();
+    for (const auto& out : outputs) {
+        std::string name = out.name.empty() ? ("output-" + std::to_string(out.id)) : out.name;
+        result[name] = get_config_for_output(out.name);
     }
+    if (result.empty()) {
+        result["*"] = get_current_config("*");
+    }
+    return result;
+}
 
-    auto imageView = miqu::ImageViewBuilder::create()
-        ->source(img_path)
+static std::shared_ptr<miqu::Window> create_wallpaper_window(const miqu::OutputInfo& out, const OutputConfig& cfg) {
+    auto imgBuilder = miqu::ImageViewBuilder::create()
         ->fitMode(cfg.mode)
-        ->backgroundColor(cfg.bg_color)
-        ->build();
+        ->backgroundColor(cfg.bg_color);
+
+    if (!cfg.image_path.empty()) {
+        imgBuilder->source(cfg.image_path);
+    }
+    auto imageView = imgBuilder->build();
 
     return miqu::WindowBuilder::create()
         ->role(miqu::WindowRole::LayerBackground)
@@ -127,12 +133,24 @@ static std::shared_ptr<miqu::Window> create_wallpaper_window(const miqu::OutputI
         ->build();
 }
 
+WallpaperManager::~WallpaperManager() {
+    for (auto& pair : m_windows) {
+        if (pair.second) {
+            pair.second->close();
+        }
+    }
+    m_windows.clear();
+}
+
 void WallpaperManager::update_wallpaper(const std::string& output_name, OutputConfig config) {
-    if (output_name.empty() || output_name == "*") {
-        m_default_config = config;
-        m_output_configs.clear();
-    } else {
-        m_output_configs[output_name] = config;
+    {
+        std::lock_guard<std::mutex> lock(m_config_mutex);
+        if (output_name.empty() || output_name == "*") {
+            m_default_config = config;
+            m_output_configs.clear();
+        } else {
+            m_output_configs[output_name] = config;
+        }
     }
 
     auto outputs = miqu::OutputManager::get()->get_outputs();
@@ -142,32 +160,32 @@ void WallpaperManager::update_wallpaper(const std::string& output_name, OutputCo
         }
 
         OutputConfig cfg = get_config_for_output(out.name);
-        std::cout << "[miqubg] Swapping wallpaper for output '"
+        std::cout << "[miqubg] Updating wallpaper for output '"
                   << (out.name.empty() ? "(unknown)" : out.name) << "' [id=" << out.id << "]"
-                  << " image: " << cfg.image_path << std::endl;
+                  << (cfg.image_path.empty() ? " (solid color)" : (" image: " + cfg.image_path))
+                  << std::endl;
 
-        auto new_window = create_wallpaper_window(out, cfg);
-        if (!new_window) {
-            std::cerr << "[miqubg] Failed to create new wallpaper surface for output " << out.id << std::endl;
-            continue;
+        auto it = m_windows.find(out.id);
+        if (it != m_windows.end() && it->second) {
+            // Direct in-place update on the existing persistent surface
+            auto content_view = it->second->get_content_view();
+            auto img_view = std::dynamic_pointer_cast<miqu::ImageView>(content_view);
+            if (img_view) {
+                img_view->set_fit_mode(cfg.mode);
+                img_view->set_background_color(cfg.bg_color);
+                img_view->set_image_resource(cfg.image_path);
+                img_view->invalidate_surface_cache();
+                it->second->schedule_redraw();
+                continue;
+            }
         }
 
-        auto it_old = m_windows.find(out.id);
-        std::shared_ptr<miqu::Window> old_window = (it_old != m_windows.end()) ? it_old->second : nullptr;
-
-        m_windows[out.id] = new_window;
-
-        if (old_window && m_engine) {
-            // miquland's compositor engine smoothly animates the new surface into place.
-            // After 380ms, cleanly tear down the old background window on the main thread.
-            std::thread([engine = m_engine, old_window]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(380));
-                engine->post([old_window]() {
-                    if (old_window) {
-                        old_window->close();
-                    }
-                });
-            }).detach();
+        // Output does not have a surface yet; create it once
+        auto new_window = create_wallpaper_window(out, cfg);
+        if (new_window) {
+            m_windows[out.id] = new_window;
+        } else {
+            std::cerr << "[miqubg] Failed to create layer window for output " << out.id << std::endl;
         }
     }
 }
@@ -181,7 +199,8 @@ void WallpaperManager::sync_outputs() {
     for (const auto& out : outputs) {
         current_output_ids.insert(out.id);
 
-        if (m_windows.find(out.id) == m_windows.end()) {
+        auto it = m_windows.find(out.id);
+        if (it == m_windows.end() || !it->second) {
             OutputConfig cfg = get_config_for_output(out.name);
 
             std::cout << "[miqubg] Creating wallpaper surface for output '"
@@ -194,6 +213,18 @@ void WallpaperManager::sync_outputs() {
                 m_windows[out.id] = window;
             } else {
                 std::cerr << "[miqubg] Failed to create layer window for output " << out.id << std::endl;
+            }
+        } else {
+            // Refresh existing output in place
+            OutputConfig cfg = get_config_for_output(out.name);
+            auto content_view = it->second->get_content_view();
+            auto img_view = std::dynamic_pointer_cast<miqu::ImageView>(content_view);
+            if (img_view) {
+                img_view->set_fit_mode(cfg.mode);
+                img_view->set_background_color(cfg.bg_color);
+                img_view->set_image_resource(cfg.image_path);
+                img_view->invalidate_surface_cache();
+                it->second->schedule_redraw();
             }
         }
     }

@@ -341,6 +341,71 @@ static FitMode wallpaper_str_to_fit_mode(const std::string& mode_str) {
     return FitMode::Cover;
 }
 
+static bool query_miqubg_wallpaper_ipc(std::string& image_path, std::string& fit_mode, std::string& bg_color) {
+    const char* wayland_display = std::getenv("WAYLAND_DISPLAY");
+    std::string display_name = (wayland_display && *wayland_display) ? wayland_display : "wayland-0";
+
+    const char* runtime_dir = std::getenv("XDG_RUNTIME_DIR");
+    std::string sock_path = (runtime_dir && *runtime_dir)
+        ? std::string(runtime_dir) + "/miqubg-" + display_name + ".sock"
+        : "/tmp/miqubg-" + std::to_string(getuid()) + "-" + display_name + ".sock";
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return false;
+
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+    struct sockaddr_un addr;
+    std::memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    std::strncpy(addr.sun_path, sock_path.c_str(), sizeof(addr.sun_path) - 1);
+
+    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        close(fd);
+        return false;
+    }
+
+    std::string cmd = "GET *\n";
+    if (write(fd, cmd.c_str(), cmd.size()) < 0) {
+        close(fd);
+        return false;
+    }
+
+    char buf[1024];
+    std::memset(buf, 0, sizeof(buf));
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+
+    if (n > 0) {
+        std::string resp(buf, n);
+        if (resp.rfind("OK ", 0) == 0) {
+            std::istringstream iss(resp.substr(3));
+            std::string mode, col, path;
+            if (iss >> mode >> col) {
+                std::getline(iss, path);
+                size_t f = path.find_first_not_of(" \t\r\n");
+                if (f != std::string::npos) {
+                    path = path.substr(f);
+                } else {
+                    path = "";
+                }
+                while (!path.empty() && (path.back() == '\r' || path.back() == '\n')) {
+                    path.pop_back();
+                }
+                fit_mode = mode;
+                bg_color = col;
+                image_path = path;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static bool send_miqubg_wallpaper_ipc(const std::string& image_path, const std::string& fit_mode) {
     const char* wayland_display = std::getenv("WAYLAND_DISPLAY");
     std::string display_name = (wayland_display && *wayland_display) ? wayland_display : "wayland-0";
@@ -378,7 +443,7 @@ static bool send_miqubg_wallpaper_ipc(const std::string& image_path, const std::
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         close(fd);
         // Fallback: daemon not yet listening on socket, spawn miqubg directly
-        std::string spawn = "miqubg -i \"" + image_path + "\" -m " + mode_str + " &";
+        std::string spawn = "miqubg img \"" + image_path + "\" -m " + mode_str + " &";
         int res = system(spawn.c_str());
         return (res == 0);
     }
@@ -1307,6 +1372,30 @@ private:
 
 void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     if (!item || !item->wallpaper_cfg) return;
+
+    // Load active wallpaper from miqubg daemon if user doesn't have an unapplied browse selection
+    if (!item->wallpaper_cfg->has_pending_selection) {
+        std::string active_path, active_mode, active_color;
+        if (query_miqubg_wallpaper_ipc(active_path, active_mode, active_color)) {
+            if (!active_path.empty()) {
+                item->wallpaper_cfg->wallpaper_path = active_path;
+                item->wallpaper_cfg->current_wallpaper = fs::path(active_path).filename().string();
+            }
+            if (!active_mode.empty()) {
+                std::string cap = active_mode;
+                if (!cap.empty()) cap[0] = std::toupper(cap[0]);
+                if (cap == "Fill") cap = "Stretch";
+                else if (cap == "Contain") cap = "Fit";
+                item->wallpaper_cfg->fit_mode = cap;
+            }
+        } else if (item->wallpaper_cfg->wallpaper_path.empty() || !fs::exists(expand_wallpaper_path(item->wallpaper_cfg->wallpaper_path))) {
+            if (fs::exists("/usr/share/miqubg/wallpaper.png")) {
+                item->wallpaper_cfg->wallpaper_path = "/usr/share/miqubg/wallpaper.png";
+                item->wallpaper_cfg->current_wallpaper = "wallpaper.png";
+            }
+        }
+    }
+
     auto main_card = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->padding(16, 16)
@@ -1383,6 +1472,7 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
                     eng->post_delayed(0, [this, item, selected_path]() {
                         item->wallpaper_cfg->wallpaper_path = selected_path;
                         item->wallpaper_cfg->current_wallpaper = fs::path(selected_path).filename().string();
+                        item->wallpaper_cfg->has_pending_selection = true;
                         item->last_action_message = "";
                         rebuild_preview_column();
                         notify_state_changed();
@@ -1403,6 +1493,24 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
     LayoutParams b_lp(static_cast<int>(LayoutDimension::WrapContent), 36);
     b_lp.gravity = Gravity::CenterVertical;
     bottom_row->add_view(browse_btn, b_lp);
+
+    if (item->wallpaper_cfg->has_pending_selection) {
+        auto reset_btn = ButtonBuilder::create()
+            ->text("Reset")
+            ->style(ButtonStyle::Outlined)
+            ->padding(14, 6)
+            ->cornerRadius(get_btn_radius(config))
+            ->onClick([this, item]() {
+                item->wallpaper_cfg->has_pending_selection = false;
+                item->last_action_message = "";
+                rebuild_preview_column();
+                notify_state_changed();
+            })
+            ->build();
+        LayoutParams r_lp(static_cast<int>(LayoutDimension::WrapContent), 36);
+        r_lp.gravity = Gravity::CenterVertical;
+        bottom_row->add_view(reset_btn, r_lp);
+    }
 
     int cur_fit_idx = 0;
     for (size_t i = 0; i < item->wallpaper_cfg->fit_modes.size(); ++i) {
@@ -1435,6 +1543,7 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
         if (!expanded.empty() && fs::exists(expanded)) {
             bool ok = send_miqubg_wallpaper_ipc(expanded, item->wallpaper_cfg->fit_mode);
             if (ok) {
+                item->wallpaper_cfg->has_pending_selection = false;
                 item->last_action_message = "Wallpaper applied via miqubg";
             } else {
                 item->last_action_message = "Failed to connect to miqubg daemon";

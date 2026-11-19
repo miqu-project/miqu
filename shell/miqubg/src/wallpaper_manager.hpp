@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include <cstdint>
+#include <mutex>
 
 namespace miqubg {
 
@@ -17,10 +18,14 @@ struct OutputConfig {
 class WallpaperManager {
 public:
     WallpaperManager() = default;
-    ~WallpaperManager() = default;
+    ~WallpaperManager();
 
-    void set_default_config(OutputConfig config) { m_default_config = std::move(config); }
+    void set_default_config(OutputConfig config) {
+        std::lock_guard<std::mutex> lock(m_config_mutex);
+        m_default_config = std::move(config);
+    }
     void set_output_config(const std::string& output_name, OutputConfig config) {
+        std::lock_guard<std::mutex> lock(m_config_mutex);
         m_output_configs[output_name] = std::move(config);
     }
 
@@ -28,6 +33,7 @@ public:
     void sync_outputs();
     void update_wallpaper(const std::string& output_name, OutputConfig config);
     OutputConfig get_current_config(const std::string& output_name = "*") const;
+    std::map<std::string, OutputConfig> get_all_active_configs() const;
 
     static miqu::FitMode parse_mode(const std::string& mode_str);
     static std::string resolve_default_wallpaper();
@@ -36,6 +42,7 @@ private:
     OutputConfig get_config_for_output(const std::string& name) const;
 
     miqu::AppEngine* m_engine = nullptr;
+    mutable std::mutex m_config_mutex;
     OutputConfig m_default_config;
     std::map<std::string, OutputConfig> m_output_configs;
     std::map<uint32_t, std::shared_ptr<miqu::Window>> m_windows;

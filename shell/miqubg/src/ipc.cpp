@@ -55,15 +55,17 @@ bool IPC::send_command(const std::string& command, std::string& response) {
         return false;
     }
 
-    char buf[1024];
-    std::memset(buf, 0, sizeof(buf));
-    ssize_t n = read(fd, buf, sizeof(buf) - 1);
-    if (n > 0) {
-        response = std::string(buf, n);
-        while (!response.empty() && (response.back() == '\n' || response.back() == '\r')) {
-            response.pop_back();
-        }
+    char buf[4096];
+    std::string full_response;
+    while (true) {
+        ssize_t n = read(fd, buf, sizeof(buf));
+        if (n <= 0) break;
+        full_response.append(buf, n);
     }
+    while (!full_response.empty() && (full_response.back() == '\n' || full_response.back() == '\r')) {
+        full_response.pop_back();
+    }
+    response = full_response;
 
     close(fd);
     return true;
