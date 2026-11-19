@@ -1,6 +1,8 @@
 #include "miller_view.hpp"
 #include "preview_common.hpp"
 #include <miqutoolkit/view/popup_window.hpp>
+#include <miqutoolkit/view/edit_text.hpp>
+#include <miqutoolkit/view/frame_layout.hpp>
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -8,12 +10,14 @@
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
 #include <filesystem>
 #include <thread>
 #include <cstring>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 namespace fs = std::filesystem;
 
@@ -2461,6 +2465,884 @@ void MillerView::render_timeout_lock_preview(const std::shared_ptr<SettingItem>&
     add_preview_card(defs_card);
 }
 
+static std::string exec_command_trimmed(const std::string& cmd) {
+    FILE* fp = popen(cmd.c_str(), "r");
+    if (!fp) return "";
+    char buf[512];
+    std::string out;
+    if (fgets(buf, sizeof(buf), fp)) {
+        out = buf;
+    }
+    pclose(fp);
+    while (!out.empty() && (out.back() == '\n' || out.back() == '\r' || out.back() == ' ' || out.back() == '\'')) {
+        out.pop_back();
+    }
+    while (!out.empty() && (out.front() == '\'' || out.front() == ' ')) {
+        out.erase(out.begin());
+    }
+    return out;
+}
 
+static std::vector<std::string> get_icon_roots() {
+    std::vector<std::string> roots = {
+        "/usr/share/icons",
+        "/usr/local/share/icons"
+    };
+    const char* home = std::getenv("HOME");
+    if (home && *home) {
+        roots.push_back(std::string(home) + "/.local/share/icons");
+        roots.push_back(std::string(home) + "/.icons");
+    }
+    const char* xdg_home = std::getenv("XDG_DATA_HOME");
+    if (xdg_home && *xdg_home) {
+        roots.push_back(std::string(xdg_home) + "/icons");
+    }
+    return roots;
+}
+
+static std::vector<std::string> get_theme_search_hierarchy(const std::string& theme_name, const std::vector<std::string>& roots, const std::string& fallback_theme) {
+    std::vector<std::string> themes = {theme_name};
+    std::error_code ec;
+    for (const auto& r : roots) {
+        fs::path idx_path = fs::path(r) / theme_name / "index.theme";
+        if (fs::is_regular_file(idx_path, ec)) {
+            std::ifstream f(idx_path);
+            std::string line;
+            while (std::getline(f, line)) {
+                if (line.rfind("Inherits=", 0) == 0) {
+                    std::stringstream ss(line.substr(9));
+                    std::string item;
+                    while (std::getline(ss, item, ',')) {
+                        size_t first = item.find_first_not_of(" \t\r\n");
+                        size_t last = item.find_last_not_of(" \t\r\n");
+                        if (first != std::string::npos && last != std::string::npos) {
+                            std::string clean = item.substr(first, last - first + 1);
+                            if (!clean.empty() && std::find(themes.begin(), themes.end(), clean) == themes.end()) {
+                                themes.push_back(clean);
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+    if (!fallback_theme.empty() && std::find(themes.begin(), themes.end(), fallback_theme) == themes.end()) {
+        themes.push_back(fallback_theme);
+    }
+    return themes;
+}
+
+static std::vector<std::string> get_system_icon_packs() {
+    auto roots = get_icon_roots();
+    std::set<std::string> themes;
+    std::error_code ec;
+    for (const auto& root_dir : roots) {
+        if (!fs::is_directory(root_dir, ec)) continue;
+        for (const auto& entry : fs::directory_iterator(root_dir, ec)) {
+            if (!entry.is_directory(ec)) continue;
+            std::string id = entry.path().filename().string();
+            if (id.empty() || id[0] == '.') continue;
+
+            fs::path tdir = entry.path();
+            fs::path idx_path = tdir / "index.theme";
+            bool has_idx = fs::is_regular_file(idx_path, ec);
+            bool has_icon_dirs = fs::is_directory(tdir / "scalable", ec) ||
+                                 fs::is_directory(tdir / "48x48", ec) ||
+                                 fs::is_directory(tdir / "32x32", ec) ||
+                                 fs::is_directory(tdir / "apps", ec) ||
+                                 fs::is_directory(tdir / "places", ec);
+            if (has_icon_dirs || (has_idx && !fs::is_directory(tdir / "cursors", ec))) {
+                themes.insert(id);
+            }
+        }
+    }
+    return std::vector<std::string>(themes.begin(), themes.end());
+}
+
+static std::vector<std::string> get_system_cursor_themes() {
+    auto roots = get_icon_roots();
+    std::set<std::string> themes;
+    std::error_code ec;
+    for (const auto& root_dir : roots) {
+        if (!fs::is_directory(root_dir, ec)) continue;
+        for (const auto& entry : fs::directory_iterator(root_dir, ec)) {
+            if (!entry.is_directory(ec)) continue;
+            std::string id = entry.path().filename().string();
+            if (id.empty() || id[0] == '.') continue;
+
+            fs::path cursor_dir = entry.path() / "cursors";
+            if (fs::is_directory(cursor_dir, ec)) {
+                themes.insert(id);
+            }
+        }
+    }
+    return std::vector<std::string>(themes.begin(), themes.end());
+}
+
+static std::vector<std::string> get_theme_sample_icons(const std::string& theme_name) {
+    const std::vector<std::pair<std::string, std::vector<std::string>>> categories = {
+        {"Files", {"folder", "system-file-manager", "inode-directory"}},
+        {"Terminal", {"utilities-terminal", "terminal", "org.gnome.Terminal"}},
+        {"Browser", {"web-browser", "internet-web-browser", "firefox", "google-chrome"}},
+        {"Editor", {"accessories-text-editor", "text-editor", "gedit", "org.gnome.TextEditor"}},
+        {"Settings", {"preferences-system", "system-settings", "gnome-control-center"}}
+    };
+
+    auto roots = get_icon_roots();
+    auto themes_to_search = get_theme_search_hierarchy(theme_name, roots, "hicolor");
+
+    const std::vector<std::string> subdirs = {
+        "scalable/places", "48x48/places", "64x64/places", "32x32/places", "places",
+        "scalable/apps", "48x48/apps", "64x64/apps", "32x32/apps", "128x128/apps", "256x256/apps", "apps",
+        "scalable/categories", "48x48/categories", "categories",
+        "scalable/devices", "48x48/devices", "devices",
+        "symbolic/apps", "symbolic/places", "symbolic", ""
+    };
+    const std::vector<std::string> extensions = {".svg", ".png"};
+
+    std::vector<std::string> result;
+    std::error_code ec;
+    for (const auto& cat : categories) {
+        std::string found_path;
+        for (const auto& th : themes_to_search) {
+            for (const auto& r : roots) {
+                fs::path th_dir = fs::path(r) / th;
+                if (!fs::is_directory(th_dir, ec)) continue;
+
+                for (const auto& icon_name : cat.second) {
+                    for (const auto& sub : subdirs) {
+                        fs::path dir = sub.empty() ? th_dir : (th_dir / sub);
+                        for (const auto& ext : extensions) {
+                            fs::path cand = dir / (icon_name + ext);
+                            if (fs::is_regular_file(cand, ec)) {
+                                found_path = cand.string();
+                                break;
+                            }
+                        }
+                        if (!found_path.empty()) break;
+                    }
+                    if (!found_path.empty()) break;
+                }
+                if (!found_path.empty()) break;
+            }
+            if (!found_path.empty()) break;
+        }
+
+        if (found_path.empty()) {
+            found_path = cat.second.front();
+        }
+        result.push_back(found_path);
+    }
+    return result;
+}
+
+typedef unsigned int XcursorPixel;
+typedef unsigned int XcursorDim;
+struct XcursorImageRaw {
+    XcursorDim version;
+    XcursorDim size;
+    XcursorDim width;
+    XcursorDim height;
+    XcursorDim xhot;
+    XcursorDim yhot;
+    XcursorPixel delay;
+    XcursorPixel *pixels;
+};
+
+static bool extract_cursor_to_tga(const std::string& cursor_file, const std::string& out_tga) {
+    static void* lib_handle = dlopen("libXcursor.so.1", RTLD_LAZY);
+    if (!lib_handle) return false;
+
+    typedef XcursorImageRaw* (*FnLoad)(FILE*, int);
+    typedef void (*FnDestroy)(XcursorImageRaw*);
+
+    static auto load_fn = (FnLoad)dlsym(lib_handle, "XcursorFileLoadImage");
+    static auto destroy_fn = (FnDestroy)dlsym(lib_handle, "XcursorImageDestroy");
+    if (!load_fn || !destroy_fn) return false;
+
+    FILE* fp = fopen(cursor_file.c_str(), "rb");
+    if (!fp) return false;
+
+    XcursorImageRaw* img = load_fn(fp, 32);
+    fclose(fp);
+    if (!img) return false;
+
+    if (img->width == 0 || img->height == 0 || !img->pixels) {
+        destroy_fn(img);
+        return false;
+    }
+
+    FILE* out_fp = fopen(out_tga.c_str(), "wb");
+    if (!out_fp) {
+        destroy_fn(img);
+        return false;
+    }
+
+    uint16_t w = static_cast<uint16_t>(img->width);
+    uint16_t h = static_cast<uint16_t>(img->height);
+    uint8_t tga_header[18] = {
+        0, 0, 2, 0, 0, 0, 0, 0,
+        0, 0, 0, 0,
+        static_cast<uint8_t>(w & 0xFF), static_cast<uint8_t>((w >> 8) & 0xFF),
+        static_cast<uint8_t>(h & 0xFF), static_cast<uint8_t>((h >> 8) & 0xFF),
+        32, 0x28
+    };
+
+    fwrite(tga_header, 1, sizeof(tga_header), out_fp);
+    fwrite(img->pixels, sizeof(uint32_t), img->width * img->height, out_fp);
+    fclose(out_fp);
+
+    destroy_fn(img);
+    return true;
+}
+
+static std::vector<std::string> get_theme_sample_cursors(const std::string& theme_name) {
+    const std::vector<std::pair<std::string, std::vector<std::string>>> cursor_states = {
+        {"default", {"default", "left_ptr", "arrow"}},
+        {"pointer", {"pointer", "hand2", "pointing_hand"}},
+        {"text", {"text", "xterm", "ibeam"}},
+        {"crosshair", {"crosshair", "cross"}},
+        {"wait", {"wait", "watch", "progress"}}
+    };
+
+    auto roots = get_icon_roots();
+    auto themes_to_search = get_theme_search_hierarchy(theme_name, roots, "Adwaita");
+    if (std::find(themes_to_search.begin(), themes_to_search.end(), "default") == themes_to_search.end()) {
+        themes_to_search.push_back("default");
+    }
+
+    std::string safe_theme = theme_name;
+    for (char& c : safe_theme) {
+        if (!std::isalnum(c) && c != '-' && c != '_') c = '_';
+    }
+
+    std::vector<std::string> result_imgs;
+    std::error_code ec;
+
+    for (const auto& state : cursor_states) {
+        std::string found_cursor_file;
+        for (const auto& th : themes_to_search) {
+            for (const auto& r : roots) {
+                fs::path cur_dir = fs::path(r) / th / "cursors";
+                if (!fs::is_directory(cur_dir, ec)) continue;
+
+                for (const auto& alias : state.second) {
+                    fs::path cand = cur_dir / alias;
+                    if (fs::exists(cand, ec)) {
+                        found_cursor_file = cand.string();
+                        break;
+                    }
+                }
+                if (!found_cursor_file.empty()) break;
+            }
+            if (!found_cursor_file.empty()) break;
+        }
+
+        std::string img_path = "/tmp/miqu_cur_" + safe_theme + "_" + state.first + ".tga";
+        bool has_img = fs::is_regular_file(img_path, ec) && fs::file_size(img_path, ec) > 0;
+
+        if (!has_img && !found_cursor_file.empty()) {
+            if (extract_cursor_to_tga(found_cursor_file, img_path)) {
+                has_img = true;
+            }
+        }
+
+        if (has_img) {
+            result_imgs.push_back(img_path);
+        }
+    }
+
+    return result_imgs;
+}
+
+void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
+    if (!item || !item->icon_packs_cfg) return;
+    auto& cfg = *item->icon_packs_cfg;
+
+    if (!cfg.loaded) {
+        cfg.available_icon_packs = get_system_icon_packs();
+        std::string cur_gtk = exec_command_trimmed("gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null");
+        if (!cur_gtk.empty() && cur_gtk.front() == '\'' && cur_gtk.back() == '\'') {
+            cur_gtk = cur_gtk.substr(1, cur_gtk.size() - 2);
+        }
+        if (cur_gtk.empty()) cur_gtk = "Papirus-Dark";
+        cfg.icon_theme = cur_gtk;
+
+        cfg.available_cursor_themes = get_system_cursor_themes();
+        std::string cur_cur = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null");
+        if (!cur_cur.empty() && cur_cur.front() == '\'' && cur_cur.back() == '\'') {
+            cur_cur = cur_cur.substr(1, cur_cur.size() - 2);
+        }
+        if (cur_cur.empty()) {
+            const char* xcur = std::getenv("XCURSOR_THEME");
+            cur_cur = (xcur && *xcur) ? xcur : "default";
+        }
+        cfg.cursor_theme = cur_cur;
+        cfg.loaded = true;
+    }
+
+    // --- 1. SYSTEM ICON PACK SECTION ---
+    auto sys_preview_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(16, 14)
+        ->spacing(12)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto p_title = TextViewBuilder::create()
+        ->text("Preview (" + cfg.icon_theme + ")")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant)
+        ->build();
+    sys_preview_card->add_view(p_title);
+
+    auto icons_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->spacing(6)
+        ->gravity(Gravity::Center)
+        ->build();
+
+    auto samples = get_theme_sample_icons(cfg.icon_theme);
+    for (const auto& sample_src : samples) {
+        auto item_box = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->padding(8, 8)
+            ->gravity(Gravity::Center)
+            ->backgroundColor(config->colors.on_surface.with_alpha(0.04f))
+            ->stroke(1, config->colors.outline.with_alpha(0.15f))
+            ->cornerRadius(get_inner_radius(config))
+            ->build();
+
+        auto ic = ImageViewBuilder::create()
+            ->source(sample_src)
+            ->targetSize(36)
+            ->fitMode(FitMode::Contain)
+            ->build();
+        LayoutParams ic_lp(36, 36);
+        ic_lp.gravity = Gravity::Center;
+        item_box->add_view(ic, ic_lp);
+
+        LayoutParams box_lp(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent), 1.0f);
+        icons_row->add_view(item_box, box_lp);
+    }
+    sys_preview_card->add_view(icons_row);
+    add_preview_card(sys_preview_card);
+
+    auto sys_main_card = create_form_card(config);
+
+    int cur_icon_idx = 0;
+    for (size_t i = 0; i < cfg.available_icon_packs.size(); ++i) {
+        if (cfg.available_icon_packs[i] == cfg.icon_theme) {
+            cur_icon_idx = static_cast<int>(i);
+            break;
+        }
+    }
+
+    add_form_spinner(
+        sys_main_card, config,
+        "System Icon Pack",
+        "",
+        cfg.available_icon_packs,
+        cur_icon_idx,
+        [this, item](int idx, const std::string& val) {
+            (void)idx;
+            if (!item || !item->icon_packs_cfg) return;
+            item->icon_packs_cfg->icon_theme = val;
+            std::string cmd = "gsettings set org.gnome.desktop.interface icon-theme '" + val + "' 2>/dev/null &";
+            std::system(cmd.c_str());
+            item->last_action_message = "System icon pack set to: " + val;
+            deferred_rebuild_preview(10);
+        }
+    );
+    add_preview_card(sys_main_card);
+
+    // --- 2. CURSOR ICON PACK SECTION ---
+    auto cur_preview_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(16, 14)
+        ->spacing(12)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto cursor_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->spacing(6)
+        ->gravity(Gravity::Center)
+        ->build();
+
+    auto cursor_imgs = get_theme_sample_cursors(cfg.cursor_theme);
+    for (const auto& img_path : cursor_imgs) {
+        auto item_box = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->padding(8, 8)
+            ->gravity(Gravity::Center)
+            ->backgroundColor(config->colors.on_surface.with_alpha(0.04f))
+            ->stroke(1, config->colors.outline.with_alpha(0.15f))
+            ->cornerRadius(get_inner_radius(config))
+            ->build();
+
+        auto ic = ImageViewBuilder::create()
+            ->source(img_path)
+            ->targetSize(36)
+            ->fitMode(FitMode::Contain)
+            ->build();
+        LayoutParams ic_lp(36, 36);
+        ic_lp.gravity = Gravity::Center;
+        item_box->add_view(ic, ic_lp);
+
+        LayoutParams box_lp(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent), 1.0f);
+        cursor_row->add_view(item_box, box_lp);
+    }
+    cur_preview_card->add_view(cursor_row);
+    add_preview_card(cur_preview_card);
+
+    auto cur_main_card = create_form_card(config);
+
+    int cur_cursor_idx = 0;
+    for (size_t i = 0; i < cfg.available_cursor_themes.size(); ++i) {
+        if (cfg.available_cursor_themes[i] == cfg.cursor_theme) {
+            cur_cursor_idx = static_cast<int>(i);
+            break;
+        }
+    }
+
+    add_form_spinner(
+        cur_main_card, config,
+        "Cursor Icon Pack",
+        "",
+        cfg.available_cursor_themes,
+        cur_cursor_idx,
+        [this, item](int idx, const std::string& val) {
+            (void)idx;
+            if (!item || !item->icon_packs_cfg) return;
+            item->icon_packs_cfg->cursor_theme = val;
+            item->last_action_message = "Cursor icon pack set to: " + val;
+            deferred_rebuild_preview(10);
+        }
+    );
+    add_preview_card(cur_main_card);
+}
+
+static void load_login_screen_config(LoginScreenConfig& cfg) {
+    if (cfg.is_loaded) return;
+    cfg.is_loaded = true;
+
+    cfg.available_sessions.clear();
+    std::vector<std::string> session_dirs = {"/usr/share/wayland-sessions", "/usr/share/xsessions"};
+    for (const auto& sdir : session_dirs) {
+        if (fs::exists(sdir)) {
+            for (const auto& entry : fs::directory_iterator(sdir)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".desktop") {
+                    std::string sname = entry.path().stem().string();
+                    if (std::find(cfg.available_sessions.begin(), cfg.available_sessions.end(), sname) == cfg.available_sessions.end()) {
+                        cfg.available_sessions.push_back(sname);
+                    }
+                }
+            }
+        }
+    }
+    if (cfg.available_sessions.empty()) {
+        cfg.available_sessions = {"miquland", "hyprland"};
+    }
+
+    std::string conf_path;
+    if (fs::exists("/etc/miqudm/miqudm.conf")) {
+        conf_path = "/etc/miqudm/miqudm.conf";
+    } else if (fs::exists("/usr/share/miqudm/miqudm.conf")) {
+        conf_path = "/usr/share/miqudm/miqudm.conf";
+    }
+
+    if (conf_path.empty()) return;
+
+    std::ifstream file(conf_path);
+    if (!file.is_open()) return;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t first = line.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) continue;
+        size_t last = line.find_last_not_of(" \t\r\n");
+        line = line.substr(first, (last - first + 1));
+        if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+        if (line.front() == '[' && line.back() == ']') continue;
+
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+
+        std::string key = line.substr(0, eq);
+        std::string val = line.substr(eq + 1);
+        auto trim_str = [](std::string s) {
+            size_t f = s.find_first_not_of(" \t\r\n");
+            if (f == std::string::npos) return std::string();
+            size_t l = s.find_last_not_of(" \t\r\n");
+            return s.substr(f, (l - f + 1));
+        };
+        key = trim_str(key);
+        val = trim_str(val);
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+
+        auto parse_bool = [](const std::string& v) {
+            std::string lower = v;
+            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+            return (lower == "true" || lower == "1" || lower == "yes" || lower == "on");
+        };
+
+        if (key == "wallpaper") {
+            cfg.wallpaper = val;
+        } else if (key == "clock_format_24h") {
+            cfg.clock_format_24h = parse_bool(val);
+        } else if (key == "show_power_buttons") {
+            cfg.show_power_buttons = parse_bool(val);
+        } else if (key == "show_sessions") {
+            cfg.show_sessions = parse_bool(val);
+        } else if (key == "allow_user_switching") {
+            cfg.allow_user_switching = parse_bool(val);
+        } else if (key == "card_radius") {
+            try { cfg.card_radius = std::clamp(std::stoi(val), 0, 48); } catch (...) {}
+        } else if (key == "avatar_size") {
+            try { cfg.avatar_size = std::clamp(std::stoi(val), 32, 160); } catch (...) {}
+        } else if (key == "default_session") {
+            cfg.default_session = val;
+        } else if (key == "remember_last_user") {
+            cfg.remember_last_user = parse_bool(val);
+        } else if (key == "numlock") {
+            cfg.numlock = parse_bool(val);
+        }
+    }
+}
+
+void MillerView::render_login_screen_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
+    if (!item || !item->login_screen_cfg) return;
+    auto& cfg = *item->login_screen_cfg;
+    load_login_screen_config(cfg);
+
+    // --- 1. Top Preview Card: Mini Mockup of Login Screen (320x180 px) ---
+    auto preview_container = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(12, 12)
+        ->spacing(8)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto stage_frame = FrameLayoutBuilder::create()
+        ->cornerRadius(get_inner_radius(config))
+        ->stroke(1, config->colors.outline.with_alpha(0.35f))
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.5f))
+        ->build();
+
+    std::string exp_wp = expand_wallpaper_path(cfg.wallpaper);
+    if (!exp_wp.empty() && fs::exists(exp_wp)) {
+        auto wp_view = ImageViewBuilder::create()
+            ->source(exp_wp)
+            ->fitMode(FitMode::Cover)
+            ->cornerRadius(get_inner_radius(config))
+            ->build();
+        LayoutParams bg_lp(320, 180);
+        stage_frame->add_view(wp_view, bg_lp);
+    }
+
+    int scaled_card_radius = std::clamp(cfg.card_radius * 12 / 20, 4, 16);
+    int scaled_avatar_size = std::clamp(cfg.avatar_size * 36 / 84, 24, 48);
+
+    auto mini_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->gravity(Gravity::Center)
+        ->padding(12, 8)
+        ->spacing(4)
+        ->backgroundColor(config->colors.surface.with_alpha(0.92f))
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(scaled_card_radius)
+        ->build();
+
+    std::string clock_str = cfg.clock_format_24h ? "14:30" : "02:30 PM";
+    auto clock_tv = TextViewBuilder::create()
+        ->text(clock_str)
+        ->textSize(static_cast<int>(config->metrics.font_size * 1.15f))
+        ->bold(true)
+        ->textColor(config->colors.on_surface)
+        ->center(true)
+        ->build();
+    mini_card->add_view(clock_tv);
+
+    auto avatar_iv = ImageViewBuilder::create()
+        ->source("avatar-default")
+        ->targetSize(scaled_avatar_size)
+        ->fitMode(FitMode::Contain)
+        ->alpha(0.9f)
+        ->build();
+    LayoutParams av_lp(scaled_avatar_size, scaled_avatar_size);
+    av_lp.gravity = Gravity::CenterHorizontal;
+    mini_card->add_view(avatar_iv, av_lp);
+
+    auto user_tv = TextViewBuilder::create()
+        ->text("User")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant)
+        ->center(true)
+        ->build();
+    mini_card->add_view(user_tv);
+
+    auto pass_chip = TextViewBuilder::create()
+        ->text("••••••••")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.4f))
+        ->center(true)
+        ->build();
+    mini_card->add_view(pass_chip);
+
+    LayoutParams mini_card_lp(150, static_cast<int>(LayoutDimension::WrapContent));
+    mini_card_lp.gravity = Gravity::Center;
+    stage_frame->add_view(mini_card, mini_card_lp);
+
+    auto bottom_indicator_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->gravity(Gravity::CenterVertical)
+        ->padding(10, 4)
+        ->backgroundColor(Color::transparent())
+        ->build();
+
+    if (cfg.show_power_buttons) {
+        auto power_tv = TextViewBuilder::create()
+            ->text("⏻  ↻  ☾")
+            ->caption(true)
+            ->textColor(config->colors.on_surface_variant.with_alpha(0.85f))
+            ->build();
+        bottom_indicator_row->add_view(power_tv);
+    }
+
+    auto spacer = LinearLayoutBuilder::create()->build();
+    LayoutParams sp_lp(static_cast<int>(LayoutDimension::MatchParent), 1, 1.0f);
+    bottom_indicator_row->add_view(spacer, sp_lp);
+
+    if (cfg.show_sessions) {
+        auto sess_tv = TextViewBuilder::create()
+            ->text(cfg.default_session.empty() ? "miquland" : cfg.default_session)
+            ->caption(true)
+            ->textColor(config->colors.primary)
+            ->build();
+        bottom_indicator_row->add_view(sess_tv);
+    }
+
+    LayoutParams bir_lp(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent));
+    bir_lp.gravity = Gravity::Bottom | Gravity::CenterHorizontal;
+    stage_frame->add_view(bottom_indicator_row, bir_lp);
+
+    LayoutParams stage_lp(320, 180);
+    stage_lp.gravity = Gravity::CenterHorizontal;
+    preview_container->add_view(stage_frame, stage_lp);
+
+    std::string wp_display = cfg.wallpaper.empty()
+        ? "Background: Solid tone"
+        : "Background: " + fs::path(cfg.wallpaper).filename().string();
+    auto wp_label = TextViewBuilder::create()
+        ->text(wp_display)
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant)
+        ->center(true)
+        ->build();
+    LayoutParams wp_lp(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent));
+    wp_lp.gravity = Gravity::CenterHorizontal;
+    preview_container->add_view(wp_label, wp_lp);
+
+    add_preview_card(preview_container);
+
+    // --- 2. Form Card 1: Appearance & Visual Metrics ---
+    auto visual_card = create_form_card(config);
+
+    auto wp_row = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->gravity(Gravity::CenterVertical)
+        ->padding(12, 6)
+        ->backgroundColor(Color::transparent())
+        ->build();
+
+    auto wp_title = TextViewBuilder::create()
+        ->text("Custom Wallpaper")
+        ->textSize(config->metrics.font_size)
+        ->textColor(config->colors.on_surface)
+        ->build();
+    LayoutParams wpt_lp(static_cast<int>(LayoutDimension::MatchParent), static_cast<int>(LayoutDimension::WrapContent), 1.0f);
+    wp_row->add_view(wp_title, wpt_lp);
+
+    auto on_browse_wp = [this, item]() {
+        std::thread([this, item]() {
+            std::string cmd;
+            if (system("which zenity >/dev/null 2>&1") == 0) {
+                cmd = "zenity --file-selection --title=\"Select Login Wallpaper\" "
+                      "--file-filter=\"Images | *.png *.jpg *.jpeg *.webp *.svg *.bmp *.avif *.jxl\" 2>/dev/null";
+            } else if (system("which kdialog >/dev/null 2>&1") == 0) {
+                cmd = "kdialog --getopenfilename : \"Images (*.png *.jpg *.jpeg *.webp *.svg *.bmp *.avif *.jxl)\" 2>/dev/null";
+            }
+            if (!cmd.empty()) {
+                FILE* fp = popen(cmd.c_str(), "r");
+                if (fp) {
+                    char buf[1024];
+                    std::string picked = "";
+                    if (fgets(buf, sizeof(buf), fp)) {
+                        picked = buf;
+                        while (!picked.empty() && (picked.back() == '\n' || picked.back() == '\r')) {
+                            picked.pop_back();
+                        }
+                    }
+                    pclose(fp);
+                    if (!picked.empty() && fs::exists(picked)) {
+                        item->login_screen_cfg->wallpaper = picked;
+                        deferred_rebuild_preview(10);
+                    }
+                }
+            }
+        }).detach();
+    };
+
+    auto browse_btn = ButtonBuilder::create()
+        ->text("Browse")
+        ->padding(12, 4)
+        ->cornerRadius(get_btn_radius(config))
+        ->onClick(on_browse_wp)
+        ->build();
+    LayoutParams b_lp(static_cast<int>(LayoutDimension::WrapContent), 32);
+    wp_row->add_view(browse_btn, b_lp);
+
+    if (!cfg.wallpaper.empty()) {
+        auto on_clear_wp = [this, item]() {
+            item->login_screen_cfg->wallpaper = "";
+            deferred_rebuild_preview(10);
+        };
+        auto clear_btn = ButtonBuilder::create()
+            ->text("Clear")
+            ->padding(10, 4)
+            ->cornerRadius(get_btn_radius(config))
+            ->onClick(on_clear_wp)
+            ->build();
+        LayoutParams c_lp(static_cast<int>(LayoutDimension::WrapContent), 32);
+        wp_row->add_view(clear_btn, c_lp);
+    }
+    visual_card->add_view(wp_row);
+
+    add_form_toggle(
+        visual_card, config,
+        "24-Hour Clock",
+        "",
+        cfg.clock_format_24h,
+        [this, item](bool val) {
+            item->login_screen_cfg->clock_format_24h = val;
+            deferred_rebuild_preview(10);
+        }
+    );
+
+    add_form_slider(
+        visual_card, config,
+        "Card Corner Radius",
+        "",
+        static_cast<float>(cfg.card_radius - 8) / 24.0f,
+        std::to_string(cfg.card_radius) + " px",
+        [this, item](float norm) -> std::string {
+            int r = 8 + static_cast<int>(std::round(norm * 24.0f));
+            item->login_screen_cfg->card_radius = r;
+            deferred_rebuild_preview(50);
+            return std::to_string(r) + " px";
+        }
+    );
+
+    add_form_slider(
+        visual_card, config,
+        "Avatar Size",
+        "",
+        static_cast<float>(cfg.avatar_size - 48) / 72.0f,
+        std::to_string(cfg.avatar_size) + " px",
+        [this, item](float norm) -> std::string {
+            int s = 48 + static_cast<int>(std::round(norm * 72.0f));
+            item->login_screen_cfg->avatar_size = s;
+            deferred_rebuild_preview(50);
+            return std::to_string(s) + " px";
+        }
+    );
+
+    add_preview_card(visual_card);
+
+    // --- 3. Form Card 2: Session & Behavior ---
+    auto session_card = create_form_card(config);
+
+    int cur_sess_idx = 0;
+    for (size_t i = 0; i < cfg.available_sessions.size(); ++i) {
+        if (cfg.available_sessions[i] == cfg.default_session) {
+            cur_sess_idx = static_cast<int>(i);
+            break;
+        }
+    }
+    add_form_spinner(
+        session_card, config,
+        "Default Session",
+        "",
+        cfg.available_sessions,
+        cur_sess_idx,
+        [this, item](int idx, const std::string& val) {
+            (void)idx;
+            item->login_screen_cfg->default_session = val;
+            deferred_rebuild_preview(10);
+        }
+    );
+
+    add_form_toggle(
+        session_card, config,
+        "Show Power Actions",
+        "",
+        cfg.show_power_buttons,
+        [this, item](bool val) {
+            item->login_screen_cfg->show_power_buttons = val;
+            deferred_rebuild_preview(10);
+        }
+    );
+
+    add_form_toggle(
+        session_card, config,
+        "Show Session Selector",
+        "",
+        cfg.show_sessions,
+        [this, item](bool val) {
+            item->login_screen_cfg->show_sessions = val;
+            deferred_rebuild_preview(10);
+        }
+    );
+
+    add_form_toggle(
+        session_card, config,
+        "Allow User Switching",
+        "",
+        cfg.allow_user_switching,
+        [item](bool val) {
+            item->login_screen_cfg->allow_user_switching = val;
+        }
+    );
+
+    add_form_toggle(
+        session_card, config,
+        "Remember Last User",
+        "",
+        cfg.remember_last_user,
+        [item](bool val) {
+            item->login_screen_cfg->remember_last_user = val;
+        }
+    );
+
+    add_form_toggle(
+        session_card, config,
+        "Enable NumLock on Startup",
+        "",
+        cfg.numlock,
+        [item](bool val) {
+            item->login_screen_cfg->numlock = val;
+        }
+    );
+
+    add_preview_card(session_card);
+}
 
 } // namespace miqu

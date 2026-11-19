@@ -335,6 +335,29 @@ struct WallpaperConfig {
     bool has_pending_selection = false;
 };
 
+struct IconPacksConfig {
+    std::string icon_theme = "";
+    std::vector<std::string> available_icon_packs;
+    std::string cursor_theme = "";
+    std::vector<std::string> available_cursor_themes;
+    bool loaded = false;
+};
+
+struct LoginScreenConfig {
+    std::string wallpaper = "";
+    bool clock_format_24h = true;
+    bool show_power_buttons = true;
+    bool show_sessions = true;
+    bool allow_user_switching = true;
+    int card_radius = 20;
+    int avatar_size = 84;
+    std::string default_session = "miquland";
+    bool remember_last_user = true;
+    bool numlock = false;
+    std::vector<std::string> available_sessions = {"miquland", "hyprland"};
+    bool is_loaded = false;
+};
+
 struct KeybindingEntry {
     std::string action;
     std::string description;
@@ -424,6 +447,12 @@ public:
 
     bool is_wallpaper = false;
     std::shared_ptr<WallpaperConfig> wallpaper_cfg = std::make_shared<WallpaperConfig>();
+
+    bool is_icon_packs = false;
+    std::shared_ptr<IconPacksConfig> icon_packs_cfg = std::make_shared<IconPacksConfig>();
+
+    bool is_login_screen = false;
+    std::shared_ptr<LoginScreenConfig> login_screen_cfg = std::make_shared<LoginScreenConfig>();
 
     bool is_keybinding_group = false;
     std::vector<KeybindingEntry> keybindings;

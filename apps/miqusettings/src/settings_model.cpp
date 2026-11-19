@@ -219,34 +219,6 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     }
 
     // ==============================================================================
-    // 3. Monitors & Displays (Depth 1)
-    // ==============================================================================
-    {
-        auto cat_monitors = SettingItem::create_category("cat_monitors", "Monitors", "video-display");
-        cat_monitors->children_provider = []() {
-            std::vector<std::shared_ptr<SettingItem>> mon_items;
-            auto connected_monitors = MonitorBackend::get_monitors();
-            for (const auto& mon_info : connected_monitors) {
-                std::string id = "mon_" + mon_info.name;
-                std::string title = !mon_info.description.empty() ? mon_info.description : mon_info.name;
-                auto mon_item = SettingItem::create_leaf(id, title, "", "video-display");
-                MonitorBackend::sync_monitor_item(mon_item, mon_info);
-                mon_items.push_back(mon_item);
-            }
-
-            if (mon_items.empty()) {
-                auto def_item = SettingItem::create_leaf("mon_edp1", "eDP-1", "", "video-display");
-                MonitorInfo def_info;
-                MonitorBackend::sync_monitor_item(def_item, def_info);
-                mon_items.push_back(def_item);
-            }
-            return mon_items;
-        };
-
-        root.push_back(cat_monitors);
-    }
-
-    // ==============================================================================
     // 3. Applications (Depth 1)
     // ==============================================================================
     {
@@ -399,12 +371,34 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     // 5. Display (Depth 1)
     // ==============================================================================
     {
-        // 5.1 Brightness
+        // 5.1 Monitors
+        auto cat_monitors = SettingItem::create_category("cat_monitors", "Monitors", "video-display");
+        cat_monitors->children_provider = []() {
+            std::vector<std::shared_ptr<SettingItem>> mon_items;
+            auto connected_monitors = MonitorBackend::get_monitors();
+            for (const auto& mon_info : connected_monitors) {
+                std::string id = "mon_" + mon_info.name;
+                std::string title = !mon_info.description.empty() ? mon_info.description : mon_info.name;
+                auto mon_item = SettingItem::create_leaf(id, title, "", "video-display");
+                MonitorBackend::sync_monitor_item(mon_item, mon_info);
+                mon_items.push_back(mon_item);
+            }
+
+            if (mon_items.empty()) {
+                auto def_item = SettingItem::create_leaf("mon_edp1", "eDP-1", "", "video-display");
+                MonitorInfo def_info;
+                MonitorBackend::sync_monitor_item(def_item, def_info);
+                mon_items.push_back(def_item);
+            }
+            return mon_items;
+        };
+
+        // 5.2 Brightness
         auto disp_bright = SettingItem::create_leaf("disp_bright", "Brightness", "", "display-brightness");
         disp_bright->is_display_brightness = true;
         disp_bright->brightness_val = 0.85f;
 
-        // 5.2 Screen Timeout & Lock (Unified Inactivity & Security)
+        // 5.3 Screen Timeout & Lock (Unified Inactivity & Security)
         auto disp_timeout_lock = SettingItem::create_leaf("disp_timeout_lock", "Screen Timeout & Lock", "", "system-lock-screen");
         disp_timeout_lock->is_timeout_and_lock = true;
         disp_timeout_lock->timeout_lock_cfg.lock_timeout_minutes = 1;
@@ -426,13 +420,13 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         disp_timeout_lock->timeout_lock_cfg.lockscreen_show_power_actions = true;
         disp_timeout_lock->timeout_lock_cfg.lockscreen_24h_clock = true;
 
-        // 5.3 Night Light
+        // 5.4 Night Light
         auto disp_nightlight = SettingItem::create_leaf("disp_nightlight", "Night Light", "", "preferences-desktop-display");
         disp_nightlight->is_display_nightlight = true;
 
         root.push_back(SettingItem::create_category(
             "cat_display", "Display", "video-display",
-            {disp_bright, disp_timeout_lock, disp_nightlight}
+            {cat_monitors, disp_bright, disp_timeout_lock, disp_nightlight}
         ));
     }
 
@@ -443,9 +437,15 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         auto ws_wallpaper = SettingItem::create_leaf("ws_wallpaper", "Wallpaper and Style", "", "preferences-desktop-wallpaper");
         ws_wallpaper->is_wallpaper = true;
 
+        auto ws_icon_packs = SettingItem::create_leaf("ws_icon_packs", "Icon Packs", "", "preferences-desktop-icons");
+        ws_icon_packs->is_icon_packs = true;
+
+        auto ws_login_screen = SettingItem::create_leaf("ws_login_screen", "Login Screen (Display Manager)", "", "system-lock-screen");
+        ws_login_screen->is_login_screen = true;
+
         root.push_back(SettingItem::create_category(
             "cat_appearance", "Appearance", "preferences-desktop-theme",
-            {ws_wallpaper}
+            {ws_wallpaper, ws_icon_packs, ws_login_screen}
         ));
     }
 

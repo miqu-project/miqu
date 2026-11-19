@@ -54,7 +54,7 @@ sudo ./uninstall.sh
 | **Compositor** | [`miquland/`](miquland/) | Dynamic tiling Wayland compositor built with wlroots, scenefx GPU blur, and `miquctl` IPC. |
 | **UI Toolkit** | [`miqutoolkit/`](miqutoolkit/) | Shared C++20 Cairo/Pango UI framework with RAII lifecycle safety and live theme reload. |
 | **Desktop Shell** | [`shell/`](shell/) | 11 layer-shell daemons and controls (`miqubar`, `miqudesk`, `miqulauncher`, `miquoverview`, `miqunotify`, `miqupower`, `miqudm`, `miqubg`, `miqulock`, `miquidle`, `miqupolkit`). |
-| **Desktop Apps** | [`apps/`](apps/) | 5 standalone windowed applications (`miqusettings`, `miqufiles`, `miqumusic`, `miqugallery`, `miquinfo`). |
+| **Desktop Apps** | [`apps/`](apps/) | 3 standalone windowed applications (`miqusettings`, `miqufiles`, `miqumusic`). |
 | **Mobile Apps** | [`mobile/`](mobile/) | Native Android companion applications (`doctor`, `recitation`) built in Kotlin & Jetpack Compose. |
 
 ---
@@ -66,7 +66,7 @@ miqu/
 ├── miquland/           # Wayland compositor & window manager
 ├── miqutoolkit/        # Shared C++20 UI framework
 ├── shell/              # Desktop shell daemons & layer-shell UIs (11 components)
-├── apps/               # Standalone desktop applications (5 apps)
+├── apps/               # Standalone desktop applications (3 apps)
 ├── mobile/             # Android companion applications (2 apps)
 ├── CMakeLists.txt      # Root CMake orchestrator (in-tree linking)
 ├── install.sh          # Master installer script

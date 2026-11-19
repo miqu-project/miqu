@@ -12,6 +12,7 @@ git_token_password
 build/
 build*/
 .old*
+.retired/
 
 # Android & Gradle
 .gradle/

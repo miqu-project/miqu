@@ -115,6 +115,8 @@ private:
     void render_brightness_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_tiling_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_wallpaper_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
+    void render_icon_packs_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
+    void render_login_screen_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_keybindings_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_timeout_lock_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_night_light_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
@@ -179,6 +181,10 @@ private:
     std::shared_ptr<ListView> m_category_list;
     std::shared_ptr<ScrollView> m_preview_scroll;
     std::shared_ptr<LinearLayout> m_preview_layout;
+
+    std::vector<std::shared_ptr<SettingItem>> m_displayed_parent_items;
+    std::vector<std::shared_ptr<SettingItem>> m_displayed_current_items;
+    std::vector<std::shared_ptr<SettingItem>> m_displayed_category_items;
 
     // Reference to active widgets for direct manipulation
     std::shared_ptr<Slider> m_active_slider;

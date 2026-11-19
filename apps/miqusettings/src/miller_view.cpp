@@ -170,7 +170,8 @@ void MillerView::init() {
             if (m_window) {
                 m_window->clear_focus();
             }
-            rebuild_columns();
+            m_current_list->set_selected_index(m_current_index);
+            rebuild_preview_column();
             notify_state_changed();
         } else {
             auto item = get_current_selected_item();
@@ -335,6 +336,9 @@ void MillerView::sync_theme() {
             m_preview_refresh_icon->set_text_color(config->colors.primary);
         }
     }
+    m_displayed_parent_items.clear();
+    m_displayed_current_items.clear();
+    m_displayed_category_items.clear();
     update_preview_ribbon();
     update_pillar_styles();
     rebuild_parent_column();
@@ -391,6 +395,10 @@ void MillerView::update_preview_ribbon() {
         std::string title_str = item ? item->title : "";
         if (item && (item->id == "ws_wallpaper" || item->is_wallpaper)) {
             title_str = "Wallpaper";
+        } else if (item && (item->id == "ws_icon_packs" || item->is_icon_packs)) {
+            title_str = "Icon Packs";
+        } else if (item && (item->id == "ws_login_screen" || item->is_login_screen)) {
+            title_str = "Login Screen";
         }
         m_preview_title->set_text(title_str);
         if (config) {
@@ -626,15 +634,18 @@ void MillerView::rebuild_parent_column() {
     auto config = Config::get();
 
     if (m_path.empty() && m_search_query.empty()) {
+        m_displayed_parent_items.clear();
         if (m_parent_hero) m_parent_hero->set_visibility(Visibility::Visible);
-        if (m_parent_list) m_parent_list->set_visibility(Visibility::Gone);
+        if (m_parent_list) {
+            m_parent_list->clear_items();
+            m_parent_list->set_visibility(Visibility::Gone);
+        }
         return;
     }
 
     if (m_parent_hero) m_parent_hero->set_visibility(Visibility::Gone);
     if (m_parent_list) {
         m_parent_list->set_visibility(Visibility::Visible);
-        m_parent_list->clear_items();
 
         if (m_path.size() >= 2) {
             m_path[m_path.size() - 2]->ensure_children();
@@ -647,14 +658,35 @@ void MillerView::rebuild_parent_column() {
         int active_idx = -1;
 
         for (size_t i = 0; i < parent_siblings->size(); ++i) {
-            const auto& item = (*parent_siblings)[i];
-            if (item == active_parent) {
+            if ((*parent_siblings)[i] == active_parent) {
                 active_idx = static_cast<int>(i);
+                break;
             }
-            m_parent_list->add_item(create_list_row_item(item, config));
         }
 
-        m_parent_list->set_selected_index(active_idx);
+        bool items_match = (m_displayed_parent_items.size() == parent_siblings->size());
+        if (items_match) {
+            for (size_t i = 0; i < parent_siblings->size(); ++i) {
+                if (m_displayed_parent_items[i] != (*parent_siblings)[i]) {
+                    items_match = false;
+                    break;
+                }
+            }
+        }
+
+        if (items_match) {
+            if (m_parent_list->get_selected_index() != active_idx) {
+                m_parent_list->set_selected_index(active_idx);
+            }
+        } else {
+            m_displayed_parent_items = *parent_siblings;
+            m_parent_list->clear_items();
+            for (size_t i = 0; i < parent_siblings->size(); ++i) {
+                const auto& item = (*parent_siblings)[i];
+                m_parent_list->add_item(create_list_row_item(item, config));
+            }
+            m_parent_list->set_selected_index(active_idx);
+        }
     }
 }
 
@@ -663,6 +695,7 @@ void MillerView::rebuild_current_column() {
     const auto& list = get_current_list();
 
     if (list.empty()) {
+        m_displayed_current_items.clear();
         if (m_current_list) {
             m_current_list->clear_items();
             m_current_list->set_visibility(Visibility::Gone);
@@ -676,17 +709,32 @@ void MillerView::rebuild_current_column() {
     if (m_empty_search_box) m_empty_search_box->set_visibility(Visibility::Gone);
     if (m_current_list) {
         m_current_list->set_visibility(Visibility::Visible);
-        int target_index = m_current_index;
-        m_current_list->clear_items();
 
-        m_current_index = std::clamp(target_index, 0, static_cast<int>(list.size()) - 1);
+        m_current_index = std::clamp(m_current_index, 0, static_cast<int>(list.size()) - 1);
 
-        for (size_t i = 0; i < list.size(); ++i) {
-            const auto& item = list[i];
-            m_current_list->add_item(create_list_row_item(item, config));
+        bool items_match = (m_displayed_current_items.size() == list.size());
+        if (items_match) {
+            for (size_t i = 0; i < list.size(); ++i) {
+                if (m_displayed_current_items[i] != list[i]) {
+                    items_match = false;
+                    break;
+                }
+            }
         }
 
-        m_current_list->set_selected_index(m_current_index);
+        if (items_match) {
+            if (m_current_list->get_selected_index() != m_current_index) {
+                m_current_list->set_selected_index(m_current_index);
+            }
+        } else {
+            m_displayed_current_items = list;
+            m_current_list->clear_items();
+            for (size_t i = 0; i < list.size(); ++i) {
+                const auto& item = list[i];
+                m_current_list->add_item(create_list_row_item(item, config));
+            }
+            m_current_list->set_selected_index(m_current_index);
+        }
     }
 }
 
@@ -739,6 +787,7 @@ void MillerView::rebuild_preview_column() {
     update_preview_ribbon();
 
     if (!item) {
+        m_displayed_category_items.clear();
         if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
         if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
         render_empty_preview(config);
@@ -749,6 +798,8 @@ void MillerView::rebuild_preview_column() {
         render_category_children_preview(item, config);
         return;
     }
+
+    m_displayed_category_items.clear();
 
     // --- DEAD END PREVIEW: INTERACTIVE SETTINGS DETAIL PANEL ---
     if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
@@ -780,6 +831,10 @@ void MillerView::rebuild_preview_column() {
         render_tiling_preview(item, config);
     } else if (item->is_wallpaper || item->id == "ws_wallpaper") {
         render_wallpaper_preview(item, config);
+    } else if (item->is_icon_packs || item->id == "ws_icon_packs") {
+        render_icon_packs_preview(item, config);
+    } else if (item->is_login_screen || item->id == "ws_login_screen") {
+        render_login_screen_preview(item, config);
     } else if (item->is_keybinding_group) {
         render_keybindings_preview(item, config);
     } else if (item->is_timeout_and_lock) {

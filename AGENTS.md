@@ -118,7 +118,7 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 
 ### Zero Source-Code Appearance Defaults & Dynamic Sync
 - Shared appearance tokens (colors, fonts, metrics, `icon_theme`) must **NEVER** have fallback magic literals in C++ widget styling methods.
-- All downstream applications must implement a theme synchronization method (`sync_theme()` in `miqufiles`, `miqumusic`, `miqugallery`; or `sync_defaults_from_toolkit()` in `miqubar`) that queries `Config::get()`.
+- All downstream applications must implement a theme synchronization method (`sync_theme()` in `miqusettings`, `miqufiles`, `miqumusic`; or `sync_defaults_from_toolkit()` in `miqubar`) that queries `Config::get()`.
 - This sync must be executed unconditionally on application startup and dynamically whenever an `engine->add_theme_change_listener()` callback is triggered.
 
 ---
@@ -146,8 +146,6 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miqusettings`**: Modern Miller-columns centralized desktop settings manager, visual theme & appearance manager (color schemes, wallpapers, fonts, dark mode, electron/IDE sync, GTK styles), network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
 - **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
 - **`miqumusic`**: Fast, lightweight native MPD (Music Player Daemon) client and audio playback interface.
-- **`miqugallery`**: High-performance photo gallery and image viewer application with flat album navigation and full-size photo preview.
-- **`miquinfo`**: Hardware monitoring, system telemetry, and diagnostic resource utility.
 
 ### Mobile Applications (`mobile/`)
 - **`doctor`**: Healthcare & medical diagnostic companion application (Android / Jetpack Compose).

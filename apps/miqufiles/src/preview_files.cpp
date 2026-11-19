@@ -55,11 +55,23 @@ void MillerView::render_category_children_preview(const std::shared_ptr<FileItem
     if (!item) return;
     item->ensure_children();
     if (m_category_list) {
-        m_category_list->clear_items();
-        m_category_list->set_visibility(Visibility::Visible);
-        for (const auto& child : item->children) {
-            m_category_list->add_item(create_list_row_item(child, config));
+        bool items_match = (m_displayed_category_items.size() == item->children.size());
+        if (items_match) {
+            for (size_t i = 0; i < item->children.size(); ++i) {
+                if (m_displayed_category_items[i] != item->children[i]) {
+                    items_match = false;
+                    break;
+                }
+            }
         }
+        if (!items_match) {
+            m_displayed_category_items = item->children;
+            m_category_list->clear_items();
+            for (const auto& child : item->children) {
+                m_category_list->add_item(create_list_row_item(child, config));
+            }
+        }
+        m_category_list->set_visibility(Visibility::Visible);
     }
     if (m_preview_scroll) {
         m_preview_scroll->set_visibility(Visibility::Gone);

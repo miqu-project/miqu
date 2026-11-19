@@ -146,6 +146,10 @@ private:
 
     std::string m_search_query;
     std::vector<std::shared_ptr<MusicItem>> m_search_results;
+
+    std::vector<std::shared_ptr<MusicItem>> m_displayed_parent_items;
+    std::vector<std::shared_ptr<MusicItem>> m_displayed_current_items;
+    std::vector<std::shared_ptr<MusicItem>> m_displayed_category_items;
 };
 
 } // namespace miqu

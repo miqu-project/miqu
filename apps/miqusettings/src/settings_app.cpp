@@ -27,6 +27,9 @@ bool SettingsApp::init() {
         ->onShortcut([this](const KeyPressEvent& ev) -> bool {
             if (!ev.pressed) return false;
             if (m_miller_view && m_miller_view->is_preview_content_focused()) {
+                if (ev.has_shift() || ev.has_ctrl() || ev.has_alt()) {
+                    return false;
+                }
                 if (ev.keysym == XKB_KEY_Down || ev.keysym == XKB_KEY_j) {
                     if (m_window && m_window->focus_direction(FocusDirection::Down)) {
                         return true;

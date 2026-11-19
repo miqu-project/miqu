@@ -261,17 +261,22 @@ void Spinner::open_dropdown() {
     m_popup_menu->set_max_visible_items(m_max_visible_items);
     m_popup_menu->set_item_height(m_item_height);
 
+    auto weak_self = std::weak_ptr<Spinner>(std::static_pointer_cast<Spinner>(shared_from_this()));
     for (size_t i = 0; i < m_items.size(); ++i) {
         int idx = static_cast<int>(i);
         bool is_selected = (idx == m_selected_index);
-        m_popup_menu->add_radio_item(m_items[i], 1, is_selected, [this, idx](bool) {
-            handle_popup_selected(idx);
+        m_popup_menu->add_radio_item(m_items[i], 1, is_selected, [weak_self, idx](bool) {
+            if (auto self = weak_self.lock()) {
+                self->handle_popup_selected(idx);
+            }
         });
     }
 
     m_popup_menu->set_selected_index(m_selected_index);
-    m_popup_menu->set_on_dismiss([this]() {
-        handle_popup_dismissed();
+    m_popup_menu->set_on_dismiss([weak_self]() {
+        if (auto self = weak_self.lock()) {
+            self->handle_popup_dismissed();
+        }
     });
 
     m_popup_menu->show_as_dropdown(this, PopupGravity::BottomStart, 0, 4);
@@ -286,20 +291,27 @@ void Spinner::close_dropdown() {
         m_popup_menu = nullptr;
         menu->dismiss();
     }
-    request_redraw();
+    if (m_window) {
+        request_redraw();
+    }
 }
 
 void Spinner::handle_popup_selected(int index) {
+    auto self = shared_from_this();
     m_is_open = false;
     m_popup_menu = nullptr;
     set_selected_index(index);
-    request_redraw();
+    if (m_window) {
+        request_redraw();
+    }
 }
 
 void Spinner::handle_popup_dismissed() {
     m_is_open = false;
     m_popup_menu = nullptr;
-    request_redraw();
+    if (m_window) {
+        request_redraw();
+    }
 }
 
 bool Spinner::on_mouse_move(int lx, int ly, const Rect& bounds) {
@@ -335,8 +347,8 @@ void Spinner::on_focus_changed(bool focused) {
 bool Spinner::on_key(const KeyPressEvent& event) {
     if (!event.pressed || !has_focus()) return false;
 
-    // Shift + Down expands the spinner dropdown
-    if (event.has_shift() && (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_KP_Down)) {
+    // Alt + Down expands the spinner dropdown
+    if (event.has_alt() && (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_KP_Down)) {
         if (!m_is_open) {
             open_dropdown();
             return true;
