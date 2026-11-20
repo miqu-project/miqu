@@ -2869,6 +2869,15 @@ static void load_cursor_config(CursorConfig& cfg) {
     cfg.available_cursor_themes = get_system_cursor_themes();
     cfg.available_cursor_sizes = {16, 24, 30, 32, 36, 48, 64};
 
+    const char* home = std::getenv("HOME");
+    if (home) {
+        fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
+        std::error_code ec;
+        if (!fs::exists(miqu_dir, ec) || !fs::exists(miqu_dir / "cursor.conf", ec)) {
+            std::system("miquland --init-config >/dev/null 2>&1");
+        }
+    }
+
     std::string cur_cur = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null");
     if (!cur_cur.empty() && cur_cur.front() == '\'' && cur_cur.back() == '\'') {
         cur_cur = cur_cur.substr(1, cur_cur.size() - 2);
@@ -2894,7 +2903,7 @@ static void sync_miquland_cursor_config(const std::string& theme, int size) {
 
     fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
     std::error_code ec;
-    if (!fs::exists(miqu_dir, ec)) {
+    if (!fs::exists(miqu_dir, ec) || !fs::exists(miqu_dir / "cursor.conf", ec)) {
         // Fresh install: initialize complete standard configuration via miquland
         std::system("miquland --init-config >/dev/null 2>&1");
     }
@@ -3216,6 +3225,12 @@ static void load_gaps_border_config(GapsBorderConfig& cfg) {
     };
 
     fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
+    std::error_code ec;
+    if (!fs::exists(miqu_dir, ec) || !fs::exists(miqu_dir / "appearance.conf", ec)) {
+        // Fresh install: initialize complete standard configuration via miquland
+        std::system("miquland --init-config >/dev/null 2>&1");
+    }
+
     // Check miquland.conf first, then appearance.conf (so appearance.conf takes precedence)
     parse_file(miqu_dir / "miquland.conf");
     parse_file(miqu_dir / "appearance.conf");
@@ -3260,7 +3275,7 @@ static void save_gaps_border_config(const GapsBorderConfig& cfg) {
 
     fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
     std::error_code ec;
-    if (!fs::exists(miqu_dir, ec)) {
+    if (!fs::exists(miqu_dir, ec) || !fs::exists(miqu_dir / "appearance.conf", ec)) {
         // Fresh install: initialize complete standard configuration via miquland
         std::system("miquland --init-config >/dev/null 2>&1");
     }

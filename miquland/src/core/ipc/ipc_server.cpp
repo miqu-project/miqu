@@ -291,6 +291,12 @@ void IpcServer::handle_client_message(ClientConnection& client, ipc::MessageType
         send_response(client, ipc::MessageType::Response, handle_devices_query());
     } else if (cmd == "getoption") {
         send_response(client, ipc::MessageType::Response, handle_getoption_query(args));
+    } else if (cmd == "setoption") {
+        send_response(client, ipc::MessageType::Response, handle_setoption_command(args));
+    } else if (cmd == "gaps") {
+        send_response(client, ipc::MessageType::Response, handle_gaps_query(args));
+    } else if (cmd == "border") {
+        send_response(client, ipc::MessageType::Response, handle_border_query(args));
     } else if (cmd == "gamma") {
         send_response(client, ipc::MessageType::Response, handle_gamma_query(args));
     } else if (cmd == "cursor") {
@@ -533,6 +539,12 @@ std::string IpcServer::handle_getoption_query(const std::string& key) {
            << "\"gaps_out\":" << cfg.get_screen_edge_padding() << ","
            << "\"border_width\":" << cfg.get_window_border_width() << ","
            << "\"border_radius\":" << cfg.get_window_border_radius() << ","
+           << "\"border_active\":\"" << ipc::escape_json(cfg.get_window_border_color_active()) << "\","
+           << "\"border_inactive\":\"" << ipc::escape_json(cfg.get_window_border_color_inactive()) << "\","
+           << "\"border_shading\":" << (cfg.is_window_border_shading_enabled() ? "true" : "false") << ","
+           << "\"border_shading_strength\":" << cfg.get_window_border_shading_strength() << ","
+           << "\"resize_on_border\":" << (cfg.is_resize_on_border_enabled() ? "true" : "false") << ","
+           << "\"border_grab_area\":" << cfg.get_border_grab_area() << ","
            << "\"opacity_active\":" << cfg.get_window_opacity_active() << ","
            << "\"opacity_inactive\":" << cfg.get_window_opacity_inactive() << ","
            << "\"animations\":" << (cfg.is_animations_enabled() ? "true" : "false") << ","
@@ -547,10 +559,16 @@ std::string IpcServer::handle_getoption_query(const std::string& key) {
     }
 
     if (k == "layout") return "{\"option\":\"layout\",\"value\":\"" + Config::layout_mode_to_string(cfg.get_layout_mode()) + "\"}";
-    if (k == "gaps_in") return "{\"option\":\"gaps_in\",\"value\":" + std::to_string(cfg.get_space_between_windows()) + "}";
-    if (k == "gaps_out") return "{\"option\":\"gaps_out\",\"value\":" + std::to_string(cfg.get_screen_edge_padding()) + "}";
+    if (k == "gaps_in" || k == "inner_gap") return "{\"option\":\"gaps_in\",\"value\":" + std::to_string(cfg.get_space_between_windows()) + "}";
+    if (k == "gaps_out" || k == "outer_gap") return "{\"option\":\"gaps_out\",\"value\":" + std::to_string(cfg.get_screen_edge_padding()) + "}";
     if (k == "border_width") return "{\"option\":\"border_width\",\"value\":" + std::to_string(cfg.get_window_border_width()) + "}";
     if (k == "border_radius") return "{\"option\":\"border_radius\",\"value\":" + std::to_string(cfg.get_window_border_radius()) + "}";
+    if (k == "border_active" || k == "active_border") return "{\"option\":\"border_active\",\"value\":\"" + ipc::escape_json(cfg.get_window_border_color_active()) + "\"}";
+    if (k == "border_inactive" || k == "inactive_border") return "{\"option\":\"border_inactive\",\"value\":\"" + ipc::escape_json(cfg.get_window_border_color_inactive()) + "\"}";
+    if (k == "border_shading") return "{\"option\":\"border_shading\",\"value\":" + std::string(cfg.is_window_border_shading_enabled() ? "true" : "false") + "}";
+    if (k == "border_shading_strength") return "{\"option\":\"border_shading_strength\",\"value\":" + std::to_string(cfg.get_window_border_shading_strength()) + "}";
+    if (k == "resize_on_border") return "{\"option\":\"resize_on_border\",\"value\":" + std::string(cfg.is_resize_on_border_enabled() ? "true" : "false") + "}";
+    if (k == "border_grab_area") return "{\"option\":\"border_grab_area\",\"value\":" + std::to_string(cfg.get_border_grab_area()) + "}";
     if (k == "opacity_active") return "{\"option\":\"opacity_active\",\"value\":" + std::to_string(cfg.get_window_opacity_active()) + "}";
     if (k == "opacity_inactive") return "{\"option\":\"opacity_inactive\",\"value\":" + std::to_string(cfg.get_window_opacity_inactive()) + "}";
     if (k == "animations") return "{\"option\":\"animations\",\"value\":" + std::string(cfg.is_animations_enabled() ? "true" : "false") + "}";
@@ -562,6 +580,262 @@ std::string IpcServer::handle_getoption_query(const std::string& key) {
     if (k == "cursor_size") return "{\"option\":\"cursor_size\",\"value\":" + std::to_string(cfg.get_cursor_size()) + "}";
 
     return "{\"status\":\"error\",\"message\":\"Unknown option: " + ipc::escape_json(k) + "\"}";
+}
+
+std::string IpcServer::handle_setoption_command(const std::string& args) {
+    Config& cfg = Config::get();
+    std::istringstream iss(args);
+    std::string key;
+    if (!(iss >> key)) {
+        return R"({"status":"error","message":"Usage: setoption <name> <value>"})";
+    }
+
+    std::string val;
+    std::getline(iss, val);
+    while (!val.empty() && (val.front() == ' ' || val.front() == '\t')) val.erase(0, 1);
+    while (!val.empty() && (val.back() == ' ' || val.back() == '\t' || val.back() == '\r')) val.pop_back();
+
+    bool needs_relayout = false;
+    bool needs_view_frame_update = false;
+
+    if (key == "gaps_in" || key == "inner_gap") {
+        try {
+            cfg.set_space_between_windows(std::max(0, std::stoi(val)));
+            needs_relayout = true;
+        } catch (...) {
+            return R"({"status":"error","message":"Invalid integer value for gaps_in"})";
+        }
+    } else if (key == "gaps_out" || key == "outer_gap") {
+        try {
+            cfg.set_screen_edge_padding(std::max(0, std::stoi(val)));
+            needs_relayout = true;
+        } catch (...) {
+            return R"({"status":"error","message":"Invalid integer value for gaps_out"})";
+        }
+    } else if (key == "smart_gaps") {
+        cfg.set_smart_gaps_enabled(val == "true" || val == "1" || val == "on" || val == "yes");
+        needs_relayout = true;
+    } else if (key == "border_width") {
+        try {
+            cfg.set_window_border_width(std::max(0, std::stoi(val)));
+            needs_view_frame_update = true;
+        } catch (...) {
+            return R"({"status":"error","message":"Invalid integer value for border_width"})";
+        }
+    } else if (key == "border_radius") {
+        try {
+            cfg.set_window_border_radius(std::max(0, std::stoi(val)));
+            needs_view_frame_update = true;
+        } catch (...) {
+            return R"({"status":"error","message":"Invalid integer value for border_radius"})";
+        }
+    } else if (key == "border_active" || key == "active_border") {
+        cfg.set_window_border_color_active(val);
+        needs_view_frame_update = true;
+    } else if (key == "border_inactive" || key == "inactive_border") {
+        cfg.set_window_border_color_inactive(val);
+        needs_view_frame_update = true;
+    } else if (key == "border_shading") {
+        cfg.set_window_border_shading_enabled(val == "true" || val == "1" || val == "on" || val == "yes");
+        needs_view_frame_update = true;
+    } else if (key == "border_shading_strength") {
+        try {
+            cfg.set_window_border_shading_strength(std::stof(val));
+            needs_view_frame_update = true;
+        } catch (...) {
+            return R"({"status":"error","message":"Invalid float value for border_shading_strength"})";
+        }
+    } else if (key == "resize_on_border") {
+        cfg.set_resize_on_border_enabled(val == "true" || val == "1" || val == "on" || val == "yes");
+    } else if (key == "border_grab_area") {
+        try {
+            cfg.set_border_grab_area(std::clamp(std::stoi(val), 1, 30));
+        } catch (...) {
+            return R"({"status":"error","message":"Invalid integer value for border_grab_area"})";
+        }
+    } else if (key == "cursor_theme") {
+        cfg.set_cursor_theme(val);
+        if (m_server->get_input_manager()) m_server->get_input_manager()->reapply_device_config();
+    } else if (key == "cursor_size") {
+        try {
+            cfg.set_cursor_size(std::max(1, std::stoi(val)));
+            if (m_server->get_input_manager()) m_server->get_input_manager()->reapply_device_config();
+        } catch (...) {
+            return R"({"status":"error","message":"Invalid integer value for cursor_size"})";
+        }
+    } else {
+        return "{\"status\":\"error\",\"message\":\"Unsupported option: " + ipc::escape_json(key) + "\"}";
+    }
+
+    if (needs_relayout && m_server->get_workspace_manager()) {
+        m_server->get_workspace_manager()->recalculate_layout();
+    }
+
+    if (needs_view_frame_update) {
+        for (const auto& v : m_server->get_views()) {
+            if (v && v->is_mapped()) {
+                v->update_frame();
+            }
+        }
+    }
+
+    if (m_server->get_output_manager()) {
+        for (const auto& out : m_server->get_output_manager()->get_outputs()) {
+            if (out && out->get_wlr_output()) {
+                wlr_output_schedule_frame(out->get_wlr_output());
+            }
+        }
+    }
+
+    return "{\"status\":\"ok\",\"action\":\"setoption\",\"option\":\"" + ipc::escape_json(key) + "\",\"value\":\"" + ipc::escape_json(val) + "\"}";
+}
+
+std::string IpcServer::handle_gaps_query(const std::string& args) {
+    Config& cfg = Config::get();
+    std::string a = args;
+    while (!a.empty() && a.front() == ' ') a.erase(0, 1);
+    while (!a.empty() && a.back() == ' ') a.pop_back();
+
+    if (a.empty() || a == "status" || a == "get") {
+        std::ostringstream ss;
+        ss << "{\"inner\":" << cfg.get_space_between_windows()
+           << ",\"outer\":" << cfg.get_screen_edge_padding()
+           << ",\"smart_gaps\":" << (cfg.is_smart_gaps_enabled() ? "true" : "false")
+           << "}";
+        return ss.str();
+    }
+
+    std::istringstream iss(a);
+    std::string token1;
+    if (iss >> token1) {
+        if (token1 == "inner") {
+            int val = 0;
+            if (iss >> val) cfg.set_space_between_windows(std::max(0, val));
+        } else if (token1 == "outer") {
+            int val = 0;
+            if (iss >> val) cfg.set_screen_edge_padding(std::max(0, val));
+        } else if (token1 == "smart" || token1 == "smart_gaps") {
+            std::string s;
+            if (iss >> s) cfg.set_smart_gaps_enabled(s == "on" || s == "true" || s == "1" || s == "yes");
+        } else {
+            try {
+                int inner = std::stoi(token1);
+                cfg.set_space_between_windows(std::max(0, inner));
+                int outer = 0;
+                if (iss >> outer) {
+                    cfg.set_screen_edge_padding(std::max(0, outer));
+                }
+            } catch (...) {
+                return "{\"status\":\"error\",\"message\":\"Usage: gaps [inner] [outer] or gaps inner <px> or gaps outer <px>\"}";
+            }
+        }
+
+        if (m_server->get_workspace_manager()) {
+            m_server->get_workspace_manager()->recalculate_layout();
+        }
+        if (m_server->get_output_manager()) {
+            for (const auto& out : m_server->get_output_manager()->get_outputs()) {
+                if (out && out->get_wlr_output()) {
+                    wlr_output_schedule_frame(out->get_wlr_output());
+                }
+            }
+        }
+
+        std::ostringstream ss;
+        ss << "{\"status\":\"ok\",\"action\":\"gaps\""
+           << ",\"inner\":" << cfg.get_space_between_windows()
+           << ",\"outer\":" << cfg.get_screen_edge_padding()
+           << ",\"smart_gaps\":" << (cfg.is_smart_gaps_enabled() ? "true" : "false")
+           << "}";
+        return ss.str();
+    }
+
+    return "{\"status\":\"error\",\"message\":\"Usage: gaps [inner] [outer]\"}";
+}
+
+std::string IpcServer::handle_border_query(const std::string& args) {
+    Config& cfg = Config::get();
+    std::string a = args;
+    while (!a.empty() && a.front() == ' ') a.erase(0, 1);
+    while (!a.empty() && a.back() == ' ') a.pop_back();
+
+    if (a.empty() || a == "status" || a == "get") {
+        std::ostringstream ss;
+        ss << "{"
+           << "\"width\":" << cfg.get_window_border_width() << ","
+           << "\"radius\":" << cfg.get_window_border_radius() << ","
+           << "\"active\":\"" << ipc::escape_json(cfg.get_window_border_color_active()) << "\","
+           << "\"inactive\":\"" << ipc::escape_json(cfg.get_window_border_color_inactive()) << "\","
+           << "\"shading\":" << (cfg.is_window_border_shading_enabled() ? "true" : "false") << ","
+           << "\"shading_strength\":" << cfg.get_window_border_shading_strength()
+           << "}";
+        return ss.str();
+    }
+
+    std::istringstream iss(a);
+    std::string token1;
+    if (iss >> token1) {
+        if (token1 == "width") {
+            int w = 0;
+            if (iss >> w) cfg.set_window_border_width(std::max(0, w));
+        } else if (token1 == "radius") {
+            int r = 0;
+            if (iss >> r) cfg.set_window_border_radius(std::max(0, r));
+        } else if (token1 == "active") {
+            std::string rem;
+            std::getline(iss, rem);
+            while (!rem.empty() && rem.front() == ' ') rem.erase(0, 1);
+            if (!rem.empty()) cfg.set_window_border_color_active(rem);
+        } else if (token1 == "inactive") {
+            std::string rem;
+            std::getline(iss, rem);
+            while (!rem.empty() && rem.front() == ' ') rem.erase(0, 1);
+            if (!rem.empty()) cfg.set_window_border_color_inactive(rem);
+        } else if (token1 == "shading") {
+            std::string s;
+            if (iss >> s) cfg.set_window_border_shading_enabled(s == "on" || s == "true" || s == "1" || s == "yes");
+        } else if (token1 == "shading_strength") {
+            float s = 0.0f;
+            if (iss >> s) cfg.set_window_border_shading_strength(s);
+        } else {
+            try {
+                int w = std::stoi(token1);
+                cfg.set_window_border_width(std::max(0, w));
+                int r = 0;
+                if (iss >> r) {
+                    cfg.set_window_border_radius(std::max(0, r));
+                }
+            } catch (...) {
+                return "{\"status\":\"error\",\"message\":\"Usage: border [width] [radius] or border width <px> or border active <color>\"}";
+            }
+        }
+
+        for (const auto& v : m_server->get_views()) {
+            if (v && v->is_mapped()) {
+                v->update_frame();
+            }
+        }
+        if (m_server->get_output_manager()) {
+            for (const auto& out : m_server->get_output_manager()->get_outputs()) {
+                if (out && out->get_wlr_output()) {
+                    wlr_output_schedule_frame(out->get_wlr_output());
+                }
+            }
+        }
+
+        std::ostringstream ss;
+        ss << "{\"status\":\"ok\",\"action\":\"border\""
+           << ",\"width\":" << cfg.get_window_border_width()
+           << ",\"radius\":" << cfg.get_window_border_radius()
+           << ",\"active\":\"" << ipc::escape_json(cfg.get_window_border_color_active()) << "\""
+           << ",\"inactive\":\"" << ipc::escape_json(cfg.get_window_border_color_inactive()) << "\""
+           << ",\"shading\":" << (cfg.is_window_border_shading_enabled() ? "true" : "false")
+           << ",\"shading_strength\":" << cfg.get_window_border_shading_strength()
+           << "}";
+        return ss.str();
+    }
+
+    return "{\"status\":\"error\",\"message\":\"Usage: border [width] [radius]\"}";
 }
 
 std::string IpcServer::handle_gamma_query(const std::string& args) {
@@ -1011,6 +1285,24 @@ std::string IpcServer::handle_dispatch(const std::string& args) {
     if (sub_action == "menu" || sub_action == "app_launcher") {
         if (m_server->get_input_manager()) m_server->get_input_manager()->spawn_command("miqulauncher");
         return R"({"status":"ok","action":"menu"})";
+    }
+
+    if (sub_action == "gaps") {
+        std::string rem;
+        std::getline(iss, rem);
+        return handle_gaps_query(rem);
+    }
+
+    if (sub_action == "border") {
+        std::string rem;
+        std::getline(iss, rem);
+        return handle_border_query(rem);
+    }
+
+    if (sub_action == "setoption") {
+        std::string rem;
+        std::getline(iss, rem);
+        return handle_setoption_command(rem);
     }
 
     if (m_server->get_plugin_manager() && m_server->get_plugin_manager()->execute_dispatcher(sub_action)) {

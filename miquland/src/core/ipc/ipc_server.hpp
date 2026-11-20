@@ -47,6 +47,9 @@ private:
     std::string handle_layers_query();
     std::string handle_devices_query();
     std::string handle_getoption_query(const std::string& key);
+    std::string handle_setoption_command(const std::string& args);
+    std::string handle_gaps_query(const std::string& args);
+    std::string handle_border_query(const std::string& args);
     std::string handle_gamma_query(const std::string& args);
     std::string handle_cursor_query(const std::string& args);
     std::string handle_activewindow_query();
