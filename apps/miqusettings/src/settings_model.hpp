@@ -349,6 +349,40 @@ struct CursorConfig {
     bool loaded = false;
 };
 
+struct GapsBorderConfig {
+    int inner_gap = 8;
+    int outer_gap = 12;
+    bool smart_gaps = false;
+    int border_width = 1;
+    int corner_radius = 18;
+    std::string active_border_preset = "Yellow-Red Gradient (45°)";
+    std::string active_border_value = "#ffff00 #ff0000 45deg";
+    std::vector<std::string> active_border_presets = {
+        "Yellow-Red Gradient (45°)",
+        "Cyan-Blue Gradient (45°)",
+        "Purple-Blue Gradient (135°)",
+        "Neon Emerald-Cyan (90°)",
+        "Monochrome Bright (#FFFFFF)",
+        "Sky Blue (#3584e4)",
+        "Coral Flame (#ff6b6b)"
+    };
+    std::string inactive_border_preset = "Dark Slate Gradient (45°)";
+    std::string inactive_border_value = "#334455 #222d38 45deg";
+    std::vector<std::string> inactive_border_presets = {
+        "Dark Slate Gradient (45°)",
+        "Soft Slate (#99c2ff)",
+        "Graphite Charcoal (#2D3748)",
+        "Muted Amber-Red (45°)",
+        "Subtle Outline (20% Opacity)",
+        "Transparent (Zero Border)"
+    };
+    bool border_shading = false;
+    float border_shading_strength = 0.35f;
+    bool resize_on_border = true;
+    int border_grab_area = 8;
+    bool loaded = false;
+};
+
 struct LoginScreenConfig {
     std::string wallpaper = "";
     bool clock_format_24h = true;
@@ -459,6 +493,9 @@ public:
 
     bool is_cursor = false;
     std::shared_ptr<CursorConfig> cursor_cfg = std::make_shared<CursorConfig>();
+
+    bool is_gaps_border = false;
+    std::shared_ptr<GapsBorderConfig> gaps_border_cfg = std::make_shared<GapsBorderConfig>();
 
     bool is_login_screen = false;
     std::shared_ptr<LoginScreenConfig> login_screen_cfg = std::make_shared<LoginScreenConfig>();

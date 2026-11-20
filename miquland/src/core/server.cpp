@@ -628,6 +628,10 @@ void Server::reload_config() {
         }
     }
 
+    if (m_workspace_manager) {
+        m_workspace_manager->recalculate_layout();
+    }
+
     for (const auto& l_surf : m_layer_surfaces) {
         if (l_surf && l_surf->is_mapped()) {
             l_surf->update_blur();
