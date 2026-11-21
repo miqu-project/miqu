@@ -90,6 +90,7 @@ public:
 };
 
 typedef PluginInfo* (*PluginInitFunc)(PluginAPI* api);
+typedef PluginInfo* (*PluginGetInfoFunc)();
 typedef void (*PluginExitFunc)();
 
 } // namespace miquland

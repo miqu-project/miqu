@@ -5,6 +5,7 @@
 #include <memory>
 #include <utility>
 #include <functional>
+#include <cstdint>
 
 namespace miqu {
 
@@ -94,6 +95,17 @@ struct InstalledAppInfo {
     std::string package_name = "";
     bool is_flatpak = false;
     bool is_user_app = false;
+};
+
+struct PluginItemInfo {
+    std::string name;
+    std::string display_name;
+    std::string path;
+    std::string author;
+    std::string description;
+    std::string version;
+    uint32_t abi_version = 2;
+    bool is_active = false;
 };
 
 struct DefaultAppCandidate {
@@ -455,6 +467,9 @@ public:
 
     bool is_installed_app = false;
     InstalledAppInfo app_info;
+
+    bool is_plugin = false;
+    PluginItemInfo plugin_info;
 
     bool is_default_app_role = false;
     DefaultAppRole default_app_role;

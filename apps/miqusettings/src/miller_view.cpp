@@ -403,6 +403,8 @@ void MillerView::update_preview_ribbon() {
             title_str = "Window Gaps and Border";
         } else if (item && (item->id == "ws_login_screen" || item->is_login_screen)) {
             title_str = "Login Screen";
+        } else if (item && item->is_plugin) {
+            title_str = !item->plugin_info.display_name.empty() ? item->plugin_info.display_name : item->title;
         }
         m_preview_title->set_text(title_str);
         if (config) {
@@ -855,6 +857,8 @@ void MillerView::rebuild_preview_column() {
         render_power_mode_preview(item, config);
     } else if (item->is_monitor) {
         render_monitors_preview(item, config);
+    } else if (item->is_plugin) {
+        render_plugin_preview(item, config);
     } else if (item->is_installed_app) {
         render_installed_app_preview(item, config);
     } else if (item->is_default_app_role) {

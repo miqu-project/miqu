@@ -4,15 +4,19 @@
 
 using namespace miquoverview;
 
-MIQU_PLUGIN_EXPORT miquland::PluginInfo* miqu_plugin_init(miquland::PluginAPI* api) {
-    static miquland::PluginInfo s_info = {
-        .name = "miquoverview",
-        .author = "Miqu Ecosystem Team",
-        .description = "GPU-accelerated live workspace expose and overview plugin",
-        .version = "1.2.0",
-        .abi_version = miquland::MIQU_PLUGIN_ABI_VERSION,
-    };
+static miquland::PluginInfo s_info = {
+    .name = "miquoverview",
+    .author = "Miqu Ecosystem Team",
+    .description = "GPU-accelerated live workspace expose and overview plugin",
+    .version = "1.2.0",
+    .abi_version = miquland::MIQU_PLUGIN_ABI_VERSION,
+};
 
+MIQU_PLUGIN_EXPORT miquland::PluginInfo* miqu_plugin_get_info() {
+    return &s_info;
+}
+
+MIQU_PLUGIN_EXPORT miquland::PluginInfo* miqu_plugin_init(miquland::PluginAPI* api) {
     OverviewState::get().init(api);
 
     // Command dispatchers

@@ -44,10 +44,14 @@ add_executable(miqusettings
     src/input_backend.cpp
     src/preview_input.cpp
     src/hardware_backend.cpp
+    src/plugin_backend.cpp
+    src/preview_plugins.cpp
 )
 
 target_include_directories(miqusettings PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../miquland/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../miquland/include
 )
 
 target_link_libraries(miqusettings PRIVATE
@@ -57,6 +61,7 @@ target_link_libraries(miqusettings PRIVATE
     OpenSSL::SSL
     OpenSSL::Crypto
     stdc++fs
+    ${CMAKE_DL_LIBS}
 )
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../miqutoolkit/build/libmiqutoolkit.so")

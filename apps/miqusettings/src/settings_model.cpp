@@ -10,6 +10,7 @@
 #include "apps_backend.hpp"
 #include "xdg_backend.hpp"
 #include "battery_backend.hpp"
+#include "plugin_backend.hpp"
 
 namespace miqu {
 
@@ -453,6 +454,20 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
             "cat_appearance", "Appearance", "preferences-desktop-theme",
             {ws_wallpaper, ws_icon_packs, ws_cursor, ws_gaps_border, ws_login_screen}
         ));
+    }
+
+    // ==============================================================================
+    // 7. Plugins (Depth 1)
+    // ==============================================================================
+    {
+        auto cat_plugins = SettingItem::create_category(
+            "cat_plugins", "Plugins", "preferences-plugin"
+        );
+        cat_plugins->children_provider = []() {
+            return PluginBackend::get_plugin_items();
+        };
+
+        root.push_back(cat_plugins);
     }
 
     // ==============================================================================

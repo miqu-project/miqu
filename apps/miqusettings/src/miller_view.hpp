@@ -125,6 +125,7 @@ private:
     void render_battery_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_power_mode_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_monitors_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
+    void render_plugin_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_installed_app_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_default_app_role_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_keyboards_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
