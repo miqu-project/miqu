@@ -1,4 +1,5 @@
 #include "wallpaper_manager.hpp"
+#include "config.hpp"
 #include "ipc.hpp"
 #include <iostream>
 #include <sstream>
@@ -17,27 +18,11 @@ static void sig_handler(int) {
 }
 
 static std::string mode_to_string(miqu::FitMode mode) {
-    switch (mode) {
-        case miqu::FitMode::Contain: return "contain";
-        case miqu::FitMode::Fill: return "stretch";
-        case miqu::FitMode::Center: return "center";
-        case miqu::FitMode::Tile: return "tile";
-        case miqu::FitMode::Cover:
-        default:
-            return "cover";
-    }
+    return Config::mode_to_string(mode);
 }
 
 static std::string color_to_hex(const miqu::Color& c) {
-    int r = static_cast<int>(c.r * 255.0f);
-    int g = static_cast<int>(c.g * 255.0f);
-    int b = static_cast<int>(c.b * 255.0f);
-    std::ostringstream oss;
-    oss << "#" << std::hex << std::setfill('0')
-        << std::setw(2) << r
-        << std::setw(2) << g
-        << std::setw(2) << b;
-    return oss.str();
+    return Config::color_to_hex(c);
 }
 
 static void print_usage(const char* prog) {
@@ -52,11 +37,16 @@ static void print_usage(const char* prog) {
               << "  status, ping                Check if miqubg daemon is running and show IPC socket\n"
               << "  kill, quit                  Stop the running miqubg daemon gracefully via IPC\n\n"
               << "Options:\n"
+              << "  --init-config               Initialize user configuration file (~/.config/miqubg/miqubg.conf)\n"
+              << "  -C, --config <path>         Load custom configuration file\n"
               << "  -o, --output <name>         Target specific output (e.g. HDMI-A-1, eDP-1, or * for all)\n"
               << "  -m, --mode <mode>           Scaling mode: fill/cover, fit, stretch, center, tile (default: fill)\n"
               << "  -c, --color <#hex>          Solid background color in hex (e.g. #1e1e2e, default: #000000)\n"
               << "  -v, --version, version      Show version number and quit\n"
               << "  -h, --help, help            Show this help message\n\n"
+              << "Configuration & Persistence:\n"
+              << "  miqubg reads ~/.config/miqubg/miqubg.conf (or /usr/share/miqubg/miqubg.conf).\n"
+              << "  Setting a wallpaper automatically persists the active wallpaper and monitor configuration.\n\n"
               << "Scaling Modes:\n"
               << "  fill / cover    Scale to fill output, cropping if necessary (default)\n"
               << "  fit / contain   Scale to fit inside output, letterboxing with background color\n"
@@ -64,6 +54,7 @@ static void print_usage(const char* prog) {
               << "  center          Center image at 1:1 scale without scaling\n"
               << "  tile            Tile the image repeatedly across output\n\n"
               << "Examples:\n"
+              << "  " << prog << " --init-config\n"
               << "  " << prog << " query\n"
               << "  " << prog << " query -o HDMI-A-1\n"
               << "  " << prog << " get\n"
@@ -88,6 +79,7 @@ int main(int argc, char* argv[]) {
 
     std::map<std::string, OutputConfig> output_cfgs;
     std::string current_output = ""; // empty means modifying default_cfg
+    std::string custom_config_path = "";
     bool query_requested = false;
     bool get_requested = false;
     bool status_requested = false;
@@ -106,8 +98,23 @@ int main(int argc, char* argv[]) {
             print_usage(argv[0]);
             return 0;
         } else if (arg == "-v" || arg == "--version" || arg == "version") {
-            std::cout << "miqubg version 1.2.0\n";
+            std::cout << "miqubg version 1.3.0\n";
             return 0;
+        } else if (arg == "--init-config") {
+            std::string res = Config::init_user_config();
+            if (!res.empty()) {
+                std::cout << "[miqubg] Configuration initialized at: " << res << "\n";
+            } else {
+                std::cout << "[miqubg] Failed to initialize configuration file.\n";
+            }
+            return 0;
+        } else if (arg == "-C" || arg == "--config") {
+            if (i + 1 < argc) {
+                custom_config_path = argv[++i];
+            } else {
+                std::cerr << "Error: " << arg << " requires a file path\n";
+                return 1;
+            }
         } else if (arg == "query" || arg == "list" || arg == "-q" || arg == "--query") {
             query_requested = true;
         } else if (arg == "get" || arg == "-g" || arg == "--get") {
@@ -221,9 +228,32 @@ int main(int argc, char* argv[]) {
     }
 
     // If output flag was passed after image/mode/color, migrate default_cfg settings to that output
+    bool cli_output_specified = !output_cfgs.empty() || !current_output.empty();
     if (!current_output.empty() && output_cfgs.find(current_output) == output_cfgs.end()) {
         output_cfgs[current_output] = default_cfg;
         default_cfg.image_path = "";
+    }
+
+    // Load configuration file according to AGENTS.md Two-Tier authority:
+    // User config (~/.config/miqubg/miqubg.conf) > System baseline (/usr/share/miqubg/miqubg.conf)
+    Config& bg_config = Config::get();
+    bg_config.load(custom_config_path);
+
+    // Merge configuration baseline with CLI arguments:
+    // CLI arguments override file configuration.
+    if (!explicit_image_set && !default_requested && !clear_requested) {
+        OutputConfig file_def = bg_config.get_default_config();
+        default_cfg.image_path = file_def.image_path;
+        if (!mode_set) default_cfg.mode = file_def.mode;
+        if (!color_set) default_cfg.bg_color = file_def.bg_color;
+    }
+
+    // Merge per-monitor configs from loaded file if not specified on CLI
+    auto loaded_outputs = bg_config.get_output_configs();
+    for (const auto& [name, cfg] : loaded_outputs) {
+        if (output_cfgs.find(name) == output_cfgs.end()) {
+            output_cfgs[name] = cfg;
+        }
     }
 
     // 1. Handle Status / Ping check
@@ -329,23 +359,18 @@ int main(int argc, char* argv[]) {
     }
 
     // If no wallpaper was explicitly specified and not clear/solid-color, fall back to default asset wallpaper
-    if (default_cfg.image_path.empty() && !clear_requested) {
+    if (default_cfg.image_path.empty() && !clear_requested && !color_set) {
         default_cfg.image_path = WallpaperManager::resolve_default_wallpaper();
-    }
-    for (auto& pair : output_cfgs) {
-        if (pair.second.image_path.empty() && !clear_requested) {
-            pair.second.image_path = default_cfg.image_path;
-        }
     }
 
     // 6. Handle Wallpaper Updates if daemon is already running
-    bool has_explicit_action = explicit_image_set || default_requested || !output_cfgs.empty() || mode_set || color_set || clear_requested;
+    bool has_explicit_action = explicit_image_set || default_requested || cli_output_specified || mode_set || color_set || clear_requested;
 
     if (has_explicit_action) {
         std::string resp;
         bool sent_any = false;
 
-        if (!output_cfgs.empty()) {
+        if (cli_output_specified && !output_cfgs.empty()) {
             for (const auto& pair : output_cfgs) {
                 std::string cmd = "SET " + pair.first + " " + mode_to_string(pair.second.mode) + " "
                                   + color_to_hex(pair.second.bg_color) + " " + pair.second.image_path;
@@ -398,6 +423,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // If starting a fresh daemon and explicit CLI options were provided, persist them
+    if (has_explicit_action) {
+        if (cli_output_specified && !output_cfgs.empty()) {
+            for (const auto& [name, cfg] : output_cfgs) {
+                bg_config.set_output_config(name, cfg);
+            }
+        } else {
+            bg_config.set_default_config(default_cfg);
+        }
+        bg_config.save();
+    }
+
     // 7. Start as the Persistent Daemon
     auto engine = miqu::AppEngine::create();
     if (!engine) {
@@ -418,6 +455,17 @@ int main(int argc, char* argv[]) {
     }
 
     manager.init(engine.get());
+
+    // Setup inotify config watcher on AppEngine for dynamic live reload
+    engine->setup_config_watcher();
+    engine->add_theme_change_listener([&manager]() {
+        if (Config::get().consume_internal_write_flag()) {
+            return;
+        }
+        std::cout << "[miqubg] Configuration file changed on disk. Reloading...\n";
+        Config::get().load();
+        manager.apply_config(Config::get());
+    });
 
     // Initialize IPC Server
     IPCServer server([&manager, &engine](const std::string& cmd) -> std::string {
@@ -447,7 +495,7 @@ int main(int argc, char* argv[]) {
                 cfg.bg_color = miqu::Color::from_hex(color_hex, miqu::Color::rgb(0.0f, 0.0f, 0.0f));
 
                 engine->post([&manager, output_name, cfg]() {
-                    manager.update_wallpaper(output_name, cfg);
+                    manager.update_wallpaper(output_name, cfg, true);
                 });
                 return "OK";
             }
@@ -465,12 +513,13 @@ int main(int argc, char* argv[]) {
             cfg.mode = miqu::FitMode::Cover;
             cfg.bg_color = miqu::Color::from_hex(color_hex, miqu::Color::rgb(0.0f, 0.0f, 0.0f));
             engine->post([&manager, output_name, cfg]() {
-                manager.update_wallpaper(output_name, cfg);
+                manager.update_wallpaper(output_name, cfg, true);
             });
             return "OK";
         } else if (cmd == "RELOAD") {
             engine->post([&manager]() {
-                manager.sync_outputs();
+                Config::get().load();
+                manager.apply_config(Config::get());
             });
             return "OK";
         } else if (cmd.rfind("GET", 0) == 0) {

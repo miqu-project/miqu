@@ -84,17 +84,46 @@ miqubg quit
 | :--- | :--- | :--- |
 | `query` / `list` | `-q`, `--query` | Queries active wallpaper, fit mode, and color across all or targeted monitor(s). |
 | `get` | `-g`, `--get` | Prints raw wallpaper path (e.g. for `pywal`, `waybar`, lockscreens). |
-| `img` / `set` | `-i`, `--image <path>` | Sets wallpaper image across all or targeted monitor(s). |
+| `img` / `set` | `-i`, `--image <path>` | Sets wallpaper image across all or targeted monitor(s) (persists to `miqubg.conf`). |
 | `clear [color]` | — | Clears image and shows solid background color (default `#000000`). |
 | `default` | `-d`, `--default` | Resets wallpaper to system default asset (`/usr/share/miqubg/wallpaper.png`). |
 | `reload` | `-r`, `--reload` | Reloads active wallpapers across all monitors in place. |
 | `status` / `ping` | — | Checks if daemon is running and displays UNIX socket path. |
 | `kill` / `quit` | — | Gracefully stops the running daemon via IPC. |
+| `--init-config` | — | Initializes user config `~/.config/miqubg/miqubg.conf` with safe timestamped archiving. |
+| `-C, --config <path>`| — | Loads custom configuration file. |
 | `-o, --output <name>`| — | Target specific monitor (e.g. `eDP-1`, `HDMI-A-1`, or `*` for all). |
 | `-m, --mode <mode>` | — | Scaling mode: `fill` / `cover`, `fit` / `contain`, `stretch`, `center`, `tile`. |
 | `-c, --color <#hex>`| — | Solid background color in hex (default: `#000000`). |
 | `-v, --version` | `version` | Shows version information. |
 | `-h, --help` | `help` | Shows help message. |
+
+### Configuration File (`miqubg.conf`)
+
+`miqubg` adheres to the ecosystem **Two-Tier Configuration Model** defined in `AGENTS.md`:
+- **Tier 1 (System Baseline)**: `/usr/share/miqubg/miqubg.conf`
+- **Tier 2 (User Config)**: `~/.config/miqubg/miqubg.conf`
+
+Create or reset your user configuration at any time:
+```bash
+miqubg --init-config
+```
+
+#### Hyprland-Compatible Syntax
+Wallpapers and monitor overrides are written in unified Hyprland / Miqu syntax:
+```ini
+[general]
+# Default wallpaper across all connected displays
+# Syntax: wallpaper = [monitor], <path>, [fit_mode], [bg_color]
+wallpaper = , /usr/share/miqubg/wallpaper.png, cover, #000000
+
+# Per-monitor overrides:
+wallpaper = HDMI-A-1, ~/Pictures/wallpapers/nature.jpg, fit, #1e1e2e
+wallpaper = eDP-1, ~/Pictures/wallpapers/anime.png, cover, #000000
+```
+
+#### Automatic Persistence
+Whenever you change a wallpaper using CLI commands (e.g., `miqubg img <path>`) or via `miqusettings`, `miqubg` automatically updates `~/.config/miqubg/miqubg.conf` so your desktop backgrounds persist seamlessly across reboots and restarts.
 
 ### Scaling Modes
 - **`fill` / `cover`** (default): Scale to fill output, cropping if aspect ratio differs.

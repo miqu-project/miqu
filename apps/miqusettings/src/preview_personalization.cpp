@@ -1,5 +1,6 @@
 #include "miller_view.hpp"
 #include "preview_common.hpp"
+#include "monitor_backend.hpp"
 #include <miqutoolkit/view/popup_window.hpp>
 #include <miqutoolkit/view/edit_text.hpp>
 #include <miqutoolkit/view/frame_layout.hpp>
@@ -14,8 +15,6 @@
 #include <filesystem>
 #include <thread>
 #include <cstring>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <unistd.h>
 #include <dlfcn.h>
 
@@ -345,79 +344,140 @@ static FitMode wallpaper_str_to_fit_mode(const std::string& mode_str) {
     return FitMode::Cover;
 }
 
-static bool query_miqubg_wallpaper_ipc(std::string& image_path, std::string& fit_mode, std::string& bg_color) {
-    const char* wayland_display = std::getenv("WAYLAND_DISPLAY");
-    std::string display_name = (wayland_display && *wayland_display) ? wayland_display : "wayland-0";
+static std::string trim_val(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\r\n\"'");
+    if (first == std::string::npos) return "";
+    size_t last = str.find_last_not_of(" \t\r\n\"'");
+    return str.substr(first, (last - first + 1));
+}
 
-    const char* runtime_dir = std::getenv("XDG_RUNTIME_DIR");
-    std::string sock_path = (runtime_dir && *runtime_dir)
-        ? std::string(runtime_dir) + "/miqubg-" + display_name + ".sock"
-        : "/tmp/miqubg-" + std::to_string(getuid()) + "-" + display_name + ".sock";
-
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) return false;
-
-    struct timeval tv;
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-
-    struct sockaddr_un addr;
-    std::memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    std::strncpy(addr.sun_path, sock_path.c_str(), sizeof(addr.sun_path) - 1);
-
-    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        close(fd);
-        return false;
+static bool load_miqubg_wallpaper_config(std::string& image_path, std::string& fit_mode, std::string& bg_color, const std::string& target_monitor = "All Displays") {
+    const char* home = std::getenv("HOME");
+    fs::path target_conf;
+    if (home) {
+        fs::path user_conf = fs::path(home) / ".config" / "miqubg" / "miqubg.conf";
+        if (fs::exists(user_conf)) {
+            target_conf = user_conf;
+        }
     }
-
-    std::string cmd = "GET *\n";
-    if (write(fd, cmd.c_str(), cmd.size()) < 0) {
-        close(fd);
-        return false;
+    if (target_conf.empty()) {
+        fs::path sys_conf = "/usr/share/miqubg/miqubg.conf";
+        if (fs::exists(sys_conf)) {
+            target_conf = sys_conf;
+        }
     }
+    if (target_conf.empty() || !fs::exists(target_conf)) return false;
 
-    char buf[1024];
-    std::memset(buf, 0, sizeof(buf));
-    ssize_t n = read(fd, buf, sizeof(buf) - 1);
-    close(fd);
+    std::ifstream in(target_conf);
+    if (!in.is_open()) return false;
 
-    if (n > 0) {
-        std::string resp(buf, n);
-        if (resp.rfind("OK ", 0) == 0) {
-            std::istringstream iss(resp.substr(3));
-            std::string mode, col, path;
-            if (iss >> mode >> col) {
-                std::getline(iss, path);
-                size_t f = path.find_first_not_of(" \t\r\n");
-                if (f != std::string::npos) {
-                    path = path.substr(f);
+    bool is_global_target = (target_monitor.empty() || target_monitor == "All Displays" || target_monitor == "*");
+    std::string current_section = "general";
+
+    std::string global_img, global_mode, global_color;
+    bool found_global = false;
+
+    std::string specific_img, specific_mode, specific_color;
+    bool found_specific = false;
+
+    std::string line;
+    while (std::getline(in, line)) {
+        std::string trimmed = trim_val(line);
+        if (trimmed.empty() || trimmed[0] == '#' || trimmed[0] == ';') continue;
+
+        if (trimmed.front() == '[' && trimmed.back() == ']') {
+            std::string sec = trim_val(trimmed.substr(1, trimmed.size() - 2));
+            std::string sec_lower = sec;
+            std::transform(sec_lower.begin(), sec_lower.end(), sec_lower.begin(), ::tolower);
+            if (sec_lower.rfind("output:", 0) == 0) {
+                current_section = sec.substr(7);
+            } else {
+                current_section = sec_lower;
+            }
+            continue;
+        }
+
+        size_t eq = trimmed.find('=');
+        if (eq == std::string::npos) continue;
+        std::string key = trim_val(trimmed.substr(0, eq));
+        std::string val = trim_val(trimmed.substr(eq + 1));
+        std::string k_lower = key;
+        std::transform(k_lower.begin(), k_lower.end(), k_lower.begin(), ::tolower);
+
+        if (k_lower == "wallpaper") {
+            std::istringstream ss(val);
+            std::string tok;
+            std::vector<std::string> tokens;
+            while (std::getline(ss, tok, ',')) {
+                tokens.push_back(trim_val(tok));
+            }
+
+            std::string entry_mon = "";
+            std::string entry_img = "";
+            std::string entry_mode = "Cover";
+            std::string entry_col = "#000000";
+
+            if (tokens.size() == 1) {
+                entry_img = tokens[0];
+                if (current_section != "general") entry_mon = current_section;
+            } else if (tokens.size() >= 2) {
+                if (tokens[0].rfind('/', 0) == 0 || tokens[0].rfind('~', 0) == 0) {
+                    entry_img = tokens[0];
+                    entry_mode = tokens[1];
+                    if (tokens.size() >= 3) entry_col = tokens[2];
+                    if (current_section != "general") entry_mon = current_section;
                 } else {
-                    path = "";
+                    entry_mon = tokens[0];
+                    entry_img = tokens[1];
+                    if (tokens.size() >= 3) entry_mode = tokens[2];
+                    if (tokens.size() >= 4) entry_col = tokens[3];
                 }
-                while (!path.empty() && (path.back() == '\r' || path.back() == '\n')) {
-                    path.pop_back();
-                }
-                fit_mode = mode;
-                bg_color = col;
-                image_path = path;
-                return true;
+            }
+
+            if (entry_mon.empty() || entry_mon == "*") {
+                global_img = entry_img;
+                global_mode = entry_mode;
+                global_color = entry_col;
+                found_global = true;
+            } else if (!is_global_target && entry_mon == target_monitor) {
+                specific_img = entry_img;
+                specific_mode = entry_mode;
+                specific_color = entry_col;
+                found_specific = true;
             }
         }
     }
+
+    if (!is_global_target && found_specific) {
+        image_path = specific_img;
+        fit_mode = specific_mode;
+        bg_color = specific_color;
+        return true;
+    } else if (found_global) {
+        image_path = global_img;
+        fit_mode = global_mode;
+        bg_color = global_color;
+        return true;
+    }
+
     return false;
 }
 
-static bool send_miqubg_wallpaper_ipc(const std::string& image_path, const std::string& fit_mode) {
-    const char* wayland_display = std::getenv("WAYLAND_DISPLAY");
-    std::string display_name = (wayland_display && *wayland_display) ? wayland_display : "wayland-0";
+static bool sync_miqubg_wallpaper_config(const std::string& image_path, const std::string& fit_mode, const std::string& bg_color = "#000000", const std::string& target_monitor = "All Displays") {
+    const char* home = std::getenv("HOME");
+    if (!home) return false;
 
-    const char* runtime_dir = std::getenv("XDG_RUNTIME_DIR");
-    std::string sock_path = (runtime_dir && *runtime_dir)
-        ? std::string(runtime_dir) + "/miqubg-" + display_name + ".sock"
-        : "/tmp/miqubg-" + std::to_string(getuid()) + "-" + display_name + ".sock";
+    fs::path bg_dir = fs::path(home) / ".config" / "miqubg";
+    std::error_code ec;
+    if (!fs::exists(bg_dir, ec) || !fs::exists(bg_dir / "miqubg.conf", ec)) {
+        // Fresh install: initialize complete standard configuration via miqubg
+        std::system("miqubg --init-config >/dev/null 2>&1");
+    }
+    if (!fs::exists(bg_dir, ec)) {
+        fs::create_directories(bg_dir, ec);
+    }
+
+    fs::path miqubg_conf = bg_dir / "miqubg.conf";
 
     std::string mode_str = "cover";
     std::string lower = fit_mode;
@@ -428,40 +488,92 @@ static bool send_miqubg_wallpaper_ipc(const std::string& image_path, const std::
     else if (lower == "tile") mode_str = "tile";
     else mode_str = "cover";
 
-    std::string cmd = "SET * " + mode_str + " #000000 " + image_path + "\n";
+    bool is_global = (target_monitor.empty() || target_monitor == "All Displays" || target_monitor == "*");
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) return false;
+    std::vector<std::string> lines;
+    bool replaced = false;
+    std::string current_section = "general";
 
-    struct timeval tv;
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    if (fs::exists(miqubg_conf)) {
+        std::ifstream in(miqubg_conf);
+        if (in.is_open()) {
+            std::string line;
+            while (std::getline(in, line)) {
+                std::string t = trim_val(line);
+                if (t.front() == '[' && t.back() == ']') {
+                    std::string sec = trim_val(t.substr(1, t.size() - 2));
+                    std::string sec_lower = sec;
+                    std::transform(sec_lower.begin(), sec_lower.end(), sec_lower.begin(), ::tolower);
+                    if (sec_lower.rfind("output:", 0) == 0) {
+                        current_section = sec.substr(7);
+                    } else {
+                        current_section = sec_lower;
+                    }
+                    lines.push_back(line);
+                    continue;
+                }
 
-    struct sockaddr_un addr;
-    std::memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    std::strncpy(addr.sun_path, sock_path.c_str(), sizeof(addr.sun_path) - 1);
+                std::string t_lower = t;
+                std::transform(t_lower.begin(), t_lower.end(), t_lower.begin(), ::tolower);
+                if (t_lower.rfind("wallpaper", 0) == 0) {
+                    size_t eq = t.find('=');
+                    if (eq != std::string::npos) {
+                        std::string val = trim_val(t.substr(eq + 1));
+                        std::istringstream ss(val);
+                        std::string tok;
+                        std::vector<std::string> tokens;
+                        while (std::getline(ss, tok, ',')) {
+                            tokens.push_back(trim_val(tok));
+                        }
 
-    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        close(fd);
-        // Fallback: daemon not yet listening on socket, spawn miqubg directly
-        std::string spawn = "miqubg img \"" + image_path + "\" -m " + mode_str + " &";
-        int res = system(spawn.c_str());
-        return (res == 0);
+                        std::string entry_mon = "";
+                        if (tokens.size() == 1) {
+                            if (current_section != "general") entry_mon = current_section;
+                        } else if (tokens.size() >= 2) {
+                            if (tokens[0].rfind('/', 0) == 0 || tokens[0].rfind('~', 0) == 0) {
+                                if (current_section != "general") entry_mon = current_section;
+                            } else {
+                                entry_mon = tokens[0];
+                            }
+                        }
+
+                        if (is_global && (entry_mon.empty() || entry_mon == "*")) {
+                            lines.push_back("wallpaper = , " + image_path + ", " + mode_str + ", " + bg_color);
+                            replaced = true;
+                            continue;
+                        } else if (!is_global && entry_mon == target_monitor) {
+                            lines.push_back("wallpaper = " + target_monitor + ", " + image_path + ", " + mode_str + ", " + bg_color);
+                            replaced = true;
+                            continue;
+                        }
+                    }
+                }
+                lines.push_back(line);
+            }
+        }
     }
 
-    ssize_t sent = write(fd, cmd.c_str(), cmd.size());
-    if (sent < 0) {
-        close(fd);
-        return false;
+    if (!replaced) {
+        if (is_global) {
+            lines.push_back("wallpaper = , " + image_path + ", " + mode_str + ", " + bg_color);
+        } else {
+            lines.push_back("wallpaper = " + target_monitor + ", " + image_path + ", " + mode_str + ", " + bg_color);
+        }
     }
 
-    char buf[256];
-    std::memset(buf, 0, sizeof(buf));
-    read(fd, buf, sizeof(buf) - 1);
-    close(fd);
+    std::ofstream out(miqubg_conf);
+    if (!out.is_open()) return false;
+    for (const auto& l : lines) {
+        out << l << "\n";
+    }
+    out.flush();
+    out.close();
+
+    // If miqubg daemon is not currently running, launch it in the background
+    if (std::system("miqubg status >/dev/null 2>&1") != 0) {
+        std::system("miqubg >/dev/null 2>&1 &");
+    }
+
     return true;
 }
 
@@ -1377,10 +1489,23 @@ private:
 void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     if (!item || !item->wallpaper_cfg) return;
 
-    // Load active wallpaper from miqubg daemon if user doesn't have an unapplied browse selection
+    // Query connected monitors
+    std::vector<std::string> monitors = {"All Displays"};
+    auto detected = MonitorBackend::get_monitors();
+    for (const auto& mon : detected) {
+        if (!mon.name.empty()) {
+            monitors.push_back(mon.name);
+        }
+    }
+    item->wallpaper_cfg->available_monitors = monitors;
+    if (std::find(monitors.begin(), monitors.end(), item->wallpaper_cfg->target_monitor) == monitors.end()) {
+        item->wallpaper_cfg->target_monitor = "All Displays";
+    }
+
+    // Load active wallpaper from miqubg config if user doesn't have an unapplied browse selection
     if (!item->wallpaper_cfg->has_pending_selection) {
         std::string active_path, active_mode, active_color;
-        if (query_miqubg_wallpaper_ipc(active_path, active_mode, active_color)) {
+        if (load_miqubg_wallpaper_config(active_path, active_mode, active_color, item->wallpaper_cfg->target_monitor)) {
             if (!active_path.empty()) {
                 item->wallpaper_cfg->wallpaper_path = active_path;
                 item->wallpaper_cfg->current_wallpaper = fs::path(active_path).filename().string();
@@ -1440,12 +1565,54 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
     name_lp.gravity = Gravity::CenterHorizontal;
     main_card->add_view(wp_name, name_lp);
 
-    // 2. Bottom Row: Browse Button, Fit Mode Spinner, Apply Button (Centered)
+    // 2. Bottom Row: Monitor Spinner, Browse Button, Reset Button, Fit Mode Spinner, Apply Button (Centered)
     auto bottom_row = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
         ->gravity(Gravity::Center)
         ->spacing(10)
         ->build();
+
+    // Monitor Selector Spinner
+    int cur_mon_idx = 0;
+    for (size_t i = 0; i < item->wallpaper_cfg->available_monitors.size(); ++i) {
+        if (item->wallpaper_cfg->available_monitors[i] == item->wallpaper_cfg->target_monitor) {
+            cur_mon_idx = static_cast<int>(i);
+            break;
+        }
+    }
+
+    auto mon_spinner = SpinnerBuilder::create()
+        ->items(item->wallpaper_cfg->available_monitors)
+        ->selectedIndex(cur_mon_idx)
+        ->fontSize(config->metrics.font_size)
+        ->padding(12, 6)
+        ->cornerRadius(get_btn_radius(config))
+        ->onItemSelected([this, item](int idx, const std::string& val) {
+            (void)idx;
+            item->wallpaper_cfg->target_monitor = val;
+            item->wallpaper_cfg->has_pending_selection = false;
+            std::string mon_path, mon_mode, mon_color;
+            if (load_miqubg_wallpaper_config(mon_path, mon_mode, mon_color, val)) {
+                if (!mon_path.empty()) {
+                    item->wallpaper_cfg->wallpaper_path = mon_path;
+                    item->wallpaper_cfg->current_wallpaper = fs::path(mon_path).filename().string();
+                }
+                if (!mon_mode.empty()) {
+                    std::string cap = mon_mode;
+                    if (!cap.empty()) cap[0] = std::toupper(cap[0]);
+                    if (cap == "Fill") cap = "Stretch";
+                    else if (cap == "Contain") cap = "Fit";
+                    item->wallpaper_cfg->fit_mode = cap;
+                }
+            }
+            item->last_action_message = "";
+            rebuild_preview_column();
+            notify_state_changed();
+        })
+        ->build();
+    LayoutParams m_lp(static_cast<int>(LayoutDimension::WrapContent), 36);
+    m_lp.gravity = Gravity::CenterVertical;
+    bottom_row->add_view(mon_spinner, m_lp);
 
     auto on_browse = [this, item]() {
         std::thread([this, item]() {
@@ -1545,12 +1712,14 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
     auto on_apply = [this, item]() {
         std::string expanded = expand_wallpaper_path(item->wallpaper_cfg->wallpaper_path);
         if (!expanded.empty() && fs::exists(expanded)) {
-            bool ok = send_miqubg_wallpaper_ipc(expanded, item->wallpaper_cfg->fit_mode);
+            bool ok = sync_miqubg_wallpaper_config(expanded, item->wallpaper_cfg->fit_mode, "#000000", item->wallpaper_cfg->target_monitor);
             if (ok) {
                 item->wallpaper_cfg->has_pending_selection = false;
-                item->last_action_message = "Wallpaper applied via miqubg";
+                std::string target_desc = (item->wallpaper_cfg->target_monitor.empty() || item->wallpaper_cfg->target_monitor == "All Displays")
+                    ? "all displays" : item->wallpaper_cfg->target_monitor;
+                item->last_action_message = "Wallpaper applied to " + target_desc + " & saved to miqubg.conf";
             } else {
-                item->last_action_message = "Failed to connect to miqubg daemon";
+                item->last_action_message = "Failed to write miqubg configuration";
             }
         } else {
             item->last_action_message = "Image not found: " + item->wallpaper_cfg->current_wallpaper;

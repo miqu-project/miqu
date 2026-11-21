@@ -15,6 +15,8 @@ struct OutputConfig {
     miqu::Color bg_color = miqu::Color::rgb(0.0f, 0.0f, 0.0f);
 };
 
+class Config;
+
 class WallpaperManager {
 public:
     WallpaperManager() = default;
@@ -30,8 +32,9 @@ public:
     }
 
     void init(miqu::AppEngine* engine);
+    void apply_config(const Config& cfg);
     void sync_outputs();
-    void update_wallpaper(const std::string& output_name, OutputConfig config);
+    void update_wallpaper(const std::string& output_name, OutputConfig config, bool persist = true);
     OutputConfig get_current_config(const std::string& output_name = "*") const;
     std::map<std::string, OutputConfig> get_all_active_configs() const;
 

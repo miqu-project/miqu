@@ -1,4 +1,5 @@
 #include "wallpaper_manager.hpp"
+#include "config.hpp"
 #include <iostream>
 #include <set>
 #include <vector>
@@ -46,11 +47,6 @@ std::string WallpaperManager::resolve_default_wallpaper() {
     candidates.push_back("../assets/wallpaper.png");
     candidates.push_back("shell/miqubg/assets/wallpaper.png");
 
-    // Distribution / desktop fallback paths
-    candidates.push_back("/usr/share/backgrounds/biway/wallpaper.png");
-    candidates.push_back("/usr/share/backgrounds/biway/lightwallpaper.png");
-    candidates.push_back("/usr/share/backgrounds/biway/darkwallpaper.jpg");
-    candidates.push_back("/usr/share/backgrounds/wallpaper.png");
 
     for (const auto& path : candidates) {
         if (!path.empty() && fs::exists(path, ec) && fs::is_regular_file(path, ec)) {
@@ -142,7 +138,16 @@ WallpaperManager::~WallpaperManager() {
     m_windows.clear();
 }
 
-void WallpaperManager::update_wallpaper(const std::string& output_name, OutputConfig config) {
+void WallpaperManager::apply_config(const Config& cfg) {
+    {
+        std::lock_guard<std::mutex> lock(m_config_mutex);
+        m_default_config = cfg.get_default_config();
+        m_output_configs = cfg.get_output_configs();
+    }
+    sync_outputs();
+}
+
+void WallpaperManager::update_wallpaper(const std::string& output_name, OutputConfig config, bool persist) {
     {
         std::lock_guard<std::mutex> lock(m_config_mutex);
         if (output_name.empty() || output_name == "*") {
@@ -151,6 +156,12 @@ void WallpaperManager::update_wallpaper(const std::string& output_name, OutputCo
         } else {
             m_output_configs[output_name] = config;
         }
+    }
+
+    if (persist) {
+        auto& cfg = Config::get();
+        cfg.set_output_config(output_name, config);
+        cfg.save();
     }
 
     auto outputs = miqu::OutputManager::get()->get_outputs();

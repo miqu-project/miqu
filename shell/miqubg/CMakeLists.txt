@@ -17,6 +17,7 @@ add_executable(miqubg
     src/main.cpp
     src/wallpaper_manager.cpp
     src/ipc.cpp
+    src/config.cpp
 )
 
 target_include_directories(miqubg PRIVATE
@@ -53,4 +54,4 @@ target_compile_definitions(miqubg PRIVATE
 )
 
 install(TARGETS miqubg RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES assets/wallpaper.png DESTINATION ${CMAKE_INSTALL_DATADIR}/miqubg)
+install(FILES assets/wallpaper.png assets/miqubg.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/miqubg)

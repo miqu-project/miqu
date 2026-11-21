@@ -331,7 +331,8 @@ struct WallpaperConfig {
     std::string wallpaper_path = "";
     std::string fit_mode = "Cover";
     std::vector<std::string> fit_modes = {"Cover", "Fit", "Stretch", "Center", "Tile"};
-    std::string display_aspect = "16:9";
+    std::string target_monitor = "All Displays";
+    std::vector<std::string> available_monitors = {"All Displays"};
     bool has_pending_selection = false;
 };
 
