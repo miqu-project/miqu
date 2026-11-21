@@ -99,10 +99,6 @@ void Config::set_defaults() {
     m_blurred_layers.clear();
     m_plugins.clear();
 
-    const char* env_term = getenv("TERMINAL");
-    std::string term = (env_term && *env_term) ? env_term : "kitty || foot || alacritty || wezterm || weston-terminal || xterm";
-    m_terminal = term;
-
     m_tap_to_click = true;
     m_natural_scroll = false;
     m_dwt = true;
@@ -1868,9 +1864,7 @@ void Config::parse_animations_entry(const std::string& path_str, const std::stri
 void Config::parse_input_entry(const std::string& path_str, const std::string& top_type,
                                const std::vector<SectionFrame>& stack, const std::string& key, const std::string& value,
                                std::vector<GestureBinding>& file_gestures, bool& has_gestures_in_file) {
-    if (path_str == "input" || top_type == "input") {
-        if (key == "terminal") m_terminal = value;
-    } else if (path_str == "input.keyboard" || (top_type == "keyboard" && is_in_path(stack, "input"))) {
+    if (path_str == "input.keyboard" || (top_type == "keyboard" && is_in_path(stack, "input"))) {
         if (key == "layout") m_kb_layout = value;
         else if (key == "variant") m_kb_variant = value;
         else if (key == "options") m_kb_options = value;
@@ -2786,7 +2780,6 @@ void Config::save() {
     file << "}\n\n";
 
     file << "input {\n";
-    file << "    terminal = " << m_terminal << "\n";
     file << "    keyboard {\n";
     file << "        layout = " << m_kb_layout << "\n";
     if (!m_kb_variant.empty()) file << "        variant = " << m_kb_variant << "\n";

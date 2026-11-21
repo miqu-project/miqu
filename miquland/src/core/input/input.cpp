@@ -778,10 +778,6 @@ bool InputManager::handle_keybinding(uint32_t modifiers, xkb_keysym_t keysym) {
 
     // 1. If an exclusive Layer Surface is focused (e.g. rofi, miqulauncher, swaylock), forward keys directly to it
     if (m_server->get_focused_layer_surface()) {
-        if (mod && shift && norm_sym == XKB_KEY_q) {
-            m_server->terminate();
-            return true;
-        }
         return false;
     }
 
@@ -812,13 +808,7 @@ bool InputManager::execute_action(const std::string& action) {
         return true;
     }
 
-    if (action == "terminal") {
-        std::string term = Config::get().get_terminal();
-        if (term.empty()) term = "kitty || foot || alacritty || wezterm || weston-terminal || xterm";
-        spawn_command(term.c_str());
-    } else if (action == "menu" || action == "app_launcher") {
-        spawn_command("miqulauncher");
-    } else if (action == "close" || action == "close_window") {
+    if (action == "close" || action == "close_window") {
         View* focused = m_server->get_focused_view();
         if (focused) focused->close();
     } else if (action == "toggle_fullscreen" || action == "fullscreen") {

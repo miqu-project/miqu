@@ -1275,18 +1275,6 @@ std::string IpcServer::handle_dispatch(const std::string& args) {
         return R"({"status":"ok","action":"shutdown","timeout_ms":)" + std::to_string(timeout_ms) + "}";
     }
 
-    if (sub_action == "terminal") {
-        std::string term = Config::get().get_terminal();
-        if (term.empty()) term = "kitty || foot || alacritty || wezterm || weston-terminal || xterm";
-        if (m_server->get_input_manager()) m_server->get_input_manager()->spawn_command(term.c_str());
-        return R"({"status":"ok","action":"terminal"})";
-    }
-
-    if (sub_action == "menu" || sub_action == "app_launcher") {
-        if (m_server->get_input_manager()) m_server->get_input_manager()->spawn_command("miqulauncher");
-        return R"({"status":"ok","action":"menu"})";
-    }
-
     if (sub_action == "gaps") {
         std::string rem;
         std::getline(iss, rem);

@@ -19,15 +19,7 @@ static void print_usage(const char* prog) {
               << "  --init-config          Generate default user configuration file\n"
               << "  -h, --help             Show this help message\n\n"
               << "Configuration File:\n"
-              << "  ~/.config/miquland/miquland.conf (optional overlay)\n\n"
-              << "Keybindings:\n"
-              << "  Super + Space          Spawn application menu launcher\n"
-              << "  Super + T              Spawn terminal\n"
-              << "  Super + L              Toggle tiling layout (Spiral / Stack)\n"
-              << "  Super + Return         Swap active window with main window\n"
-              << "  Super + Q              Close active window\n"
-              << "  Super + [1..9]         Switch to workspace 1..9\n"
-              << "  Super + Shift + Q      Exit compositor\n\n";
+              << "  ~/.config/miquland/miquland.conf (keybindings and options are configured here)\n\n";
 }
 
 int main(int argc, char* argv[]) {

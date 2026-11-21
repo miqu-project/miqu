@@ -27,7 +27,7 @@ struct MonitorRule {
 struct KeyBinding {
     uint32_t modifiers = 0;
     xkb_keysym_t keysym = XKB_KEY_NoSymbol;
-    std::string action; // e.g. "firefox", "foot -e yazi", or built-in "menu", "close", "toggle_bar", "prev_window", "next_window", "ws_1", etc.
+    std::string action; // e.g. "firefox", "foot -e yazi", or built-in "close", "toggle_bar", "prev_window", "next_window", "ws_1", etc.
     std::string combo_str;
 };
 
@@ -258,9 +258,6 @@ public:
 
     int get_repeat_delay() const { return m_repeat_delay; }
     void set_repeat_delay(int delay) { m_repeat_delay = std::max(100, delay); }
-
-    const std::string& get_terminal() const { return m_terminal; }
-    void set_terminal(const std::string& term) { m_terminal = term; }
 
     int get_window_border_width() const { return m_window_border_width; }
     void set_window_border_width(int w) { m_window_border_width = w; }
@@ -689,7 +686,6 @@ private:
     std::string m_kb_model = "";
     int m_repeat_rate = 40;
     int m_repeat_delay = 250;
-    std::string m_terminal = "kitty";
 
     int m_window_border_width = 1;
     int m_window_border_radius = 18;
