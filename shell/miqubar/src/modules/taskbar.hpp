@@ -22,6 +22,7 @@ public:
     ~TaskbarView() override;
 
     void sync_windows();
+    void sync_theme();
     void hide_context_menu();
     void hide_group_popup();
 

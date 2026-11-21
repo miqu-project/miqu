@@ -408,6 +408,10 @@ TaskbarView::TaskbarView() : LinearLayout(miqu::Orientation::Horizontal) {
             sync_windows();
         });
     }
+
+    miqu::Config::get()->add_change_listener([this]() {
+        sync_theme();
+    });
 }
 
 TaskbarView::~TaskbarView() {
@@ -506,6 +510,15 @@ void TaskbarView::toggle_group_popup(TaskbarItemButton* btn) {
     } else {
         show_group_popup(btn);
     }
+}
+
+void TaskbarView::sync_theme() {
+    m_icon_path_cache.clear();
+    auto* app_mgr = miqu::AppManager::get();
+    if (app_mgr) {
+        app_mgr->invalidate();
+    }
+    sync_windows();
 }
 
 void TaskbarView::sync_windows() {

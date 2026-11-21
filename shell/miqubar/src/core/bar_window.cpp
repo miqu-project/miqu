@@ -156,6 +156,7 @@ void BarRootView::sync_theme() {
     set_padding(cfg.padding_left, cfg.padding_top, cfg.padding_right, cfg.padding_bottom);
     if (m_start_btn) m_start_btn->sync_style();
     if (m_search_btn) m_search_btn->sync_style();
+    if (m_taskbar) m_taskbar->sync_theme();
     request_redraw();
 }
 
