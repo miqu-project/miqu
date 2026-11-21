@@ -361,9 +361,11 @@ static bool load_miqubg_wallpaper_config(std::string& image_path, std::string& f
         }
     }
     if (target_conf.empty()) {
-        fs::path sys_conf = "/usr/share/miqubg/miqubg.conf";
-        if (fs::exists(sys_conf)) {
-            target_conf = sys_conf;
+        for (const char* p : {"/usr/share/miqubg/miqubg.conf", "/usr/local/share/miqubg/miqubg.conf", "assets/miqubg.conf", "shell/miqubg/assets/miqubg.conf"}) {
+            if (fs::exists(p)) {
+                target_conf = p;
+                break;
+            }
         }
     }
     if (target_conf.empty() || !fs::exists(target_conf)) return false;
@@ -476,8 +478,15 @@ static bool sync_miqubg_wallpaper_config(const std::string& image_path, const st
     if (!fs::exists(bg_dir, ec)) {
         fs::create_directories(bg_dir, ec);
     }
-
     fs::path miqubg_conf = bg_dir / "miqubg.conf";
+    if (!fs::exists(miqubg_conf, ec)) {
+        for (const char* p : {"/usr/share/miqubg/miqubg.conf", "/usr/local/share/miqubg/miqubg.conf", "assets/miqubg.conf", "shell/miqubg/assets/miqubg.conf"}) {
+            if (fs::exists(p, ec)) {
+                fs::copy_file(p, miqubg_conf, fs::copy_options::overwrite_existing, ec);
+                break;
+            }
+        }
+    }
 
     std::string mode_str = "cover";
     std::string lower = fit_mode;
@@ -618,16 +627,6 @@ static bool is_dark_mode_enabled() {
 
 static void set_dark_mode_enabled(bool enabled) {
     std::string val = enabled ? "on\n" : "off\n";
-
-    for (const auto& rel : {"assets/darkmode", "../assets/darkmode", "miqu/apps/miqusettings/assets/darkmode"}) {
-        std::error_code ec;
-        if (fs::exists(rel, ec)) {
-            std::ofstream f(rel);
-            if (f.is_open()) {
-                f << val;
-            }
-        }
-    }
 
     const char* home = std::getenv("HOME");
     if (home) {
@@ -1518,9 +1517,12 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
                 item->wallpaper_cfg->fit_mode = cap;
             }
         } else if (item->wallpaper_cfg->wallpaper_path.empty() || !fs::exists(expand_wallpaper_path(item->wallpaper_cfg->wallpaper_path))) {
-            if (fs::exists("/usr/share/miqubg/wallpaper.png")) {
-                item->wallpaper_cfg->wallpaper_path = "/usr/share/miqubg/wallpaper.png";
-                item->wallpaper_cfg->current_wallpaper = "wallpaper.png";
+            for (const char* wp : {"/usr/share/miqubg/wallpaper.png", "/usr/local/share/miqubg/wallpaper.png", "shell/miqubg/assets/wallpaper.png"}) {
+                if (fs::exists(wp)) {
+                    item->wallpaper_cfg->wallpaper_path = wp;
+                    item->wallpaper_cfg->current_wallpaper = "wallpaper.png";
+                    break;
+                }
             }
         }
     }
@@ -2104,84 +2106,561 @@ void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& it
     add_preview_card(trans_card);
 }
 
+namespace {
+
+struct ParsedKeybinding {
+    std::string action_title;
+    std::string description;
+    std::string command;
+    std::vector<std::string> keys;
+};
+
+struct KeybindingsCategorySection {
+    std::string title;
+    std::vector<ParsedKeybinding> bindings;
+};
+
+static std::string trim_str(std::string s) {
+    while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(s.begin());
+    while (!s.empty() && (s.back() == ' ' || s.back() == '\t' || s.back() == '\r' || s.back() == '\n')) s.pop_back();
+    return s;
+}
+
+static void resolve_keybinding_info(const std::string& action, std::string& title, std::string& desc) {
+    if (action == "miqupower") { title = "Power & Session Dialog"; desc = "Open system shutdown, restart and suspend dialog"; }
+    else if (action == "shutdown") { title = "Graceful Shutdown"; desc = "Closes open windows and exits miquland safely"; }
+    else if (action == "exit") { title = "Immediate Exit"; desc = "Forced immediate exit from current session"; }
+    else if (action == "miquctl reload") { title = "Reload Compositor"; desc = "Reload configuration and dynamic theme files without restart"; }
+    else if (action == "miqulock") { title = "Lock Screen"; desc = "Lock session immediately via Wayland lock protocol"; }
+    else if (action == "overview_toggle") { title = "Toggle Overview"; desc = "Interactive live workspace expose and window switcher"; }
+    else if (action == "kitty --single-instance") { title = "Terminal Emulator"; desc = "Spawn default terminal emulator (Kitty)"; }
+    else if (action == "miqulauncher -list") { title = "Application Launcher"; desc = "Search and launch desktop applications"; }
+    else if (action == "miqulauncher -show search") { title = "Universal Search"; desc = "Search commands, web, and system actions"; }
+    else if (action == "miqusettings") { title = "Control Center"; desc = "System settings & control center"; }
+    else if (action == "miqunotify -t") { title = "Notification Center"; desc = "Toggle slide-out notification drawer and history"; }
+    else if (action == "/usr/lib/firefox/firefox") { title = "Web Browser"; desc = "Launch default web browser (Firefox)"; }
+    else if (action == "kitty -e yazi") { title = "File Manager"; desc = "Open terminal file manager (Yazi)"; }
+    else if (action == "close") { title = "Close Window"; desc = "Gracefully close the currently active focused window"; }
+    else if (action == "toggle_floating") { title = "Toggle Floating"; desc = "Toggle window between floating and tiled layout modes"; }
+    else if (action == "toggle_fullscreen") { title = "Toggle Fullscreen"; desc = "Expand window to fill display area"; }
+    else if (action == "toggle_layout") { title = "Toggle Layout"; desc = "Cycle through available tiling layouts (Dwindle, Stack, etc.)"; }
+    else if (action == "swap_main") { title = "Swap with Master"; desc = "Promote active window to dominant master position"; }
+    else if (action == "toggle_split") { title = "Toggle Split"; desc = "Toggle horizontal or vertical binary space partitioning"; }
+    else if (action == "next_window") { title = "Next Window"; desc = "Shift keyboard focus to next window in current workspace"; }
+    else if (action == "prev_window") { title = "Previous Window"; desc = "Shift keyboard focus to previous window"; }
+    else if (action == "focus_win_1") { title = "Focus Window 1"; desc = "Jump focus directly to window 1"; }
+    else if (action == "focus_win_2") { title = "Focus Window 2"; desc = "Jump focus directly to window 2"; }
+    else if (action == "prev_ws") { title = "Previous Workspace"; desc = "Switch to adjacent previous workspace"; }
+    else if (action == "next_ws") { title = "Next Workspace"; desc = "Switch to adjacent next workspace"; }
+    else if (action.rfind("ws_", 0) == 0) {
+        std::string num = action.substr(3);
+        title = "Switch to Workspace " + num;
+        desc = "Jump directly to numbered workspace " + num;
+    }
+    else if (action.rfind("move_ws_", 0) == 0) {
+        std::string num = action.substr(8);
+        title = "Move Window to Workspace " + num;
+        desc = "Send focused window to numbered workspace " + num;
+    }
+    else if (action == "playerctl play-pause") { title = "Play / Pause"; desc = "Toggle media playback"; }
+    else if (action == "playerctl next") { title = "Next Track"; desc = "Skip to next media track"; }
+    else if (action == "playerctl previous") { title = "Previous Track"; desc = "Return to previous media track"; }
+    else if (action.rfind("wpctl set-volume", 0) == 0 && action.find("5%+") != std::string::npos) {
+        title = "Volume Up (+5%)"; desc = "Increase default audio sink volume";
+    }
+    else if (action.rfind("wpctl set-volume", 0) == 0 && action.find("5%-") != std::string::npos) {
+        title = "Volume Down (-5%)"; desc = "Decrease default audio sink volume";
+    }
+    else if (action.rfind("wpctl set-mute", 0) == 0 && action.find("DEFAULT_AUDIO_SINK") != std::string::npos) {
+        title = "Mute Output"; desc = "Toggle master output speaker mute";
+    }
+    else if (action.rfind("wpctl set-mute", 0) == 0 && action.find("DEFAULT_AUDIO_SOURCE") != std::string::npos) {
+        title = "Mute Microphone"; desc = "Toggle input microphone mute";
+    }
+    else if (action.find("brightnessctl set +") != std::string::npos) {
+        title = "Brightness Up"; desc = "Increase display backlight level";
+    }
+    else if (action.find("brightnessctl set ") != std::string::npos && action.find("%-") != std::string::npos) {
+        title = "Brightness Down"; desc = "Decrease display backlight level";
+    }
+    else if (action.find("slurp | grim") != std::string::npos) {
+        title = "Interactive Screenshot"; desc = "Interactive region selection capture saved to ~/Pictures";
+    }
+    else if (action.find("grim") != std::string::npos) {
+        title = "Fullscreen Screenshot"; desc = "Full display capture saved to ~/Pictures";
+    }
+    else if (action.find("gamma toggle") != std::string::npos) {
+        title = "Night Light Toggle"; desc = "Toggle blue light filter warmth";
+    }
+    else {
+        title = action;
+        desc = "Execute: " + action;
+    }
+}
+
+static std::vector<KeybindingsCategorySection> parse_keybindings_file() {
+    std::vector<KeybindingsCategorySection> sections;
+    const char* home = getenv("HOME");
+    std::string path;
+    if (home) {
+        fs::path user_conf = fs::path(home) / ".config" / "miquland" / "keybindings.conf";
+        std::error_code ec;
+        if (fs::exists(user_conf, ec)) path = user_conf.string();
+    }
+    if (path.empty()) {
+        for (const char* p : {"/usr/share/miquland/keybindings.conf", "/usr/local/share/miquland/keybindings.conf", "assets/keybindings.conf"}) {
+            if (fs::exists(p)) {
+                path = p;
+                break;
+            }
+        }
+    }
+    if (path.empty()) return sections;
+
+    std::ifstream in(path);
+    if (!in.is_open()) return sections;
+
+    std::string line;
+    std::string current_section_name = "General Shortcuts";
+    std::vector<ParsedKeybinding> current_items;
+
+    auto flush_section = [&]() {
+        if (!current_items.empty()) {
+            sections.push_back({current_section_name, current_items});
+            current_items.clear();
+        }
+    };
+
+    while (std::getline(in, line)) {
+        std::string t = trim_str(line);
+        if (t.empty()) continue;
+
+        if (t.rfind("# ---", 0) == 0) {
+            size_t end_dashes = t.find("---", 5);
+            if (end_dashes != std::string::npos) {
+                std::string sec_name = trim_str(t.substr(5, end_dashes - 5));
+                if (!sec_name.empty()) {
+                    flush_section();
+                    current_section_name = sec_name;
+                    continue;
+                }
+            }
+        }
+
+        if (t.rfind("bind = ", 0) == 0) {
+            std::string content = trim_str(t.substr(7));
+            size_t comma = content.find(',');
+            if (comma != std::string::npos) {
+                std::string combo_str = trim_str(content.substr(0, comma));
+                std::string action_str = trim_str(content.substr(comma + 1));
+                if (!combo_str.empty() && !action_str.empty()) {
+                    ParsedKeybinding pb;
+                    pb.command = action_str;
+                    resolve_keybinding_info(action_str, pb.action_title, pb.description);
+
+                    std::stringstream ss(combo_str);
+                    std::string key_part;
+                    while (std::getline(ss, key_part, '+')) {
+                        std::string kp = trim_str(key_part);
+                        if (!kp.empty()) pb.keys.push_back(kp);
+                    }
+                    if (pb.keys.empty()) pb.keys.push_back(combo_str);
+                    current_items.push_back(pb);
+                }
+            }
+        }
+    }
+    flush_section();
+    return sections;
+}
+
+struct ParsedGesture {
+    std::string pattern;
+    int fingers = 3;
+    std::string direction = "Left";
+    std::string arrow = "←";
+    std::string action_title;
+    std::string description;
+    std::string command;
+};
+
+struct GestureCategorySection {
+    std::string title;
+    std::vector<ParsedGesture> gestures;
+};
+
+static void resolve_gesture_info(const std::string& action, std::string& title, std::string& desc) {
+    if (action == "next_ws") { title = "Next Workspace"; desc = "Switch to adjacent next workspace in order"; }
+    else if (action == "prev_ws") { title = "Previous Workspace"; desc = "Switch to adjacent previous workspace in order"; }
+    else if (action == "toggle_fullscreen") { title = "Toggle Fullscreen"; desc = "Expand active window to fill entire display"; }
+    else if (action == "toggle_floating") { title = "Toggle Floating"; desc = "Toggle active window between floating and tiled layout"; }
+    else if (action == "miqulauncher -list") { title = "Application Launcher"; desc = "Open desktop application launcher applet"; }
+    else if (action == "miqulock") { title = "Lock Screen"; desc = "Lock Wayland compositor session immediately"; }
+    else if (action == "overview_toggle") { title = "Workspace Overview"; desc = "Interactive live window expose and workspace switcher"; }
+    else {
+        title = action;
+        desc = "Trigger command: " + action;
+    }
+}
+
+static std::vector<GestureCategorySection> parse_gestures_file() {
+    std::vector<GestureCategorySection> sections;
+    const char* home = getenv("HOME");
+    std::string path;
+    if (home) {
+        fs::path user_conf = fs::path(home) / ".config" / "miquland" / "gesture_binding.conf";
+        std::error_code ec;
+        if (fs::exists(user_conf, ec)) path = user_conf.string();
+    }
+    if (path.empty()) {
+        for (const char* p : {"/usr/share/miquland/gesture_binding.conf", "/usr/local/share/miquland/gesture_binding.conf", "assets/gesture_binding.conf"}) {
+            if (fs::exists(p)) {
+                path = p;
+                break;
+            }
+        }
+    }
+    if (path.empty()) return sections;
+
+    std::ifstream in(path);
+    if (!in.is_open()) return sections;
+
+    std::string line;
+    std::string current_section_name = "Touchpad Gestures";
+    std::vector<ParsedGesture> current_items;
+
+    auto flush_section = [&]() {
+        if (!current_items.empty()) {
+            sections.push_back({current_section_name, current_items});
+            current_items.clear();
+        }
+    };
+
+    while (std::getline(in, line)) {
+        std::string t = trim_str(line);
+        if (t.empty()) continue;
+
+        if (t.rfind("# ---", 0) == 0) {
+            size_t end_dashes = t.find("---", 5);
+            if (end_dashes != std::string::npos) {
+                std::string sec_name = trim_str(t.substr(5, end_dashes - 5));
+                if (!sec_name.empty()) {
+                    flush_section();
+                    current_section_name = sec_name;
+                    continue;
+                }
+            }
+        }
+
+        if (t.rfind("gesture = ", 0) == 0) {
+            std::string content = trim_str(t.substr(10));
+            size_t comma = content.find(',');
+            if (comma != std::string::npos) {
+                std::string pat = trim_str(content.substr(0, comma));
+                std::string act = trim_str(content.substr(comma + 1));
+                if (!pat.empty() && !act.empty()) {
+                    ParsedGesture pg;
+                    pg.pattern = pat;
+                    pg.command = act;
+                    resolve_gesture_info(act, pg.action_title, pg.description);
+
+                    if (pat.rfind("swipe:", 0) == 0) {
+                        std::string rest = pat.substr(6);
+                        size_t c = rest.find(':');
+                        if (c != std::string::npos) {
+                            try {
+                                pg.fingers = std::stoi(rest.substr(0, c));
+                            } catch (...) {
+                                pg.fingers = 3;
+                            }
+                            std::string dir = rest.substr(c + 1);
+                            if (dir == "left") { pg.direction = "Swipe Left"; pg.arrow = "←"; }
+                            else if (dir == "right") { pg.direction = "Swipe Right"; pg.arrow = "→"; }
+                            else if (dir == "up") { pg.direction = "Swipe Up"; pg.arrow = "↑"; }
+                            else if (dir == "down") { pg.direction = "Swipe Down"; pg.arrow = "↓"; }
+                            else { pg.direction = dir; pg.arrow = "•"; }
+                        }
+                    }
+                    current_items.push_back(pg);
+                }
+            }
+        }
+    }
+    flush_section();
+    return sections;
+}
+
+} // anonymous namespace
+
 void MillerView::render_keybindings_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     if (!item) return;
-    auto main_card = LinearLayoutBuilder::create()
+
+    // Header info banner card
+    auto header_card = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->padding(16, 16)
-        ->spacing(10)
+        ->spacing(4)
         ->backgroundColor(config->colors.surface)
         ->stroke(1, config->colors.outline.with_alpha(0.3f))
         ->cornerRadius(get_card_radius(config))
         ->build();
 
-    for (size_t i = 0; i < item->keybindings.size(); ++i) {
-        const auto& kb = item->keybindings[i];
+    auto h_title = TextViewBuilder::create()
+        ->text("Keyboard Shortcuts & Hotkeys")
+        ->textSize(config->metrics.font_size + 2)
+        ->textColor(config->colors.on_surface)
+        ->build();
+    header_card->add_view(h_title);
 
-        if (i > 0) {
-            auto divider = LinearLayoutBuilder::create()
-                ->backgroundColor(config->colors.outline.with_alpha(0.10f))
-                ->build();
-            LayoutParams dlp;
-            dlp.width = static_cast<int>(LayoutDimension::MatchParent);
-            dlp.height = 1;
-            main_card->add_view(divider, dlp);
+    auto h_sub = TextViewBuilder::create()
+        ->text("Global shortcuts configured in ~/.config/miquland/keybindings.conf. Hotkeys are handled directly by the compositor core.")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+        ->build();
+    header_card->add_view(h_sub);
+
+    add_preview_card(header_card);
+
+    // Read and parse sections directly from keybindings.conf
+    std::vector<KeybindingsCategorySection> sections = parse_keybindings_file();
+
+    // Fallback to static item keybindings if file parsing yielded nothing
+    if (sections.empty() && !item->keybindings.empty()) {
+        KeybindingsCategorySection s;
+        s.title = item->title;
+        for (const auto& kb : item->keybindings) {
+            ParsedKeybinding pb;
+            pb.action_title = kb.action;
+            pb.description = kb.description;
+            pb.keys = kb.keys;
+            s.bindings.push_back(pb);
         }
+        sections.push_back(s);
+    }
 
-        auto row = LinearLayoutBuilder::create()
-            ->orientation(Orientation::Horizontal)
-            ->gravity(Gravity::CenterVertical)
-            ->spacing(12)
-            ->build();
-
-        auto text_box = LinearLayoutBuilder::create()
+    for (const auto& sec : sections) {
+        auto sec_card = LinearLayoutBuilder::create()
             ->orientation(Orientation::Vertical)
-            ->spacing(2)
+            ->padding(16, 16)
+            ->spacing(10)
+            ->backgroundColor(config->colors.surface)
+            ->stroke(1, config->colors.outline.with_alpha(0.3f))
+            ->cornerRadius(get_card_radius(config))
             ->build();
 
-        auto act_lbl = TextViewBuilder::create()
-            ->text(kb.action)
-            ->textSize(config->metrics.font_size)
-            ->textColor(config->colors.on_surface)
+        auto sec_header = TextViewBuilder::create()
+            ->text(sec.title)
+            ->caption(true)
+            ->textColor(config->colors.primary)
             ->build();
-        text_box->add_view(act_lbl);
+        sec_card->add_view(sec_header);
 
-        if (!kb.description.empty()) {
-            auto desc_lbl = TextViewBuilder::create()
-                ->text(kb.description)
-                ->caption(true)
-                ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
-                ->build();
-            text_box->add_view(desc_lbl);
-        }
+        for (size_t i = 0; i < sec.bindings.size(); ++i) {
+            const auto& kb = sec.bindings[i];
 
-        LayoutParams tb_lp;
-        tb_lp.width = static_cast<int>(LayoutDimension::MatchParent);
-        tb_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-        tb_lp.weight = 1.0f;
-        tb_lp.gravity = Gravity::CenterVertical;
-        row->add_view(text_box, tb_lp);
-
-        auto keys_box = LinearLayoutBuilder::create()
-            ->orientation(Orientation::Horizontal)
-            ->gravity(Gravity::CenterVertical)
-            ->spacing(4)
-            ->build();
-
-        for (size_t k = 0; k < kb.keys.size(); ++k) {
-            if (k > 0) {
-                auto plus_lbl = TextViewBuilder::create()
-                    ->text("+")
-                    ->caption(true)
-                    ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+            if (i > 0) {
+                auto divider = LinearLayoutBuilder::create()
+                    ->backgroundColor(config->colors.outline.with_alpha(0.10f))
                     ->build();
-                LayoutParams p_lp;
-                p_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-                p_lp.gravity = Gravity::CenterVertical;
-                keys_box->add_view(plus_lbl, p_lp);
+                LayoutParams dlp;
+                dlp.width = static_cast<int>(LayoutDimension::MatchParent);
+                dlp.height = 1;
+                sec_card->add_view(divider, dlp);
             }
 
-            auto key_badge = CardViewBuilder::create()
+            auto row = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Horizontal)
+                ->gravity(Gravity::CenterVertical)
+                ->spacing(12)
+                ->build();
+
+            auto text_box = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Vertical)
+                ->spacing(2)
+                ->build();
+
+            auto act_lbl = TextViewBuilder::create()
+                ->text(kb.action_title)
+                ->textSize(config->metrics.font_size)
+                ->textColor(config->colors.on_surface)
+                ->build();
+            text_box->add_view(act_lbl);
+
+            if (!kb.description.empty()) {
+                auto desc_lbl = TextViewBuilder::create()
+                    ->text(kb.description)
+                    ->caption(true)
+                    ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+                    ->build();
+                text_box->add_view(desc_lbl);
+            }
+
+            LayoutParams tb_lp;
+            tb_lp.width = static_cast<int>(LayoutDimension::MatchParent);
+            tb_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+            tb_lp.weight = 1.0f;
+            tb_lp.gravity = Gravity::CenterVertical;
+            row->add_view(text_box, tb_lp);
+
+            auto keys_box = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Horizontal)
+                ->gravity(Gravity::CenterVertical)
+                ->spacing(4)
+                ->build();
+
+            for (size_t k = 0; k < kb.keys.size(); ++k) {
+                if (k > 0) {
+                    auto plus_lbl = TextViewBuilder::create()
+                        ->text("+")
+                        ->caption(true)
+                        ->textColor(config->colors.on_surface_variant.with_alpha(0.6f))
+                        ->build();
+                    LayoutParams p_lp;
+                    p_lp.width = static_cast<int>(LayoutDimension::WrapContent);
+                    p_lp.gravity = Gravity::CenterVertical;
+                    keys_box->add_view(plus_lbl, p_lp);
+                }
+
+                auto key_badge = CardViewBuilder::create()
+                    ->style(CardStyle::Filled)
+                    ->backgroundColor(config->colors.surface_variant.with_alpha(0.6f))
+                    ->stroke(1, config->colors.outline.with_alpha(0.35f))
+                    ->cornerRadius(get_btn_radius(config))
+                    ->elevation(0)
+                    ->addView(
+                        TextViewBuilder::create()
+                            ->text(kb.keys[k])
+                            ->caption(true)
+                            ->textColor(config->colors.primary)
+                            ->padding(8, 4)
+                            ->build()
+                    )
+                    ->build();
+
+                LayoutParams k_lp;
+                k_lp.width = static_cast<int>(LayoutDimension::WrapContent);
+                k_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+                k_lp.gravity = Gravity::CenterVertical;
+                keys_box->add_view(key_badge, k_lp);
+            }
+
+            LayoutParams r_lp;
+            r_lp.width = static_cast<int>(LayoutDimension::WrapContent);
+            r_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+            r_lp.gravity = Gravity::CenterVertical;
+            row->add_view(keys_box, r_lp);
+
+            sec_card->add_view(row);
+        }
+
+        add_preview_card(sec_card);
+    }
+}
+
+void MillerView::render_gesture_bindings_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
+    if (!item) return;
+
+    // Header info banner card
+    auto header_card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(16, 16)
+        ->spacing(4)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto h_title = TextViewBuilder::create()
+        ->text("Trackpad & Touchscreen Gestures")
+        ->textSize(config->metrics.font_size + 2)
+        ->textColor(config->colors.on_surface)
+        ->build();
+    header_card->add_view(h_title);
+
+    auto h_sub = TextViewBuilder::create()
+        ->text("Multi-finger swipe shortcuts configured in ~/.config/miquland/gesture_binding.conf. Discrete gestures trigger immediate actions upon swipe completion.")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+        ->build();
+    header_card->add_view(h_sub);
+
+    add_preview_card(header_card);
+
+    // Read and parse sections directly from gesture_binding.conf
+    std::vector<GestureCategorySection> sections = parse_gestures_file();
+
+    for (const auto& sec : sections) {
+        auto sec_card = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->padding(16, 16)
+            ->spacing(10)
+            ->backgroundColor(config->colors.surface)
+            ->stroke(1, config->colors.outline.with_alpha(0.3f))
+            ->cornerRadius(get_card_radius(config))
+            ->build();
+
+        auto sec_header = TextViewBuilder::create()
+            ->text(sec.title)
+            ->caption(true)
+            ->textColor(config->colors.primary)
+            ->build();
+        sec_card->add_view(sec_header);
+
+        for (size_t i = 0; i < sec.gestures.size(); ++i) {
+            const auto& g = sec.gestures[i];
+
+            if (i > 0) {
+                auto divider = LinearLayoutBuilder::create()
+                    ->backgroundColor(config->colors.outline.with_alpha(0.10f))
+                    ->build();
+                LayoutParams dlp;
+                dlp.width = static_cast<int>(LayoutDimension::MatchParent);
+                dlp.height = 1;
+                sec_card->add_view(divider, dlp);
+            }
+
+            auto row = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Horizontal)
+                ->gravity(Gravity::CenterVertical)
+                ->spacing(12)
+                ->build();
+
+            auto text_box = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Vertical)
+                ->spacing(2)
+                ->build();
+
+            auto act_lbl = TextViewBuilder::create()
+                ->text(g.action_title)
+                ->textSize(config->metrics.font_size)
+                ->textColor(config->colors.on_surface)
+                ->build();
+            text_box->add_view(act_lbl);
+
+            if (!g.description.empty()) {
+                auto desc_lbl = TextViewBuilder::create()
+                    ->text(g.description)
+                    ->caption(true)
+                    ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+                    ->build();
+                text_box->add_view(desc_lbl);
+            }
+
+            LayoutParams tb_lp;
+            tb_lp.width = static_cast<int>(LayoutDimension::MatchParent);
+            tb_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+            tb_lp.weight = 1.0f;
+            tb_lp.gravity = Gravity::CenterVertical;
+            row->add_view(text_box, tb_lp);
+
+            auto badges_box = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Horizontal)
+                ->gravity(Gravity::CenterVertical)
+                ->spacing(6)
+                ->build();
+
+            // Fingers badge
+            auto fingers_badge = CardViewBuilder::create()
                 ->style(CardStyle::Filled)
                 ->backgroundColor(config->colors.surface_variant.with_alpha(0.6f))
                 ->stroke(1, config->colors.outline.with_alpha(0.35f))
@@ -2189,31 +2668,52 @@ void MillerView::render_keybindings_preview(const std::shared_ptr<SettingItem>& 
                 ->elevation(0)
                 ->addView(
                     TextViewBuilder::create()
-                        ->text(kb.keys[k])
+                        ->text(std::to_string(g.fingers) + " Fingers")
                         ->caption(true)
                         ->textColor(config->colors.primary)
                         ->padding(8, 4)
                         ->build()
                 )
                 ->build();
+            LayoutParams fb_lp;
+            fb_lp.width = static_cast<int>(LayoutDimension::WrapContent);
+            fb_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+            fb_lp.gravity = Gravity::CenterVertical;
+            badges_box->add_view(fingers_badge, fb_lp);
 
-            LayoutParams k_lp;
-            k_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-            k_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-            k_lp.gravity = Gravity::CenterVertical;
-            keys_box->add_view(key_badge, k_lp);
+            // Direction badge
+            auto dir_badge = CardViewBuilder::create()
+                ->style(CardStyle::Filled)
+                ->backgroundColor(config->colors.primary.with_alpha(0.12f))
+                ->stroke(1, config->colors.primary.with_alpha(0.35f))
+                ->cornerRadius(get_btn_radius(config))
+                ->elevation(0)
+                ->addView(
+                    TextViewBuilder::create()
+                        ->text(g.direction + " " + g.arrow)
+                        ->caption(true)
+                        ->textColor(config->colors.primary)
+                        ->padding(8, 4)
+                        ->build()
+                )
+                ->build();
+            LayoutParams db_lp;
+            db_lp.width = static_cast<int>(LayoutDimension::WrapContent);
+            db_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+            db_lp.gravity = Gravity::CenterVertical;
+            badges_box->add_view(dir_badge, db_lp);
+
+            LayoutParams r_lp;
+            r_lp.width = static_cast<int>(LayoutDimension::WrapContent);
+            r_lp.height = static_cast<int>(LayoutDimension::WrapContent);
+            r_lp.gravity = Gravity::CenterVertical;
+            row->add_view(badges_box, r_lp);
+
+            sec_card->add_view(row);
         }
 
-        LayoutParams r_lp;
-        r_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-        r_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-        r_lp.gravity = Gravity::CenterVertical;
-        row->add_view(keys_box, r_lp);
-
-        main_card->add_view(row);
+        add_preview_card(sec_card);
     }
-
-    add_preview_card(main_card);
 }
 
 void MillerView::render_timeout_lock_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
@@ -2954,6 +3454,15 @@ static void sync_miqutoolkit_icon_theme(const std::string& theme) {
         fs::create_directories(tk_dir, ec);
     }
 
+    if (!fs::exists(tk_conf, ec)) {
+        for (const char* p : {"/usr/share/miqutoolkit/miqutoolkit.conf", "/usr/local/share/miqutoolkit/miqutoolkit.conf", "/etc/miqutoolkit/miqutoolkit.conf", "assets/miqutoolkit.conf"}) {
+            if (fs::exists(p, ec)) {
+                fs::copy_file(p, tk_conf, fs::copy_options::overwrite_existing, ec);
+                break;
+            }
+        }
+    }
+
     if (fs::is_regular_file(tk_conf, ec)) {
         std::ifstream in(tk_conf);
         if (in.is_open()) {
@@ -2996,6 +3505,12 @@ static void sync_miqutoolkit_icon_theme(const std::string& theme) {
                 out.flush();
             }
         }
+    } else {
+        std::ofstream out(tk_conf);
+        if (out.is_open()) {
+            out << "# miqutoolkit configuration\nicon_theme = " + theme + "\n";
+            out.flush();
+        }
     }
 }
 
@@ -3007,30 +3522,35 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
         cfg.available_icon_packs = get_system_icon_packs();
 
         const char* home = std::getenv("HOME");
-        fs::path tk_dir = home ? (fs::path(home) / ".config" / "miqutoolkit") : fs::path();
-        fs::path tk_conf = tk_dir / "miqutoolkit.conf";
+        std::string tk_conf_path;
         std::error_code ec;
-        if (!tk_dir.empty() && (!fs::exists(tk_dir, ec) || !fs::exists(tk_conf, ec))) {
-            std::system("miqutoolkit-cli --init-config >/dev/null 2>&1");
+        if (home) {
+            fs::path user_conf = fs::path(home) / ".config" / "miqutoolkit" / "miqutoolkit.conf";
+            if (fs::exists(user_conf, ec)) {
+                tk_conf_path = user_conf.string();
+            }
+        }
+        if (tk_conf_path.empty()) {
+            for (const char* p : {"/usr/share/miqutoolkit/miqutoolkit.conf", "/usr/local/share/miqutoolkit/miqutoolkit.conf", "/etc/miqutoolkit/miqutoolkit.conf", "assets/miqutoolkit.conf"}) {
+                if (fs::exists(p, ec)) {
+                    tk_conf_path = p;
+                    break;
+                }
+            }
         }
 
         std::string cur_tk = "";
-        if (!tk_conf.empty() && fs::is_regular_file(tk_conf, ec)) {
-            std::ifstream in(tk_conf);
+        if (!tk_conf_path.empty() && fs::is_regular_file(tk_conf_path, ec)) {
+            std::ifstream in(tk_conf_path);
             std::string line;
             while (std::getline(in, line)) {
                 size_t c_pos = line.find('#');
                 std::string no_comment = (c_pos != std::string::npos) ? line.substr(0, c_pos) : line;
                 size_t eq = no_comment.find('=');
                 if (eq != std::string::npos) {
-                    std::string k = no_comment.substr(0, eq);
-                    while (!k.empty() && (k.back() == ' ' || k.back() == '\t')) k.pop_back();
-                    while (!k.empty() && (k.front() == ' ' || k.front() == '\t')) k.erase(0, 1);
+                    std::string k = trim_str(no_comment.substr(0, eq));
                     if (k == "icon_theme") {
-                        std::string v = no_comment.substr(eq + 1);
-                        while (!v.empty() && (v.back() == ' ' || v.back() == '\t')) v.pop_back();
-                        while (!v.empty() && (v.front() == ' ' || v.front() == '\t')) v.erase(0, 1);
-                        cur_tk = v;
+                        cur_tk = trim_str(no_comment.substr(eq + 1));
                         break;
                     }
                 }
@@ -3162,28 +3682,69 @@ static void load_cursor_config(CursorConfig& cfg) {
     cfg.available_cursor_sizes = {16, 24, 30, 32, 36, 48, 64};
 
     const char* home = std::getenv("HOME");
+    std::string parsed_theme = "";
+    int parsed_size = -1;
+
+    std::string cconf_path;
     if (home) {
-        fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
+        fs::path user_conf = fs::path(home) / ".config" / "miquland" / "cursor.conf";
         std::error_code ec;
-        if (!fs::exists(miqu_dir, ec) || !fs::exists(miqu_dir / "cursor.conf", ec)) {
-            std::system("miquland --init-config >/dev/null 2>&1");
+        if (fs::exists(user_conf, ec)) cconf_path = user_conf.string();
+    }
+    if (cconf_path.empty()) {
+        for (const char* p : {"/usr/share/miquland/cursor.conf", "/usr/local/share/miquland/cursor.conf", "assets/cursor.conf"}) {
+            if (fs::exists(p)) {
+                cconf_path = p;
+                break;
+            }
         }
     }
 
-    std::string cur_cur = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null");
-    if (!cur_cur.empty() && cur_cur.front() == '\'' && cur_cur.back() == '\'') {
-        cur_cur = cur_cur.substr(1, cur_cur.size() - 2);
+    if (!cconf_path.empty()) {
+        std::ifstream in(cconf_path);
+        std::string line;
+        while (std::getline(in, line)) {
+            size_t c_pos = line.find('#');
+            std::string t = (c_pos != std::string::npos) ? line.substr(0, c_pos) : line;
+            size_t eq = t.find('=');
+            if (eq != std::string::npos) {
+                std::string k = trim_str(t.substr(0, eq));
+                std::string v = trim_str(t.substr(eq + 1));
+                if (k == "theme" && !v.empty()) {
+                    parsed_theme = v;
+                } else if (k == "size" && !v.empty()) {
+                    try { parsed_size = std::stoi(v); } catch (...) {}
+                }
+            }
+        }
     }
-    if (cur_cur.empty() || cur_cur == "default" || cur_cur == "Default" || cur_cur == "miqu-cursors") {
-        cur_cur = "Miqu (Default)";
-    }
-    cfg.cursor_theme = cur_cur;
 
-    std::string cur_sz = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-size 2>/dev/null");
-    try {
-        if (!cur_sz.empty()) cfg.cursor_size = std::stoi(cur_sz);
-    } catch (...) {
-        cfg.cursor_size = 30;
+    if (!parsed_theme.empty()) {
+        if (parsed_theme == "default" || parsed_theme == "Default" || parsed_theme == "miqu-cursors") {
+            cfg.cursor_theme = "Miqu (Default)";
+        } else {
+            cfg.cursor_theme = parsed_theme;
+        }
+    } else {
+        std::string cur_cur = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null");
+        if (!cur_cur.empty() && cur_cur.front() == '\'' && cur_cur.back() == '\'') {
+            cur_cur = cur_cur.substr(1, cur_cur.size() - 2);
+        }
+        if (cur_cur.empty() || cur_cur == "default" || cur_cur == "Default" || cur_cur == "miqu-cursors") {
+            cur_cur = "Miqu (Default)";
+        }
+        cfg.cursor_theme = cur_cur;
+    }
+
+    if (parsed_size > 0) {
+        cfg.cursor_size = parsed_size;
+    } else {
+        std::string cur_sz = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-size 2>/dev/null");
+        try {
+            if (!cur_sz.empty()) cfg.cursor_size = std::stoi(cur_sz);
+        } catch (...) {
+            cfg.cursor_size = 30;
+        }
     }
     cfg.loaded = true;
 }
@@ -3518,17 +4079,18 @@ static void load_gaps_border_config(GapsBorderConfig& cfg) {
 
     fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
     std::error_code ec;
-    if (!fs::exists(miqu_dir, ec) || (!fs::exists(miqu_dir / "window_gaps_border.conf", ec) && !fs::exists(miqu_dir / "appearance.conf", ec))) {
-        // Fresh install: initialize complete standard configuration via miquland
-        std::system("miquland --init-config >/dev/null 2>&1");
+    bool has_user = fs::exists(miqu_dir / "window_gaps_border.conf", ec);
+    if (has_user) {
+        parse_file(miqu_dir / "miquland.conf");
+        parse_file(miqu_dir / "window_gaps_border.conf");
+    } else {
+        for (const char* p : {"/usr/share/miquland/window_gaps_border.conf", "/usr/local/share/miquland/window_gaps_border.conf", "assets/window_gaps_border.conf"}) {
+            if (fs::exists(p)) {
+                parse_file(p);
+                break;
+            }
+        }
     }
-
-    // Check miquland.conf first, then modular window_gaps_border.conf or legacy appearance.conf (modular file takes precedence)
-    parse_file(miqu_dir / "miquland.conf");
-    if (fs::exists(miqu_dir / "appearance.conf", ec)) {
-        parse_file(miqu_dir / "appearance.conf");
-    }
-    parse_file(miqu_dir / "window_gaps_border.conf");
 
     auto match_active = [&](const std::string& val) -> std::string {
         if (val.find("#ffff00 #ff0000") != std::string::npos) return "Yellow-Red Gradient (45°)";
@@ -3570,7 +4132,7 @@ static void save_gaps_border_config(const GapsBorderConfig& cfg) {
 
     fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
     std::error_code ec;
-    if (!fs::exists(miqu_dir, ec) || (!fs::exists(miqu_dir / "window_gaps_border.conf", ec) && !fs::exists(miqu_dir / "appearance.conf", ec))) {
+    if (!fs::exists(miqu_dir, ec) || !fs::exists(miqu_dir / "window_gaps_border.conf", ec)) {
         // Fresh install: initialize complete standard configuration via miquland
         std::system("miquland --init-config >/dev/null 2>&1");
     }
@@ -3619,15 +4181,6 @@ static void save_gaps_border_config(const GapsBorderConfig& cfg) {
             out << content;
             out.flush();
         }
-
-        // If legacy appearance.conf still exists in user directory, keep it updated as well
-        if (fs::exists(miqu_dir / "appearance.conf", ec)) {
-            std::ofstream leg_out(miqu_dir / "appearance.conf");
-            if (leg_out.is_open()) {
-                leg_out << content;
-                leg_out.flush();
-            }
-        }
     }
 
     // 2. If miquland.conf exists and has an inline gaps/border block or smart_gaps, update them as well
@@ -3667,11 +4220,6 @@ static void save_gaps_border_config(const GapsBorderConfig& cfg) {
                     while (!k.empty() && (k.back() == ' ' || k.back() == '\t')) k.pop_back();
                     while (!k.empty() && (k.front() == ' ' || k.front() == '\t')) k.erase(0, 1);
 
-                    if (k == "source" && line.find("appearance.conf") != std::string::npos) {
-                        size_t p = line.find("appearance.conf");
-                        line.replace(p, 15, "window_gaps_border.conf");
-                        modified = true;
-                    }
 
                     std::string top = stack.empty() ? "" : stack.back();
                     if (top == "gaps") {

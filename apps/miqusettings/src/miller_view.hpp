@@ -120,6 +120,7 @@ private:
     void render_gaps_border_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_login_screen_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_keybindings_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
+    void render_gesture_bindings_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_timeout_lock_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_night_light_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_battery_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
@@ -131,6 +132,7 @@ private:
     void render_keyboards_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_repeat_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_pointers_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
+    void render_mouse_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_touch_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_hardware_spec_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_generic_fallback_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);

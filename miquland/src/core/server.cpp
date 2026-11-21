@@ -9,6 +9,7 @@
 #include "core/plugin_manager.hpp"
 #include "core/animation/animation_manager.hpp"
 #include "core/ipc/ipc_server.hpp"
+#include "core/dispatch/dispatcher.hpp"
 #include "core/config/config.hpp"
 extern "C" {
 #include <scenefx/render/fx_renderer/fx_renderer.h>
@@ -309,6 +310,7 @@ bool Server::init() {
     m_workspace_manager = std::make_unique<WorkspaceManager>(this);
     m_input_manager = std::make_unique<InputManager>(this);
     m_animation_manager = std::make_unique<AnimationManager>(this);
+    m_dispatcher = std::make_unique<Dispatcher>(this);
 
     m_xdg_output_manager = wlr_xdg_output_manager_v1_create(m_wl_display, m_output_manager->get_layout());
 
@@ -660,10 +662,17 @@ void Server::reload_config() {
     }
 
     for (const auto& cmd : Config::get().get_exec_commands()) {
-        if (m_input_manager) {
-            m_input_manager->spawn_command(cmd.c_str());
+        if (m_dispatcher) {
+            m_dispatcher->spawn_command(cmd.c_str());
         }
     }
+}
+
+bool Server::execute_action(const std::string& action) {
+    if (m_dispatcher) {
+        return m_dispatcher->execute_action(action);
+    }
+    return false;
 }
 
 void Server::handle_new_xdg_toplevel(struct wl_listener* listener, void* data) {
@@ -717,16 +726,16 @@ void Server::dispatch_autostart() {
         }
     }
 
-    if (!m_startup_cmd.empty() && m_input_manager) {
-        m_input_manager->spawn_command(m_startup_cmd.c_str());
+    if (!m_startup_cmd.empty() && m_dispatcher) {
+        m_dispatcher->spawn_command(m_startup_cmd.c_str());
     }
 
-    if (m_input_manager) {
+    if (m_dispatcher) {
         for (const auto& cmd : Config::get().get_exec_once_commands()) {
-            m_input_manager->spawn_command(cmd.c_str());
+            m_dispatcher->spawn_command(cmd.c_str());
         }
         for (const auto& cmd : Config::get().get_exec_commands()) {
-            m_input_manager->spawn_command(cmd.c_str());
+            m_dispatcher->spawn_command(cmd.c_str());
         }
     }
 }
@@ -755,8 +764,8 @@ void Server::terminate() {
     if (m_ipc_server) {
         m_ipc_server->broadcast_event("shutdown", R"({"status":"terminating"})");
     }
-    if (m_input_manager) {
-        m_input_manager->terminate_spawned_processes();
+    if (m_dispatcher) {
+        m_dispatcher->terminate_spawned_processes();
     }
     if (m_wl_display) {
         wl_display_destroy_clients(m_wl_display);

@@ -1107,7 +1107,7 @@ std::string Config::init_user_config() {
                 log_info("Installed default configuration to " + config_path + " from " + cand);
 
                 // Also copy companion modular config templates if present
-                for (const char* mod_conf : {"window_gaps_border.conf", "cursor.conf", "plugins.conf"}) {
+                for (const char* mod_conf : {"window_gaps_border.conf", "cursor.conf", "plugins.conf", "gesture_binding.conf", "input.conf", "keybindings.conf"}) {
                     std::string mod_src = std::string(t_dir) + "/" + mod_conf;
                     if (!fs::exists(mod_src)) {
                         for (const char* f_dir : {"assets", "/usr/share/miquland", "/etc/xdg/miquland", "/usr/local/share/miquland"}) {
@@ -1862,8 +1862,7 @@ void Config::parse_animations_entry(const std::string& path_str, const std::stri
 }
 
 void Config::parse_input_entry(const std::string& path_str, const std::string& top_type,
-                               const std::vector<SectionFrame>& stack, const std::string& key, const std::string& value,
-                               std::vector<GestureBinding>& file_gestures, bool& has_gestures_in_file) {
+                               const std::vector<SectionFrame>& stack, const std::string& key, const std::string& value) {
     if (path_str == "input.keyboard" || (top_type == "keyboard" && is_in_path(stack, "input"))) {
         if (key == "layout") m_kb_layout = value;
         else if (key == "variant") m_kb_variant = value;
@@ -1891,7 +1890,7 @@ void Config::parse_input_entry(const std::string& path_str, const std::string& t
         }
     } else if (path_str == "input.touchscreen" || (top_type == "touchscreen" && is_in_path(stack, "input"))) {
         if (key == "output") m_touchscreen_output = value;
-    } else if (path_str == "input.gestures.workspace_swipe" || (top_type == "workspace_swipe" && is_in_path(stack, "gestures"))) {
+    } else if (path_str == "input.workspace_swipe" || (top_type == "workspace_swipe" && is_in_path(stack, "input"))) {
         if (key == "touchpad_multiplier") { try { m_touchpad_workspace_swipe_multiplier = std::clamp(std::stod(value), 0.1, 10.0); } catch (...) {} }
         else if (key == "touchscreen_multiplier") { try { m_touchscreen_workspace_swipe_multiplier = std::clamp(std::stod(value), 0.1, 10.0); } catch (...) {} }
         else if (key == "swipe_threshold") { try { m_touchpad_swipe_threshold = std::max(5.0, std::stod(value)); } catch (...) {} }
@@ -1899,19 +1898,6 @@ void Config::parse_input_entry(const std::string& path_str, const std::string& t
         else if (key == "cancel_ratio") { try { m_workspace_swipe_cancel_ratio = std::clamp(std::stod(value), 0.05, 0.95); } catch (...) {} }
         else if (key == "min_speed_to_force") { try { m_workspace_swipe_min_speed_to_force = std::clamp(std::stod(value), 0.05, 10.0); } catch (...) {} }
         else if (key == "edge_resistance") { try { m_workspace_swipe_edge_resistance = std::clamp(std::stod(value), 0.0, 0.5); } catch (...) {} }
-    } else if (path_str == "input.gestures" || top_type == "gestures") {
-        if (key == "gesture") {
-            size_t comma = value.rfind(',');
-            if (comma != std::string::npos) {
-                std::string pattern = trim(value.substr(0, comma));
-                std::string action = trim(value.substr(comma + 1));
-                std::transform(pattern.begin(), pattern.end(), pattern.begin(), ::tolower);
-                if (!pattern.empty() && !action.empty()) {
-                    has_gestures_in_file = true;
-                    file_gestures.push_back({ pattern, action });
-                }
-            }
-        }
     }
 }
 
@@ -2432,6 +2418,22 @@ void Config::parse_binds_entry(const std::string& key, const std::string& value,
     }
 }
 
+void Config::parse_gesturebind_entry(const std::string& key, const std::string& value,
+                                     std::vector<GestureBinding>& file_gestures, bool& has_gestures_in_file) {
+    if (key == "gesture") {
+        size_t comma = value.rfind(',');
+        if (comma != std::string::npos) {
+            std::string pattern = trim(value.substr(0, comma));
+            std::string action = trim(value.substr(comma + 1));
+            std::transform(pattern.begin(), pattern.end(), pattern.begin(), ::tolower);
+            if (!pattern.empty() && !action.empty()) {
+                has_gestures_in_file = true;
+                file_gestures.push_back({ pattern, action });
+            }
+        }
+    }
+}
+
 void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bindings, bool& has_bindings_in_file,
                        std::vector<GestureBinding>& file_gestures, bool& has_gestures_in_file,
                        std::vector<WindowRule>& file_rules, bool& has_rules_in_file,
@@ -2496,22 +2498,6 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
         if (key == "source") {
             std::string resolved = resolve_path(value);
             if (resolved.empty() || !fs::exists(resolved)) {
-                // Compatibility fallback: appearance.conf <-> window_gaps_border.conf
-                if (value.find("appearance.conf") != std::string::npos) {
-                    std::string alt = value;
-                    size_t p = alt.find("appearance.conf");
-                    alt.replace(p, 15, "window_gaps_border.conf");
-                    std::string alt_res = resolve_path(alt);
-                    if (!alt_res.empty() && fs::exists(alt_res)) resolved = alt_res;
-                } else if (value.find("window_gaps_border.conf") != std::string::npos) {
-                    std::string alt = value;
-                    size_t p = alt.find("window_gaps_border.conf");
-                    alt.replace(p, 23, "appearance.conf");
-                    std::string alt_res = resolve_path(alt);
-                    if (!alt_res.empty() && fs::exists(alt_res)) resolved = alt_res;
-                }
-            }
-            if (resolved.empty() || !fs::exists(resolved)) {
                 // If not found in user path, check system fallback directories
                 std::string fname = fs::path(resolved.empty() ? value : resolved).filename().string();
                 for (const char* t_dir : {"/usr/share/miquland", "assets", "/etc/xdg/miquland", "/etc/miquland", "/usr/local/share/miquland"}) {
@@ -2519,13 +2505,6 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
                     if (fs::exists(sys_cand)) {
                         resolved = sys_cand;
                         break;
-                    }
-                    if (fname == "appearance.conf") {
-                        std::string alt_cand = std::string(t_dir) + "/window_gaps_border.conf";
-                        if (fs::exists(alt_cand)) {
-                            resolved = alt_cand;
-                            break;
-                        }
                     }
                 }
             }
@@ -2576,10 +2555,12 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
             parse_decoration_entry(path_str, top_type, section_stack, key, value);
         } else if (key == "bezier" || key == "animation" || path_str.rfind("animations", 0) == 0 || top_type == "animations" || top_type == "windows" || top_type == "layers" || top_type == "workspaces") {
             parse_animations_entry(path_str, top_type, section_stack, key, value);
-        } else if (path_str.rfind("input", 0) == 0 || top_type == "input" || top_type == "keyboard" || top_type == "touchpad" || top_type == "mouse" || top_type == "touchscreen" || top_type == "gestures" || top_type == "workspace_swipe") {
-            parse_input_entry(path_str, top_type, section_stack, key, value, file_gestures, has_gestures_in_file);
+        } else if (path_str.rfind("input", 0) == 0 || top_type == "input" || top_type == "keyboard" || top_type == "touchpad" || top_type == "mouse" || top_type == "touchscreen" || top_type == "workspace_swipe") {
+            parse_input_entry(path_str, top_type, section_stack, key, value);
         } else if (path_str == "xwayland" || top_type == "xwayland") {
             parse_xwayland_entry(key, value);
+        } else if (path_str == "gesture_binding" || top_type == "gesture_binding" || key == "gesture") {
+            parse_gesturebind_entry(key, value, file_gestures, has_gestures_in_file);
         } else if (path_str == "binds" || top_type == "binds" || key == "bind") {
             parse_binds_entry(key, value, file_bindings, has_bindings_in_file);
         }
@@ -2779,47 +2760,60 @@ void Config::save() {
     file << "    }\n";
     file << "}\n\n";
 
-    file << "input {\n";
-    file << "    keyboard {\n";
-    file << "        layout = " << m_kb_layout << "\n";
-    if (!m_kb_variant.empty()) file << "        variant = " << m_kb_variant << "\n";
-    if (!m_kb_options.empty()) file << "        options = " << m_kb_options << "\n";
-    if (!m_kb_model.empty()) file << "        model = " << m_kb_model << "\n";
-    file << "        repeat_rate = " << m_repeat_rate << "\n";
-    file << "        repeat_delay = " << m_repeat_delay << "\n";
-    file << "    }\n";
-    file << "    touchpad {\n";
-    file << "        tap_to_click = " << (m_tap_to_click ? "true" : "false") << "\n";
-    file << "        natural_scroll = " << (m_natural_scroll ? "true" : "false") << "\n";
-    file << "        disable_while_typing = " << (m_dwt ? "true" : "false") << "\n";
-    file << "        accel_speed = " << m_accel_speed << "\n";
-    file << "        accel_profile = " << m_accel_profile << "\n";
-    file << "    }\n";
-    file << "    mouse {\n";
-    file << "        accel_speed = " << m_accel_speed << "\n";
-    file << "        accel_profile = " << m_accel_profile << "\n";
-    file << "        natural_scroll = " << (m_natural_scroll ? "true" : "false") << "\n";
-    file << "    }\n";
-    if (!m_touchscreen_output.empty()) {
-        file << "    touchscreen {\n";
-        file << "        output = " << m_touchscreen_output << "\n";
-        file << "    }\n";
+    // Modular input.conf
+    {
+        std::string input_conf_path = dir + "/input.conf";
+        std::ofstream in_file(input_conf_path);
+        if (in_file.is_open()) {
+            in_file << "# input.conf — Hardware Peripherals & Input Configuration\n";
+            in_file << "input {\n";
+            in_file << "    keyboard {\n";
+            in_file << "        layout = " << m_kb_layout << "\n";
+            if (!m_kb_variant.empty()) in_file << "        variant = " << m_kb_variant << "\n";
+            if (!m_kb_options.empty()) in_file << "        options = " << m_kb_options << "\n";
+            if (!m_kb_model.empty()) in_file << "        model = " << m_kb_model << "\n";
+            in_file << "        repeat_rate = " << m_repeat_rate << "\n";
+            in_file << "        repeat_delay = " << m_repeat_delay << "\n";
+            in_file << "    }\n";
+            in_file << "    touchpad {\n";
+            in_file << "        tap_to_click = " << (m_tap_to_click ? "true" : "false") << "\n";
+            in_file << "        natural_scroll = " << (m_natural_scroll ? "true" : "false") << "\n";
+            in_file << "        disable_while_typing = " << (m_dwt ? "true" : "false") << "\n";
+            in_file << "        accel_speed = " << m_accel_speed << "\n";
+            in_file << "        accel_profile = " << m_accel_profile << "\n";
+            in_file << "    }\n";
+            in_file << "    mouse {\n";
+            in_file << "        accel_speed = " << m_accel_speed << "\n";
+            in_file << "        accel_profile = " << m_accel_profile << "\n";
+            in_file << "        natural_scroll = " << (m_natural_scroll ? "true" : "false") << "\n";
+            in_file << "    }\n";
+            if (!m_touchscreen_output.empty()) {
+                in_file << "    touchscreen {\n";
+                in_file << "        output = " << m_touchscreen_output << "\n";
+                in_file << "    }\n";
+            }
+            in_file << "    workspace_swipe {\n";
+            in_file << "        touchpad_multiplier = " << m_touchpad_workspace_swipe_multiplier << "\n";
+            in_file << "        touchscreen_multiplier = " << m_touchscreen_workspace_swipe_multiplier << "\n";
+            in_file << "        swipe_threshold = " << m_touchpad_swipe_threshold << "\n";
+            in_file << "        touchscreen_threshold = " << m_touchscreen_swipe_threshold << "\n";
+            in_file << "        cancel_ratio = " << m_workspace_swipe_cancel_ratio << "\n";
+            in_file << "        min_speed_to_force = " << m_workspace_swipe_min_speed_to_force << "\n";
+            in_file << "        edge_resistance = " << m_workspace_swipe_edge_resistance << "\n";
+            in_file << "    }\n";
+            in_file << "}\n";
+        }
+        file << "# Sourced modular input configuration:\n";
+        file << "source = ~/.config/miquland/input.conf\n\n";
     }
-    file << "    gestures {\n";
-    file << "        workspace_swipe {\n";
-    file << "            touchpad_multiplier = " << m_touchpad_workspace_swipe_multiplier << "\n";
-    file << "            touchscreen_multiplier = " << m_touchscreen_workspace_swipe_multiplier << "\n";
-    file << "            swipe_threshold = " << m_touchpad_swipe_threshold << "\n";
-    file << "            touchscreen_threshold = " << m_touchscreen_swipe_threshold << "\n";
-    file << "            cancel_ratio = " << m_workspace_swipe_cancel_ratio << "\n";
-    file << "            min_speed_to_force = " << m_workspace_swipe_min_speed_to_force << "\n";
-    file << "            edge_resistance = " << m_workspace_swipe_edge_resistance << "\n";
-    file << "        }\n";
-    for (const auto& g : m_gesture_bindings) {
-        file << "        gesture = " << g.pattern << ", " << g.action << "\n";
+
+    if (!m_gesture_bindings.empty()) {
+        file << "gesture_binding {\n";
+        for (const auto& g : m_gesture_bindings) {
+            file << "    gesture = " << g.pattern << ", " << g.action << "\n";
+        }
+        file << "}\n\n";
     }
-    file << "    }\n";
-    file << "}\n\n";
 
     file << "xwayland {\n";
     file << "    force_zero_scaling = " << (m_xwayland_force_zero_scaling ? "true" : "false") << "\n";

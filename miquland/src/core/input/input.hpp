@@ -32,8 +32,6 @@ public:
     struct wlr_cursor* get_cursor() const { return m_cursor; }
 
     bool handle_keybinding(uint32_t modifiers, xkb_keysym_t keysym);
-    void spawn_command(const char* cmd);
-    void terminate_spawned_processes();
     void remove_keyboard(Keyboard* kb);
     void remove_pointer(struct wlr_input_device* device);
     void remove_touch_device(struct wlr_input_device* device);
@@ -51,7 +49,6 @@ public:
     void warp_cursor(double lx, double ly);
     void warp_cursor_to_view(View* view);
     CursorMode get_cursor_mode() const { return m_cursor_mode; }
-    bool execute_action(const std::string& action);
 
     void trigger_app_launch_cursor();
     void cancel_app_launch_cursor();
@@ -173,8 +170,6 @@ private:
     struct wl_listener m_cursor_touch_motion_listener;
     struct wl_listener m_cursor_touch_cancel_listener;
     struct wl_listener m_cursor_touch_frame_listener;
-
-    std::vector<pid_t> m_spawned_pids;
 };
 
 class Keyboard {

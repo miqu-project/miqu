@@ -16,6 +16,7 @@ class SessionLock;
 class PluginManager;
 class AnimationManager;
 class IpcServer;
+class Dispatcher;
 
 class Server {
 public:
@@ -57,6 +58,8 @@ public:
     PluginManager* get_plugin_manager() const { return m_plugin_manager.get(); }
     AnimationManager* get_animation_manager() const { return m_animation_manager.get(); }
     IpcServer* get_ipc_server() const { return m_ipc_server.get(); }
+    Dispatcher* get_dispatcher() const { return m_dispatcher.get(); }
+    bool execute_action(const std::string& action);
     struct wlr_tearing_control_manager_v1* get_tearing_manager() const { return m_tearing_manager; }
 
     void add_view(std::unique_ptr<View> view);
@@ -206,6 +209,7 @@ private:
     std::unique_ptr<PluginManager> m_plugin_manager;
     std::unique_ptr<AnimationManager> m_animation_manager;
     std::unique_ptr<IpcServer> m_ipc_server;
+    std::unique_ptr<Dispatcher> m_dispatcher;
 
     int m_gamma_temperature = 6500;
     bool m_gamma_enabled = false;

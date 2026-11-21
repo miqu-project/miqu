@@ -4,6 +4,7 @@
 #include "core/workspace.hpp"
 #include "core/output.hpp"
 #include "core/input/input.hpp"
+#include "core/dispatch/dispatcher.hpp"
 #include "core/config/config.hpp"
 #include "core/layer_surface.hpp"
 #include "core/plugin_manager.hpp"
@@ -323,8 +324,8 @@ void IpcServer::handle_client_message(ClientConnection& client, ipc::MessageType
         m_server->reload_config();
         send_response(client, ipc::MessageType::Response, R"({"status":"ok","action":"reload"})");
     } else if (cmd == "exec") {
-        if (m_server->get_input_manager() && !args.empty()) {
-            m_server->get_input_manager()->spawn_command(args.c_str());
+        if (m_server->get_dispatcher() && !args.empty()) {
+            m_server->get_dispatcher()->spawn_command(args.c_str());
             send_response(client, ipc::MessageType::Response, R"({"status":"ok","action":"exec"})");
         } else {
             send_response(client, ipc::MessageType::Error, R"({"status":"error","message":"No command specified"})");

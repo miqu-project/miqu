@@ -78,6 +78,7 @@ add_executable(miquland
     src/core/common/border_paint.cpp
     src/core/plugin_manager.cpp
     src/core/animation/animation_manager.cpp
+    src/core/dispatch/dispatcher.cpp
     src/core/ipc/ipc_server.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-protocol.h
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-protocol.c
@@ -155,7 +156,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/miquland.pc DESTINATION ${CMAKE_INSTAL
 
 # Install assets and desktop entry
 install(FILES assets/miquland.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
-install(FILES assets/miquland.conf assets/window_gaps_border.conf assets/cursor.conf assets/plugins.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/miquland)
+install(FILES assets/miquland.conf assets/window_gaps_border.conf assets/cursor.conf assets/plugins.conf assets/gesture_binding.conf assets/input.conf assets/keybindings.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/miquland)
 install(FILES assets/miquland-portals.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/xdg-desktop-portal)
 install(FILES assets/icons/miquland-256.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps RENAME miquland.png)
 install(FILES assets/icons/miquland-128.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps RENAME miquland.png)

@@ -10,8 +10,8 @@ struct KeyboardDevice {
     std::string name;
     std::string type = "keyboard";
     std::string layout = "English (US)";
-    int repeat_rate = 25;
-    int repeat_delay = 600;
+    int repeat_rate = 40;
+    int repeat_delay = 250;
     bool is_primary = false;
 };
 
@@ -35,34 +35,53 @@ struct InputConfigState {
     std::vector<PointerDevice> pointers;
     std::vector<TouchDevice> touch_devices;
 
-    // Active Keyboard Settings (baseline from miquland.conf, dynamic in-memory)
+    // 1. Keyboard
     std::string active_layout = "us";
-    int repeat_rate = 25;
-    int repeat_delay = 600;
+    std::string kb_variant = "";
+    std::string kb_options = "";
+    std::string kb_model = "";
+    int repeat_rate = 40;
+    int repeat_delay = 250;
 
-    // Active Touchpad Settings
+    // 2. Touchpad
     bool tap_to_click = true;
     bool natural_scroll = false;
     bool disable_while_typing = true;
-    float pointer_speed = 0.5f; // 0.0 to 1.0 (50% default)
+    float pointer_speed = 0.5f; // 0.0 to 1.0 (corresponds to -1.0 to 1.0 in conf)
     std::string accel_profile = "adaptive";
 
-    // Gestures
-    bool workspace_swipe = true;
-    float gesture_multiplier = 1.0f;
+    // 3. Mouse
+    float mouse_speed = 0.5f;   // 0.0 to 1.0 (corresponds to -1.0 to 1.0 in conf)
+    std::string mouse_accel_profile = "adaptive";
+    bool mouse_natural_scroll = false;
+
+    // 4. Touchscreen
+    std::string touchscreen_output = "";
+
+    // 5. Continuous Workspace Swipe Physics (input.conf)
+    float touchpad_swipe_multiplier = 1.0f;
+    float touchscreen_swipe_multiplier = 1.0f;
+    int swipe_threshold = 50;
+    int touchscreen_threshold = 100;
+    float cancel_ratio = 0.30f;
+    float min_speed_to_force = 0.3f;
+    float edge_resistance = 0.15f;
 };
 
 class InputBackend {
 public:
     static InputConfigState get_state();
 
-    // In-memory runtime setters (reboot persistence deferred)
+    // Persistent setters that synchronize directly to ~/.config/miquland/input.conf
     static void set_keyboard_layout(const std::string& layout);
     static void set_repeat_info(int rate, int delay);
     static void set_touchpad_options(bool tap_to_click, bool natural_scroll, bool disable_while_typing);
     static void set_pointer_speed(float speed);
     static void set_accel_profile(const std::string& profile);
-    static void set_workspace_swipe(bool enabled, float multiplier);
+    static void set_mouse_options(float speed, const std::string& profile, bool natural_scroll);
+    static void set_touchscreen_output(const std::string& output);
+    static void set_swipe_physics(float tp_mult, float ts_mult, int threshold, int ts_threshold, float cancel, float min_spd, float edge_res);
+    static void save_config(const InputConfigState& state);
 };
 
 } // namespace miqu

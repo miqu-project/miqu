@@ -14,7 +14,7 @@ Website & Documentation: [**miqu-project.github.io/#docs**](https://miqu-project
 - **GPU Visual Pipeline**: Real-time corner rounding, dual-Kawase window blur, drop shadows, and border gradients via `SceneFX`.
 - **Protocol Suite**: Implements `wlr-layer-shell-v1`, `ext-session-lock-v1`, `ext-idle-notify-v1`, `wlr-output-power-management-v1`, and XWayland.
 - **IPC Daemon (`miquctl`)**: Unix domain socket controller for querying state, dispatching layouts, live event subscription, and graceful shutdown orchestration.
-- **Two-Tier Configuration**: System baseline at `/usr/share/miquland/miquland.conf`, user config at `~/.config/miquland/miquland.conf` (created via `miquland --init-config` with safe timestamped archiving).
+- **Two-Tier Configuration**: System baseline at `/usr/share/miquland/miquland.conf`, user config at `~/.config/miquland/miquland.conf` (created via `miquland --init-config` with safe timestamped archiving). Modular companion templates include `cursor.conf`, `window_gaps_border.conf`, `plugins.conf`, `input.conf`, `keybindings.conf`, and `gesture_binding.conf`.
 
 ---
 
@@ -35,6 +35,19 @@ Website & Documentation: [**miqu-project.github.io/#docs**](https://miqu-project
 | `Super + Shift + 1` .. `9` | Move window to workspace 1–9 |
 | `Super + Alt + L` | Lock session (`miqulock`) |
 | `Super + Shift + Q` | Graceful shutdown prompt (`miqupower`) |
+
+---
+
+## 👆 Multi-Touch Gestures (`gesture_binding.conf`)
+
+| Gesture Pattern | Action |
+| :--- | :--- |
+| `swipe:3:left` | Next workspace (`next_ws`) |
+| `swipe:3:right` | Previous workspace (`prev_ws`) |
+| `swipe:3:up` | Toggle fullscreen |
+| `swipe:3:down` | Toggle floating state |
+| `swipe:4:up` | Application launcher (`miqulauncher -list`) |
+| `swipe:4:down` | Lock session (`miqulock`) |
 
 ---
 

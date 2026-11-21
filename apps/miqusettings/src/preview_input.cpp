@@ -721,10 +721,150 @@ std::shared_ptr<View> create_touch_devices_card(
     return card;
 }
 
-std::shared_ptr<View> create_gestures_card(
-    bool swipe_enabled,
-    float multiplier,
-    std::function<void(bool, float)> on_gesture_changed,
+std::shared_ptr<View> create_workspace_swipe_card(
+    const InputConfigState& state,
+    std::function<void(float, float, int, int, float, float, float)> on_swipe_changed,
+    const std::shared_ptr<Config>& config
+) {
+    auto card = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Vertical)
+        ->padding(16, 14)
+        ->spacing(14)
+        ->backgroundColor(config->colors.surface)
+        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->cornerRadius(get_card_radius(config))
+        ->build();
+
+    auto title = TextViewBuilder::create()
+        ->text("Continuous Workspace Swipe Physics")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
+        ->build();
+    card->add_view(title);
+
+    auto subtitle = TextViewBuilder::create()
+        ->text("Kinematics and transition tuning for multi-finger touchpad and touchscreen workspace navigation (workspace_swipe in input.conf)")
+        ->caption(true)
+        ->textColor(config->colors.on_surface_variant)
+        ->build();
+    card->add_view(subtitle);
+
+    // 1. Touchpad Swipe Multiplier
+    {
+        auto row = LinearLayoutBuilder::create()->orientation(Orientation::Horizontal)->gravity(Gravity::CenterVertical)->build();
+        auto lbl = TextViewBuilder::create()->text("Touchpad Multiplier")->textSize(config->metrics.font_size)->textColor(config->colors.on_surface)->build();
+        row->add_view(lbl, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+
+        std::ostringstream ss;
+        ss << std::fixed << std::setprecision(2) << state.touchpad_swipe_multiplier << "x";
+        auto val_lbl = TextViewBuilder::create()->text(ss.str())->bold(true)->textColor(config->colors.primary)->build();
+        row->add_view(val_lbl, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+        card->add_view(row);
+
+        float norm = std::clamp((state.touchpad_swipe_multiplier - 0.1f) / 3.9f, 0.0f, 1.0f);
+        auto slider = SliderBuilder::create()
+            ->value(norm)
+            ->onValueChanged([val_lbl, state, on_swipe_changed](float val, bool user) {
+                (void)user;
+                float actual = 0.1f + val * 3.9f;
+                std::ostringstream s;
+                s << std::fixed << std::setprecision(2) << actual << "x";
+                val_lbl->set_text(s.str());
+                val_lbl->request_redraw();
+                if (on_swipe_changed) on_swipe_changed(actual, state.touchscreen_swipe_multiplier, state.swipe_threshold, state.touchscreen_threshold, state.cancel_ratio, state.min_speed_to_force, state.edge_resistance);
+            })
+            ->build();
+        card->add_view(slider, LayoutParams(MATCH_PARENT, 26));
+    }
+
+    // 2. Touchscreen Swipe Multiplier
+    {
+        auto row = LinearLayoutBuilder::create()->orientation(Orientation::Horizontal)->gravity(Gravity::CenterVertical)->build();
+        auto lbl = TextViewBuilder::create()->text("Touchscreen Multiplier")->textSize(config->metrics.font_size)->textColor(config->colors.on_surface)->build();
+        row->add_view(lbl, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+
+        std::ostringstream ss;
+        ss << std::fixed << std::setprecision(2) << state.touchscreen_swipe_multiplier << "x";
+        auto val_lbl = TextViewBuilder::create()->text(ss.str())->bold(true)->textColor(config->colors.primary)->build();
+        row->add_view(val_lbl, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+        card->add_view(row);
+
+        float norm = std::clamp((state.touchscreen_swipe_multiplier - 0.1f) / 3.9f, 0.0f, 1.0f);
+        auto slider = SliderBuilder::create()
+            ->value(norm)
+            ->onValueChanged([val_lbl, state, on_swipe_changed](float val, bool user) {
+                (void)user;
+                float actual = 0.1f + val * 3.9f;
+                std::ostringstream s;
+                s << std::fixed << std::setprecision(2) << actual << "x";
+                val_lbl->set_text(s.str());
+                val_lbl->request_redraw();
+                if (on_swipe_changed) on_swipe_changed(state.touchpad_swipe_multiplier, actual, state.swipe_threshold, state.touchscreen_threshold, state.cancel_ratio, state.min_speed_to_force, state.edge_resistance);
+            })
+            ->build();
+        card->add_view(slider, LayoutParams(MATCH_PARENT, 26));
+    }
+
+    // 3. Swipe Distance Threshold
+    {
+        auto row = LinearLayoutBuilder::create()->orientation(Orientation::Horizontal)->gravity(Gravity::CenterVertical)->build();
+        auto lbl = TextViewBuilder::create()->text("Swipe Distance Threshold")->textSize(config->metrics.font_size)->textColor(config->colors.on_surface)->build();
+        row->add_view(lbl, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+
+        auto val_lbl = TextViewBuilder::create()->text(std::to_string(state.swipe_threshold) + " px")->bold(true)->textColor(config->colors.primary)->build();
+        row->add_view(val_lbl, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+        card->add_view(row);
+
+        float norm = std::clamp((state.swipe_threshold - 10.0f) / 190.0f, 0.0f, 1.0f);
+        auto slider = SliderBuilder::create()
+            ->value(norm)
+            ->onValueChanged([val_lbl, state, on_swipe_changed](float val, bool user) {
+                (void)user;
+                int actual = static_cast<int>(std::round(10.0f + val * 190.0f));
+                val_lbl->set_text(std::to_string(actual) + " px");
+                val_lbl->request_redraw();
+                if (on_swipe_changed) on_swipe_changed(state.touchpad_swipe_multiplier, state.touchscreen_swipe_multiplier, actual, state.touchscreen_threshold, state.cancel_ratio, state.min_speed_to_force, state.edge_resistance);
+            })
+            ->build();
+        card->add_view(slider, LayoutParams(MATCH_PARENT, 26));
+    }
+
+    // 4. Cancel Return Ratio
+    {
+        auto row = LinearLayoutBuilder::create()->orientation(Orientation::Horizontal)->gravity(Gravity::CenterVertical)->build();
+        auto lbl = TextViewBuilder::create()->text("Cancel Return Ratio")->textSize(config->metrics.font_size)->textColor(config->colors.on_surface)->build();
+        row->add_view(lbl, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+
+        int pct = static_cast<int>(std::round(state.cancel_ratio * 100.0f));
+        auto val_lbl = TextViewBuilder::create()->text(std::to_string(pct) + "%")->bold(true)->textColor(config->colors.primary)->build();
+        row->add_view(val_lbl, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+        card->add_view(row);
+
+        float norm = std::clamp((state.cancel_ratio - 0.10f) / 0.70f, 0.0f, 1.0f);
+        auto slider = SliderBuilder::create()
+            ->value(norm)
+            ->onValueChanged([val_lbl, state, on_swipe_changed](float val, bool user) {
+                (void)user;
+                float actual = 0.10f + val * 0.70f;
+                int p = static_cast<int>(std::round(actual * 100.0f));
+                val_lbl->set_text(std::to_string(p) + "%");
+                val_lbl->request_redraw();
+                if (on_swipe_changed) on_swipe_changed(state.touchpad_swipe_multiplier, state.touchscreen_swipe_multiplier, state.swipe_threshold, state.touchscreen_threshold, actual, state.min_speed_to_force, state.edge_resistance);
+            })
+            ->build();
+        card->add_view(slider, LayoutParams(MATCH_PARENT, 26));
+    }
+
+    LayoutParams card_lp;
+    card_lp.width = MATCH_PARENT;
+    card_lp.height = WRAP_CONTENT;
+    card->set_layout_params(card_lp);
+    return card;
+}
+
+std::shared_ptr<View> create_mouse_ergonomics_card(
+    bool natural_scroll,
+    std::function<void(bool)> on_natural_scroll_changed,
     const std::shared_ptr<Config>& config
 ) {
     auto card = LinearLayoutBuilder::create()
@@ -737,75 +877,47 @@ std::shared_ptr<View> create_gestures_card(
         ->build();
 
     auto title = TextViewBuilder::create()
-        ->text("Desktop Navigation Gestures")
+        ->text("Mouse Scrolling & Behavior")
         ->caption(true)
         ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
         ->build();
     card->add_view(title);
 
-    auto add_gesture_row = [&](const std::string& gesture, const std::string& action) {
-        auto r = LinearLayoutBuilder::create()
-            ->orientation(Orientation::Horizontal)
-            ->padding(4, 2)
-            ->gravity(Gravity::CenterVertical)
-            ->build();
-
-        auto g_lbl = TextViewBuilder::create()
-            ->text(gesture)
-            ->textSize(config->metrics.font_size - 1)
-            ->bold(true)
-            ->textColor(config->colors.primary)
-            ->build();
-        r->add_view(g_lbl, LayoutParams(190, WRAP_CONTENT));
-
-        auto a_lbl = TextViewBuilder::create()
-            ->text(action)
-            ->caption(true)
-            ->textColor(config->colors.on_surface)
-            ->build();
-        r->add_view(a_lbl, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
-        card->add_view(r);
-    };
-
-    add_gesture_row("3-Finger Horizontal Swipe", "Switch active workspace with smooth kinematics physics");
-    add_gesture_row("4-Finger Vertical Swipe Up", "Live Application Overview & Live Window Expose");
-    add_gesture_row("4-Finger Vertical Swipe Down", "Lock Desktop Session (miqulock)");
-
-    auto sw_row = LinearLayoutBuilder::create()
+    auto row = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
         ->spacing(10)
         ->gravity(Gravity::CenterVertical)
         ->build();
 
-    auto sw_col = LinearLayoutBuilder::create()
+    auto col = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
         ->spacing(2)
         ->build();
 
-    auto sw_title = TextViewBuilder::create()
-        ->text("Interactive Workspace Swipe")
+    auto t = TextViewBuilder::create()
+        ->text("Natural (Inverted) Scrolling")
         ->textSize(config->metrics.font_size)
         ->textColor(config->colors.on_surface)
         ->build();
-    sw_col->add_view(sw_title);
+    col->add_view(t);
 
-    auto sw_desc = TextViewBuilder::create()
-        ->text("Follow finger position continuously during workspace transitions")
+    auto d = TextViewBuilder::create()
+        ->text("Invert scroll wheel direction to match touch drag motion")
         ->caption(true)
         ->textColor(config->colors.on_surface_variant.with_alpha(0.7f))
         ->build();
-    sw_col->add_view(sw_desc);
+    col->add_view(d);
 
-    sw_row->add_view(sw_col, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+    row->add_view(col, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
 
     auto sw = SwitchBuilder::create()
-        ->checked(swipe_enabled)
-        ->onCheckedChanged([multiplier, on_gesture_changed](bool chk) {
-            if (on_gesture_changed) on_gesture_changed(chk, multiplier);
+        ->checked(natural_scroll)
+        ->onCheckedChanged([on_natural_scroll_changed](bool chk) {
+            if (on_natural_scroll_changed) on_natural_scroll_changed(chk);
         })
         ->build();
-    sw_row->add_view(sw, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
-    card->add_view(sw_row);
+    row->add_view(sw, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+    card->add_view(row);
 
     LayoutParams card_lp;
     card_lp.width = MATCH_PARENT;
@@ -893,7 +1005,44 @@ void MillerView::render_pointers_preview(const std::shared_ptr<SettingItem>& ite
         config
     ));
 
-    add_preview_card(create_pointers_list_card(state.pointers, config));
+    std::vector<PointerDevice> touchpads;
+    for (const auto& p : state.pointers) {
+        if (p.is_touchpad) touchpads.push_back(p);
+    }
+    add_preview_card(create_pointers_list_card(touchpads.empty() ? state.pointers : touchpads, config));
+}
+
+void MillerView::render_mouse_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
+    (void)item;
+    auto state = InputBackend::get_state();
+
+    add_preview_card(create_mouse_ergonomics_card(
+        state.mouse_natural_scroll,
+        [this, state](bool nat) {
+            InputBackend::set_mouse_options(state.mouse_speed, state.mouse_accel_profile, nat);
+            rebuild_preview_column();
+        },
+        config
+    ));
+
+    add_preview_card(create_pointer_speed_card(
+        state.mouse_speed,
+        state.mouse_accel_profile,
+        [state](float spd) {
+            InputBackend::set_mouse_options(spd, state.mouse_accel_profile, state.mouse_natural_scroll);
+        },
+        [this, state](const std::string& prof) {
+            InputBackend::set_mouse_options(state.mouse_speed, prof, state.mouse_natural_scroll);
+            rebuild_preview_column();
+        },
+        config
+    ));
+
+    std::vector<PointerDevice> mice;
+    for (const auto& p : state.pointers) {
+        if (!p.is_touchpad) mice.push_back(p);
+    }
+    add_preview_card(create_pointers_list_card(mice.empty() ? state.pointers : mice, config));
 }
 
 void MillerView::render_touch_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
@@ -902,11 +1051,10 @@ void MillerView::render_touch_preview(const std::shared_ptr<SettingItem>& item, 
 
     add_preview_card(create_touch_devices_card(state.touch_devices, config));
 
-    add_preview_card(create_gestures_card(
-        state.workspace_swipe,
-        state.gesture_multiplier,
-        [this](bool en, float mul) {
-            InputBackend::set_workspace_swipe(en, mul);
+    add_preview_card(create_workspace_swipe_card(
+        state,
+        [this](float tp, float ts, int th, int ts_th, float cancel, float min_spd, float edge_res) {
+            InputBackend::set_swipe_physics(tp, ts, th, ts_th, cancel, min_spd, edge_res);
             rebuild_preview_column();
         },
         config

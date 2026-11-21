@@ -163,59 +163,20 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     }
 
     // ==============================================================================
-    // 3. Keybindings (Depth 1)
+    // 3. Bindings (Depth 1)
     // ==============================================================================
     {
-        // 3.1 System & Session
-        auto kb_system = SettingItem::create_leaf("kb_system", "System & Session", "", "system-shutdown");
-        kb_system->is_keybinding_group = true;
-        kb_system->keybindings = {
-            {"Power Menu", "Open system shutdown, restart and suspend dialog", {"Super", "Shift", "Q"}},
-            {"Lock Screen", "Lock session immediately via Wayland lock protocol", {"Super", "Alt", "L"}},
-            {"Reload Compositor", "Reload configuration and dynamic theme files without restart", {"Super", "Shift", "R"}},
-            {"Toggle Overview", "Interactive live workspace expose and window switcher", {"Super", "Tab"}},
-            {"Notification Center", "Toggle slide-out notification drawer and history", {"Super", "N"}}
-        };
+        // 3.1 Keybindings
+        auto bind_keys = SettingItem::create_leaf("bind_keys", "Keybindings", "", "preferences-desktop-keyboard-shortcuts");
+        bind_keys->is_bindings_keys = true;
 
-        // 3.2 Core Applications
-        auto kb_apps = SettingItem::create_leaf("kb_apps", "Applications", "", "applications-system");
-        kb_apps->is_keybinding_group = true;
-        kb_apps->keybindings = {
-            {"Terminal", "Spawn default terminal emulator (Kitty)", {"Super", "T"}},
-            {"Application Launcher", "Search and launch desktop applications", {"Super", "Space"}},
-            {"Universal Search", "Search commands, web, and system actions", {"Super", "S"}},
-            {"Web Browser", "Launch default web browser (Firefox)", {"Super", "F"}},
-            {"File Manager", "Open terminal file manager (Yazi)", {"Super", "E"}},
-            {"Control Center", "System settings & control center", {"Super", "I"}}
-        };
-
-        // 3.3 Window Management
-        auto kb_windows = SettingItem::create_leaf("kb_windows", "Window Management", "", "preferences-system-windows");
-        kb_windows->is_keybinding_group = true;
-        kb_windows->keybindings = {
-            {"Close Window", "Gracefully close the currently active focused window", {"Super", "Q"}},
-            {"Toggle Floating", "Toggle window between floating and tiled layout modes", {"Super", "V"}},
-            {"Toggle Fullscreen", "Expand window to fill display area", {"Super", "M"}},
-            {"Toggle Layout", "Cycle through available tiling layouts (Dwindle, Stack, etc.)", {"Super", "L"}},
-            {"Swap with Master", "Promote active window to dominant master position", {"Super", "Return"}},
-            {"Toggle Split", "Toggle horizontal or vertical binary space partitioning", {"Super", "Alt", "Space"}}
-        };
-
-        // 3.4 Navigation & Workspaces
-        auto kb_nav = SettingItem::create_leaf("kb_nav", "Navigation & Workspaces", "", "video-display");
-        kb_nav->is_keybinding_group = true;
-        kb_nav->keybindings = {
-            {"Next Window", "Shift keyboard focus to next window in current workspace", {"Super", "J"}},
-            {"Previous Window", "Shift keyboard focus to previous window", {"Super", "K"}},
-            {"Next Workspace", "Switch to adjacent next workspace", {"Super", "Shift", "Right"}},
-            {"Previous Workspace", "Switch to adjacent previous workspace", {"Super", "Shift", "Left"}},
-            {"Switch to Workspace 1..9", "Jump directly to numbered workspace", {"Super", "Shift", "1..9"}},
-            {"Move Window to Workspace 1..9", "Send focused window to numbered workspace", {"Super", "Alt", "1..9"}}
-        };
+        // 3.2 Gesture Bindings
+        auto bind_gestures = SettingItem::create_leaf("bind_gestures", "Gesture Bindings", "", "input-touchpad");
+        bind_gestures->is_bindings_gestures = true;
 
         root.push_back(SettingItem::create_category(
-            "cat_keybindings", "Keybindings", "preferences-desktop-keyboard-shortcuts",
-            {kb_system, kb_apps, kb_windows, kb_nav}
+            "cat_bindings", "Bindings", "preferences-desktop-keyboard-shortcuts",
+            {bind_keys, bind_gestures}
         ));
     }
 
@@ -505,7 +466,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     }
 
     // ==============================================================================
-    // 9. Keyboard & Mouse (Depth 1)
+    // 9. Input (Depth 1) — Configures whole of input.conf
     // ==============================================================================
     {
         // 9.1 Keyboards & Layout (Leaf)
@@ -516,17 +477,21 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
         auto in_rep = SettingItem::create_leaf("input_repeat", "Typing & Repeat Speed", "", "preferences-desktop-keyboard");
         in_rep->is_input_repeat = true;
 
-        // 9.3 Pointers & Touchpad (Leaf)
-        auto in_ptr = SettingItem::create_leaf("input_pointers", "Pointers & Touchpad", "", "input-mouse");
-        in_ptr->is_input_pointers = true;
+        // 9.3 Touchpad (Leaf)
+        auto in_tp = SettingItem::create_leaf("input_touchpad", "Touchpad", "", "input-touchpad");
+        in_tp->is_input_pointers = true;
 
-        // 9.4 Touchscreen & Gestures (Leaf)
-        auto in_touch = SettingItem::create_leaf("input_touch", "Touchscreen & Gestures", "", "input-touchpad");
+        // 9.4 Mouse (Leaf)
+        auto in_mouse = SettingItem::create_leaf("input_mouse", "Mouse", "", "input-mouse");
+        in_mouse->is_input_mouse = true;
+
+        // 9.5 Touchscreen & Workspace Swipe (Leaf)
+        auto in_touch = SettingItem::create_leaf("input_touch", "Touchscreen & Workspace Swipe", "", "input-touchpad");
         in_touch->is_input_touch = true;
 
         root.push_back(SettingItem::create_category(
-            "cat_input", "Keyboard & Mouse", "input-keyboard",
-            {in_kb, in_rep, in_ptr, in_touch}
+            "cat_input", "Input", "input-keyboard",
+            {in_kb, in_rep, in_tp, in_mouse, in_touch}
         ));
     }
 

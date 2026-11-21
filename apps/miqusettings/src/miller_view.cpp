@@ -845,8 +845,10 @@ void MillerView::rebuild_preview_column() {
         render_gaps_border_preview(item, config);
     } else if (item->is_login_screen || item->id == "ws_login_screen") {
         render_login_screen_preview(item, config);
-    } else if (item->is_keybinding_group) {
+    } else if (item->is_bindings_keys || item->id == "bind_keys" || item->is_keybinding_group) {
         render_keybindings_preview(item, config);
+    } else if (item->is_bindings_gestures || item->id == "bind_gestures") {
+        render_gesture_bindings_preview(item, config);
     } else if (item->is_timeout_and_lock) {
         render_timeout_lock_preview(item, config);
     } else if (item->is_display_nightlight) {
@@ -867,8 +869,10 @@ void MillerView::rebuild_preview_column() {
         render_keyboards_preview(item, config);
     } else if (item->is_input_repeat || item->id == "input_repeat") {
         render_repeat_preview(item, config);
-    } else if (item->is_input_pointers || item->id == "input_pointers") {
+    } else if (item->is_input_pointers || item->id == "input_pointers" || item->id == "input_touchpad") {
         render_pointers_preview(item, config);
+    } else if (item->is_input_mouse || item->id == "input_mouse") {
+        render_mouse_preview(item, config);
     } else if (item->is_input_touch || item->id == "input_touch") {
         render_touch_preview(item, config);
     } else if (item->is_hardware_spec || item->id.rfind("spec_", 0) == 0) {

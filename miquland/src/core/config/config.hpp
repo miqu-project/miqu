@@ -590,8 +590,7 @@ private:
     void parse_animations_entry(const std::string& path_str, const std::string& top_type,
                                 const std::vector<SectionFrame>& stack, const std::string& key, const std::string& value);
     void parse_input_entry(const std::string& path_str, const std::string& top_type,
-                           const std::vector<SectionFrame>& stack, const std::string& key, const std::string& value,
-                           std::vector<GestureBinding>& file_gestures, bool& has_gestures_in_file);
+                           const std::vector<SectionFrame>& stack, const std::string& key, const std::string& value);
     void parse_xwayland_entry(const std::string& key, const std::string& value);
     void parse_layerrule_entry(const std::string& ns, const std::string& path_str, const std::string& top_type,
                                const std::vector<SectionFrame>& stack, const std::string& key, const std::string& value);
@@ -600,6 +599,8 @@ private:
                                 std::vector<WindowRule>& file_rules, bool& has_rules_in_file);
     void parse_binds_entry(const std::string& key, const std::string& value,
                            std::vector<KeyBinding>& file_bindings, bool& has_bindings_in_file);
+    void parse_gesturebind_entry(const std::string& key, const std::string& value,
+                                 std::vector<GestureBinding>& file_gestures, bool& has_gestures_in_file);
     void parse_bezier_entry(const std::string& value);
     void parse_animation_directive(const std::string& value);
 

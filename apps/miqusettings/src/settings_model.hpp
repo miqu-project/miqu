@@ -517,11 +517,14 @@ public:
     std::shared_ptr<LoginScreenConfig> login_screen_cfg = std::make_shared<LoginScreenConfig>();
 
     bool is_keybinding_group = false;
+    bool is_bindings_keys = false;
+    bool is_bindings_gestures = false;
     std::vector<KeybindingEntry> keybindings;
 
     bool is_input_keyboards = false;
     bool is_input_repeat = false;
     bool is_input_pointers = false;
+    bool is_input_mouse = false;
     bool is_input_touch = false;
 
     bool is_hardware_spec = false;
