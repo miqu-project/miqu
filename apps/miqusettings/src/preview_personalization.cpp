@@ -2940,18 +2940,127 @@ static std::vector<std::string> get_theme_sample_cursors(const std::string& them
     return result_imgs;
 }
 
+static void sync_miqutoolkit_icon_theme(const std::string& theme) {
+    const char* home = std::getenv("HOME");
+    if (!home) return;
+
+    fs::path tk_dir = fs::path(home) / ".config" / "miqutoolkit";
+    fs::path tk_conf = tk_dir / "miqutoolkit.conf";
+    std::error_code ec;
+    if (!fs::exists(tk_dir, ec) || !fs::exists(tk_conf, ec)) {
+        std::system("miqutoolkit-cli --init-config >/dev/null 2>&1");
+    }
+    if (!fs::exists(tk_dir, ec)) {
+        fs::create_directories(tk_dir, ec);
+    }
+
+    if (fs::is_regular_file(tk_conf, ec)) {
+        std::ifstream in(tk_conf);
+        if (in.is_open()) {
+            std::vector<std::string> lines;
+            std::string line;
+            bool found_icon_theme = false;
+
+            while (std::getline(in, line)) {
+                std::string trimmed = line;
+                size_t s = trimmed.find_first_not_of(" \t");
+                std::string t = (s != std::string::npos) ? trimmed.substr(s) : "";
+
+                size_t c_pos = t.find('#');
+                std::string no_comment = (c_pos != std::string::npos) ? t.substr(0, c_pos) : t;
+                while (!no_comment.empty() && (no_comment.back() == ' ' || no_comment.back() == '\t')) no_comment.pop_back();
+
+                size_t eq = no_comment.find('=');
+                if (eq != std::string::npos) {
+                    std::string k = no_comment.substr(0, eq);
+                    while (!k.empty() && (k.back() == ' ' || k.back() == '\t')) k.pop_back();
+                    while (!k.empty() && (k.front() == ' ' || k.front() == '\t')) k.erase(0, 1);
+
+                    if (k == "icon_theme") {
+                        lines.push_back("icon_theme = " + theme);
+                        found_icon_theme = true;
+                        continue;
+                    }
+                }
+                lines.push_back(line);
+            }
+            in.close();
+
+            if (!found_icon_theme) {
+                lines.push_back("icon_theme = " + theme);
+            }
+
+            std::ofstream out(tk_conf);
+            if (out.is_open()) {
+                for (const auto& l : lines) out << l << "\n";
+                out.flush();
+            }
+        }
+    }
+}
+
 void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     if (!item || !item->icon_packs_cfg) return;
     auto& cfg = *item->icon_packs_cfg;
 
     if (!cfg.loaded) {
         cfg.available_icon_packs = get_system_icon_packs();
+
+        const char* home = std::getenv("HOME");
+        fs::path tk_dir = home ? (fs::path(home) / ".config" / "miqutoolkit") : fs::path();
+        fs::path tk_conf = tk_dir / "miqutoolkit.conf";
+        std::error_code ec;
+        if (!tk_dir.empty() && (!fs::exists(tk_dir, ec) || !fs::exists(tk_conf, ec))) {
+            std::system("miqutoolkit-cli --init-config >/dev/null 2>&1");
+        }
+
+        std::string cur_tk = "";
+        if (!tk_conf.empty() && fs::is_regular_file(tk_conf, ec)) {
+            std::ifstream in(tk_conf);
+            std::string line;
+            while (std::getline(in, line)) {
+                size_t c_pos = line.find('#');
+                std::string no_comment = (c_pos != std::string::npos) ? line.substr(0, c_pos) : line;
+                size_t eq = no_comment.find('=');
+                if (eq != std::string::npos) {
+                    std::string k = no_comment.substr(0, eq);
+                    while (!k.empty() && (k.back() == ' ' || k.back() == '\t')) k.pop_back();
+                    while (!k.empty() && (k.front() == ' ' || k.front() == '\t')) k.erase(0, 1);
+                    if (k == "icon_theme") {
+                        std::string v = no_comment.substr(eq + 1);
+                        while (!v.empty() && (v.back() == ' ' || v.back() == '\t')) v.pop_back();
+                        while (!v.empty() && (v.front() == ' ' || v.front() == '\t')) v.erase(0, 1);
+                        cur_tk = v;
+                        break;
+                    }
+                }
+            }
+        }
+        if (cur_tk.empty()) {
+            cur_tk = Config::get()->metrics.icon_theme;
+        }
+
         std::string cur_gtk = exec_command_trimmed("gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null");
         if (!cur_gtk.empty() && cur_gtk.front() == '\'' && cur_gtk.back() == '\'') {
             cur_gtk = cur_gtk.substr(1, cur_gtk.size() - 2);
         }
-        if (cur_gtk.empty()) cur_gtk = "Papirus-Dark";
-        cfg.icon_theme = cur_gtk;
+
+        std::string active_theme;
+        if (!cur_tk.empty() && cur_tk == cur_gtk) {
+            active_theme = cur_tk;
+        } else if (!cur_tk.empty() && cur_tk != "hicolor") {
+            active_theme = cur_tk;
+        } else if (!cur_gtk.empty()) {
+            active_theme = cur_gtk;
+        } else if (!cur_tk.empty()) {
+            active_theme = cur_tk;
+        } else if (!cfg.available_icon_packs.empty()) {
+            active_theme = cfg.available_icon_packs.front();
+        } else {
+            active_theme = "hicolor";
+        }
+
+        cfg.icon_theme = active_theme;
         cfg.loaded = true;
     }
 
@@ -3013,6 +3122,19 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
             break;
         }
     }
+    if (cur_icon_idx == 0 && !cfg.available_icon_packs.empty()) {
+        for (size_t i = 0; i < cfg.available_icon_packs.size(); ++i) {
+            std::string a = cfg.available_icon_packs[i];
+            std::string b = cfg.icon_theme;
+            std::transform(a.begin(), a.end(), a.begin(), ::tolower);
+            std::transform(b.begin(), b.end(), b.begin(), ::tolower);
+            if (a == b) {
+                cur_icon_idx = static_cast<int>(i);
+                cfg.icon_theme = cfg.available_icon_packs[i];
+                break;
+            }
+        }
+    }
 
     add_form_spinner(
         sys_main_card, config,
@@ -3026,6 +3148,7 @@ void MillerView::render_icon_packs_preview(const std::shared_ptr<SettingItem>& i
             item->icon_packs_cfg->icon_theme = val;
             std::string cmd = "gsettings set org.gnome.desktop.interface icon-theme '" + val + "' 2>/dev/null &";
             std::system(cmd.c_str());
+            sync_miqutoolkit_icon_theme(val);
             item->last_action_message = "System icon pack set to: " + val;
             deferred_rebuild_preview(10);
         }
@@ -3395,14 +3518,17 @@ static void load_gaps_border_config(GapsBorderConfig& cfg) {
 
     fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
     std::error_code ec;
-    if (!fs::exists(miqu_dir, ec) || !fs::exists(miqu_dir / "appearance.conf", ec)) {
+    if (!fs::exists(miqu_dir, ec) || (!fs::exists(miqu_dir / "window_gaps_border.conf", ec) && !fs::exists(miqu_dir / "appearance.conf", ec))) {
         // Fresh install: initialize complete standard configuration via miquland
         std::system("miquland --init-config >/dev/null 2>&1");
     }
 
-    // Check miquland.conf first, then appearance.conf (so appearance.conf takes precedence)
+    // Check miquland.conf first, then modular window_gaps_border.conf or legacy appearance.conf (modular file takes precedence)
     parse_file(miqu_dir / "miquland.conf");
-    parse_file(miqu_dir / "appearance.conf");
+    if (fs::exists(miqu_dir / "appearance.conf", ec)) {
+        parse_file(miqu_dir / "appearance.conf");
+    }
+    parse_file(miqu_dir / "window_gaps_border.conf");
 
     auto match_active = [&](const std::string& val) -> std::string {
         if (val.find("#ffff00 #ff0000") != std::string::npos) return "Yellow-Red Gradient (45°)";
@@ -3444,7 +3570,7 @@ static void save_gaps_border_config(const GapsBorderConfig& cfg) {
 
     fs::path miqu_dir = fs::path(home) / ".config" / "miquland";
     std::error_code ec;
-    if (!fs::exists(miqu_dir, ec) || !fs::exists(miqu_dir / "appearance.conf", ec)) {
+    if (!fs::exists(miqu_dir, ec) || (!fs::exists(miqu_dir / "window_gaps_border.conf", ec) && !fs::exists(miqu_dir / "appearance.conf", ec))) {
         // Fresh install: initialize complete standard configuration via miquland
         std::system("miquland --init-config >/dev/null 2>&1");
     }
@@ -3452,14 +3578,14 @@ static void save_gaps_border_config(const GapsBorderConfig& cfg) {
         fs::create_directories(miqu_dir, ec);
     }
 
-    fs::path appearance_conf = miqu_dir / "appearance.conf";
+    fs::path gaps_border_conf = miqu_dir / "window_gaps_border.conf";
     fs::path miquland_conf = miqu_dir / "miquland.conf";
 
-    // 1. Always write/update appearance.conf
+    // 1. Always write/update window_gaps_border.conf
     {
         std::ostringstream ss;
         ss << "# ==============================================================================\n"
-           << "# appearance.conf — Window Borders, Gaps & Geometry (Modular Sourced File)\n"
+           << "# window_gaps_border.conf — Window Borders, Gaps & Geometry (Modular Sourced File)\n"
            << "# ==============================================================================\n"
            << "general {\n"
            << "    smart_gaps = " << (cfg.smart_gaps ? "true" : "false") << "\n"
@@ -3487,10 +3613,20 @@ static void save_gaps_border_config(const GapsBorderConfig& cfg) {
            << "    }\n"
            << "}\n";
 
-        std::ofstream out(appearance_conf);
+        std::string content = ss.str();
+        std::ofstream out(gaps_border_conf);
         if (out.is_open()) {
-            out << ss.str();
+            out << content;
             out.flush();
+        }
+
+        // If legacy appearance.conf still exists in user directory, keep it updated as well
+        if (fs::exists(miqu_dir / "appearance.conf", ec)) {
+            std::ofstream leg_out(miqu_dir / "appearance.conf");
+            if (leg_out.is_open()) {
+                leg_out << content;
+                leg_out.flush();
+            }
         }
     }
 
@@ -3530,6 +3666,12 @@ static void save_gaps_border_config(const GapsBorderConfig& cfg) {
                     std::string k = no_comment.substr(0, eq);
                     while (!k.empty() && (k.back() == ' ' || k.back() == '\t')) k.pop_back();
                     while (!k.empty() && (k.front() == ' ' || k.front() == '\t')) k.erase(0, 1);
+
+                    if (k == "source" && line.find("appearance.conf") != std::string::npos) {
+                        size_t p = line.find("appearance.conf");
+                        line.replace(p, 15, "window_gaps_border.conf");
+                        modified = true;
+                    }
 
                     std::string top = stack.empty() ? "" : stack.back();
                     if (top == "gaps") {

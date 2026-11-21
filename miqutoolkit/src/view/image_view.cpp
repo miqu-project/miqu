@@ -318,10 +318,10 @@ std::string ImageView::resolve_icon_path(const std::string& icon_name) {
                 }
             }
 
-            add_theme("Papirus");
-            add_theme("Papirus-Dark");
             add_theme("hicolor");
             add_theme("Adwaita");
+            add_theme("Papirus");
+            add_theme("Papirus-Dark");
             add_theme("breeze");
 
             const std::vector<std::string> fallback_subdirs = {

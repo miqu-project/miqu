@@ -155,7 +155,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/miquland.pc DESTINATION ${CMAKE_INSTAL
 
 # Install assets and desktop entry
 install(FILES assets/miquland.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
-install(FILES assets/miquland.conf assets/appearance.conf assets/cursor.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/miquland)
+install(FILES assets/miquland.conf assets/window_gaps_border.conf assets/cursor.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/miquland)
 install(FILES assets/miquland-portals.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/xdg-desktop-portal)
 install(FILES assets/icons/miquland-256.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps RENAME miquland.png)
 install(FILES assets/icons/miquland-128.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps RENAME miquland.png)

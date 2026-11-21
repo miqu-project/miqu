@@ -1111,7 +1111,7 @@ std::string Config::init_user_config() {
                 log_info("Installed default configuration to " + config_path + " from " + cand);
 
                 // Also copy companion modular config templates if present
-                for (const char* mod_conf : {"appearance.conf", "cursor.conf"}) {
+                for (const char* mod_conf : {"window_gaps_border.conf", "cursor.conf"}) {
                     std::string mod_src = std::string(t_dir) + "/" + mod_conf;
                     if (!fs::exists(mod_src)) {
                         for (const char* f_dir : {"assets", "/usr/share/miquland", "/etc/xdg/miquland", "/usr/local/share/miquland"}) {
@@ -2502,6 +2502,22 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
         if (key == "source") {
             std::string resolved = resolve_path(value);
             if (resolved.empty() || !fs::exists(resolved)) {
+                // Compatibility fallback: appearance.conf <-> window_gaps_border.conf
+                if (value.find("appearance.conf") != std::string::npos) {
+                    std::string alt = value;
+                    size_t p = alt.find("appearance.conf");
+                    alt.replace(p, 15, "window_gaps_border.conf");
+                    std::string alt_res = resolve_path(alt);
+                    if (!alt_res.empty() && fs::exists(alt_res)) resolved = alt_res;
+                } else if (value.find("window_gaps_border.conf") != std::string::npos) {
+                    std::string alt = value;
+                    size_t p = alt.find("window_gaps_border.conf");
+                    alt.replace(p, 23, "appearance.conf");
+                    std::string alt_res = resolve_path(alt);
+                    if (!alt_res.empty() && fs::exists(alt_res)) resolved = alt_res;
+                }
+            }
+            if (resolved.empty() || !fs::exists(resolved)) {
                 // If not found in user path, check system fallback directories
                 std::string fname = fs::path(resolved.empty() ? value : resolved).filename().string();
                 for (const char* t_dir : {"/usr/share/miquland", "assets", "/etc/xdg/miquland", "/etc/miquland", "/usr/local/share/miquland"}) {
@@ -2509,6 +2525,13 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
                     if (fs::exists(sys_cand)) {
                         resolved = sys_cand;
                         break;
+                    }
+                    if (fname == "appearance.conf") {
+                        std::string alt_cand = std::string(t_dir) + "/window_gaps_border.conf";
+                        if (fs::exists(alt_cand)) {
+                            resolved = alt_cand;
+                            break;
+                        }
                     }
                 }
             }
