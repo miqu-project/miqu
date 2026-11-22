@@ -162,5 +162,12 @@ install(FILES assets/icons/miquland-256.png DESTINATION ${CMAKE_INSTALL_DATADIR}
 install(FILES assets/icons/miquland-128.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps RENAME miquland.png)
 install(FILES assets/icons/miquland-64.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/64x64/apps RENAME miquland.png)
 install(FILES assets/icons/miquland-48.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/48x48/apps RENAME miquland.png)
-install(DIRECTORY assets/icons/miqu-cursors DESTINATION ${CMAKE_INSTALL_DATADIR}/icons)
+install(DIRECTORY assets/icons/miqu-cursors
+        assets/icons/miqu-cursors-catppuccin
+        assets/icons/miqu-cursors-tokyo-night
+        assets/icons/miqu-cursors-gruvbox
+        assets/icons/miqu-cursors-nord
+        assets/icons/miqu-cursors-dracula
+        assets/icons/miqu-cursors-rose-pine
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons)
 

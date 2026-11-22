@@ -3148,11 +3148,10 @@ static std::vector<std::string> get_icon_roots() {
 }
 
 static std::vector<std::string> get_theme_search_hierarchy(const std::string& theme_name, const std::vector<std::string>& roots, const std::string& fallback_theme) {
-    std::string actual_theme = (theme_name == "Miqu (Default)") ? "miqu-cursors" : theme_name;
-    std::vector<std::string> themes = {actual_theme};
-    std::vector<std::string> cand_names = {actual_theme};
-    if (actual_theme == "Default") cand_names.push_back("default");
-    else if (actual_theme == "default") cand_names.push_back("Default");
+    std::vector<std::string> themes = {theme_name};
+    std::vector<std::string> cand_names = {theme_name};
+    if (theme_name == "Default") cand_names.push_back("default");
+    else if (theme_name == "default") cand_names.push_back("Default");
 
     std::error_code ec;
     for (const auto& r : roots) {
@@ -3224,7 +3223,7 @@ static std::vector<std::string> get_system_cursor_themes() {
             if (!entry.is_directory(ec)) continue;
             std::string id = entry.path().filename().string();
             if (id.empty() || id[0] == '.') continue;
-            if (id == "default" || id == "Default" || id == "miqu-cursors") continue;
+            if (id == "default" || id == "Default") continue;
 
             fs::path cursor_dir = entry.path() / "cursors";
             if (fs::is_directory(cursor_dir, ec)) {
@@ -3232,9 +3231,7 @@ static std::vector<std::string> get_system_cursor_themes() {
             }
         }
     }
-    std::vector<std::string> result = {"Miqu (Default)"};
-    result.insert(result.end(), themes.begin(), themes.end());
-    return result;
+    return std::vector<std::string>(themes.begin(), themes.end());
 }
 
 static std::vector<std::string> get_theme_sample_icons(const std::string& theme_name) {
@@ -3698,20 +3695,13 @@ static void load_cursor_config(CursorConfig& cfg) {
     }
 
     if (!parsed_theme.empty()) {
-        if (parsed_theme == "default" || parsed_theme == "Default" || parsed_theme == "miqu-cursors") {
-            cfg.cursor_theme = "Miqu (Default)";
-        } else {
-            cfg.cursor_theme = parsed_theme;
-        }
+        cfg.cursor_theme = parsed_theme;
     } else {
         std::string cur_cur = exec_command_trimmed("gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null");
         if (!cur_cur.empty() && cur_cur.front() == '\'' && cur_cur.back() == '\'') {
             cur_cur = cur_cur.substr(1, cur_cur.size() - 2);
         }
-        if (cur_cur.empty() || cur_cur == "default" || cur_cur == "Default" || cur_cur == "miqu-cursors") {
-            cur_cur = "Miqu (Default)";
-        }
-        cfg.cursor_theme = cur_cur;
+        cfg.cursor_theme = cur_cur.empty() ? "miqu-cursors" : cur_cur;
     }
 
     if (parsed_size > 0) {
@@ -3882,9 +3872,7 @@ void MillerView::render_cursor_preview(const std::shared_ptr<SettingItem>& item,
 
     int cur_cursor_idx = 0;
     for (size_t i = 0; i < cfg.available_cursor_themes.size(); ++i) {
-        if (cfg.available_cursor_themes[i] == cfg.cursor_theme ||
-            ((cfg.cursor_theme == "default" || cfg.cursor_theme == "Default" || cfg.cursor_theme == "miqu-cursors") &&
-             cfg.available_cursor_themes[i] == "Miqu (Default)")) {
+        if (cfg.available_cursor_themes[i] == cfg.cursor_theme) {
             cur_cursor_idx = static_cast<int>(i);
             break;
         }
@@ -3900,10 +3888,9 @@ void MillerView::render_cursor_preview(const std::shared_ptr<SettingItem>& item,
             (void)idx;
             if (!item || !item->cursor_cfg) return;
             item->cursor_cfg->cursor_theme = val;
-            std::string target = (val == "Miqu (Default)") ? "miqu-cursors" : val;
-            std::string cmd = "gsettings set org.gnome.desktop.interface cursor-theme '" + target + "' 2>/dev/null &";
+            std::string cmd = "gsettings set org.gnome.desktop.interface cursor-theme '" + val + "' 2>/dev/null &";
             std::system(cmd.c_str());
-            sync_miquland_cursor_config(target, item->cursor_cfg->cursor_size);
+            sync_miquland_cursor_config(val, item->cursor_cfg->cursor_size);
             item->last_action_message = "Cursor theme set to: " + val;
             deferred_rebuild_preview(10);
         }
@@ -3935,8 +3922,7 @@ void MillerView::render_cursor_preview(const std::shared_ptr<SettingItem>& item,
                 item->cursor_cfg->cursor_size = sz;
                 std::string cmd = "gsettings set org.gnome.desktop.interface cursor-size " + std::to_string(sz) + " 2>/dev/null &";
                 std::system(cmd.c_str());
-                std::string target = (item->cursor_cfg->cursor_theme == "Miqu (Default)") ? "miqu-cursors" : item->cursor_cfg->cursor_theme;
-                sync_miquland_cursor_config(target, sz);
+                sync_miquland_cursor_config(item->cursor_cfg->cursor_theme, sz);
                 item->last_action_message = "Cursor size set to: " + std::to_string(sz) + " px";
                 deferred_rebuild_preview(10);
             }
