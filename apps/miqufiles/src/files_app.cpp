@@ -70,8 +70,13 @@ bool FilesApp::init() {
             if (!ev.pressed) return false;
 
             // When text editor is active and focused, let all typing (hjkl, etc.) and
-            // cursor navigation pass directly to EditText, while Escape exits edit mode.
+            // cursor navigation pass directly to EditText, while Escape cancels editing
+            // and Ctrl+S saves and exits editing.
             if (m_miller_view && m_miller_view->is_editor_focused()) {
+                if (ev.has_ctrl() && (ev.keysym == XKB_KEY_s || ev.keysym == XKB_KEY_S)) {
+                    m_miller_view->save_editing();
+                    return true;
+                }
                 if (ev.keysym == XKB_KEY_Escape) {
                     m_miller_view->cancel_editing();
                     return true;

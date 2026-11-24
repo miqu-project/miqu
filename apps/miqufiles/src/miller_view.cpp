@@ -610,25 +610,12 @@ void MillerView::update_preview_ribbon() {
                 if (!item->is_editing) {
                     item->is_editing = true;
                     item->last_action_message.clear();
+                    update_preview_ribbon();
+                    rebuild_preview_column();
+                    notify_state_changed();
                 } else {
-                    std::ofstream ofs(item->path);
-                    if (ofs.is_open()) {
-                        ofs << item->text_content;
-                        ofs.flush();
-                        ofs.close();
-                        std::error_code ec;
-                        item->size_bytes = fs::file_size(item->path, ec);
-                        item->size_formatted = FilesModel::format_file_size(item->size_bytes);
-                        item->subtitle = item->size_formatted + " • " + item->category_label;
-                        item->last_action_message = "Saved";
-                    } else {
-                        item->last_action_message = "Error saving";
-                    }
-                    item->is_editing = false;
+                    save_editing();
                 }
-                update_preview_ribbon();
-                rebuild_preview_column();
-                notify_state_changed();
             });
             m_preview_actions->add_view(edit_btn, LayoutParams(WRAP_CONTENT, 26));
         }
@@ -710,23 +697,7 @@ bool MillerView::on_key(const KeyPressEvent& event) {
     if (event.pressed && event.has_ctrl() && (event.keysym == XKB_KEY_s || event.keysym == XKB_KEY_S)) {
         auto item = get_current_selected_item();
         if (item && item->is_editing) {
-            std::ofstream ofs(item->path);
-            if (ofs.is_open()) {
-                ofs << item->text_content;
-                ofs.flush();
-                ofs.close();
-                std::error_code ec;
-                item->size_bytes = fs::file_size(item->path, ec);
-                item->size_formatted = FilesModel::format_file_size(item->size_bytes);
-                item->subtitle = item->size_formatted + " • " + item->category_label;
-                item->last_action_message = "Saved";
-            } else {
-                item->last_action_message = "Error saving";
-            }
-            item->is_editing = false;
-            update_preview_ribbon();
-            rebuild_preview_column();
-            notify_state_changed();
+            save_editing();
             return true;
         }
     }
@@ -1495,6 +1466,29 @@ bool MillerView::is_editor_focused() const {
     }
     auto item = get_current_selected_item();
     return item && item->is_editing;
+}
+
+void MillerView::save_editing() {
+    auto item = get_current_selected_item();
+    if (item && item->is_editing) {
+        std::ofstream ofs(item->path);
+        if (ofs.is_open()) {
+            ofs << item->text_content;
+            ofs.flush();
+            ofs.close();
+            std::error_code ec;
+            item->size_bytes = fs::file_size(item->path, ec);
+            item->size_formatted = FilesModel::format_file_size(item->size_bytes);
+            item->subtitle = item->size_formatted + " • " + item->category_label;
+            item->last_action_message = "Saved";
+        } else {
+            item->last_action_message = "Error saving";
+        }
+        item->is_editing = false;
+        update_preview_ribbon();
+        rebuild_preview_column();
+        notify_state_changed();
+    }
 }
 
 void MillerView::cancel_editing() {

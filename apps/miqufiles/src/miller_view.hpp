@@ -73,6 +73,7 @@ public:
         m_on_state_changed = std::move(cb);
     }
 
+    void save_editing();
     void cancel_editing();
     void update_preview_ribbon();
     void rebuild_preview_column();

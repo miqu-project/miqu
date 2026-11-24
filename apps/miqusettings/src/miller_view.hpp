@@ -61,6 +61,7 @@ public:
     bool is_preview_focused() const { return m_preview_focused; }
     bool is_editor_focused() const;
     std::shared_ptr<SettingItem> get_current_selected_item() const;
+    void save_editing();
     void cancel_editing();
 
     bool check_and_update_click_debounce();
