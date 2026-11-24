@@ -129,6 +129,8 @@ void MillerView::render_autostart_preview(const std::shared_ptr<SettingItem>& it
         ->hint("# Enter autostart services and commands...")
         ->multiline(true)
         ->drawBackground(false)
+        ->drawFocusRing(false)
+        ->padding(8, 6)
         ->editable(cfg.is_editing)
         ->onTextChanged([item](std::shared_ptr<EditText> /*view*/, const std::string& new_text) {
             if (item && item->autostart_cfg) {

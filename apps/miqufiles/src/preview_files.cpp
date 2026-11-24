@@ -181,6 +181,7 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
         auto code_header = TextViewBuilder::create()
             ->text(header_str)
             ->caption(true)
+            ->padding(8, 0)
             ->textColor(item->is_editing ? config->colors.primary : config->colors.on_surface_variant.with_alpha(0.7f))
             ->build();
         code_card->add_view(code_header);
@@ -191,6 +192,8 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
             ->hint("# Empty file...")
             ->multiline(true)
             ->drawBackground(false)
+            ->drawFocusRing(false)
+            ->padding(8, 6)
             ->editable(item->is_editing)
             ->onTextChanged([item](std::shared_ptr<EditText> /*view*/, const std::string& new_text) {
                 if (item) {
