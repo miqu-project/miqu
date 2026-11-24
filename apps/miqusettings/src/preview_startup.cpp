@@ -115,17 +115,20 @@ void MillerView::render_autostart_preview(const std::shared_ptr<SettingItem>& it
     // ==========================================================================
     auto editor_card = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
-        ->padding(14, 12)
+        ->padding(16, 14)
         ->spacing(8)
         ->backgroundColor(config->colors.surface)
-        ->stroke(1, config->colors.outline.with_alpha(0.3f))
+        ->stroke(1, cfg.is_editing ? config->colors.primary.with_alpha(0.85f)
+                                   : config->colors.outline.with_alpha(0.3f))
         ->cornerRadius(get_card_radius(config))
         ->build();
 
     auto edit_view = EditTextBuilder::create()
         ->text(cfg.raw_content)
+        ->fontFamily("Monospace")
         ->hint("# Enter autostart services and commands...")
         ->multiline(true)
+        ->drawBackground(false)
         ->editable(cfg.is_editing)
         ->onTextChanged([item](std::shared_ptr<EditText> /*view*/, const std::string& new_text) {
             if (item && item->autostart_cfg) {
@@ -134,13 +137,12 @@ void MillerView::render_autostart_preview(const std::shared_ptr<SettingItem>& it
         })
         ->build();
 
-    int line_count = 1;
-    for (char c : cfg.raw_content) {
-        if (c == '\n') line_count++;
+    if (cfg.is_editing) {
+        edit_view->set_focused(true);
     }
-    int editor_h = std::clamp(line_count * 22 + 48, 300, 680);
 
-    LayoutParams edit_lp(static_cast<int>(LayoutDimension::MatchParent), editor_h);
+    LayoutParams edit_lp(static_cast<int>(LayoutDimension::MatchParent),
+                         static_cast<int>(LayoutDimension::WrapContent));
     editor_card->add_view(edit_view, edit_lp);
 
     add_preview_card(editor_card);

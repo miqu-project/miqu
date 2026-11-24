@@ -44,6 +44,12 @@ public:
     void set_hint_color(const Color& col) { m_hint_color = col; m_has_custom_hint_color = true; }
     void set_background_color(const Color& col) { m_bg_color = col; m_has_custom_bg_color = true; }
 
+    void set_font_family(std::string family) { m_font_family = std::move(family); }
+    const std::string& get_font_family() const { return m_font_family; }
+
+    void set_font_size(int size) { m_font_size = size; }
+    int get_font_size() const { return m_font_size; }
+
     const Color& get_text_color() const { return m_text_color; }
     const Color& get_hint_color() const { return m_hint_color; }
     const Color& get_background_color() const { return m_bg_color; }
@@ -55,6 +61,7 @@ public:
 
     void draw(cairo_t* cr, const Rect& bounds) override;
     Size measure_size() const override;
+    Size measure_size(int avail_width) const override;
 
     bool on_key(const KeyPressEvent& event) override;
     bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
@@ -62,6 +69,8 @@ public:
 private:
     std::string m_text;
     std::string m_hint = "";
+    std::string m_font_family = "";
+    int m_font_size = -1;
     int m_cursor_pos = 0;
     bool m_focused = false;
     bool m_draw_background = true;
@@ -140,6 +149,16 @@ public:
 
     std::shared_ptr<EditTextBuilder> multiline(bool enable = true) {
         m_view->set_multiline(enable);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<EditTextBuilder> fontFamily(std::string family) {
+        m_view->set_font_family(std::move(family));
+        return shared_from_this();
+    }
+
+    std::shared_ptr<EditTextBuilder> fontSize(int size) {
+        m_view->set_font_size(size);
         return shared_from_this();
     }
 

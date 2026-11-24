@@ -59,15 +59,57 @@ void EditText::clear() {
 }
 
 Size EditText::measure_size() const {
+    return measure_size(-1);
+}
+
+Size EditText::measure_size(int avail_width) const {
     if (m_multiline) {
-        if (m_bounds.height > 0) return Size(m_bounds.width, m_bounds.height);
-        int lines = 1;
-        for (char c : m_text) {
-            if (c == '\n') lines++;
+        int pad_left = m_padding.left > 0 ? m_padding.left : (m_draw_background ? 14 : 0);
+        int pad_right = m_padding.right > 0 ? m_padding.right : (m_draw_background ? 14 : 0);
+        int pad_top = m_padding.top > 0 ? m_padding.top : (m_draw_background && m_multiline ? 12 : 0);
+        int pad_bottom = m_padding.bottom > 0 ? m_padding.bottom : (m_draw_background && m_multiline ? 12 : 0);
+
+        int target_w = -1;
+        if (m_layout_params.width >= 0) {
+            target_w = m_layout_params.width - pad_left - pad_right;
+        } else if (avail_width >= 0) {
+            target_w = avail_width - pad_left - pad_right;
         }
-        int line_h = 22;
-        int pad_v = (m_padding.top + m_padding.bottom > 0) ? (m_padding.top + m_padding.bottom) : 24;
-        return Size(m_bounds.width, std::max(120, lines * line_h + pad_v));
+
+        std::string display_text = m_text.empty() ? m_hint : m_text;
+        if (display_text.empty()) {
+            return Size(std::max(100, avail_width), std::max(240, 22 + pad_top + pad_bottom));
+        }
+
+        cairo_surface_t* temp_surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
+        cairo_t* cr = cairo_create(temp_surf);
+        PangoLayout* layout = pango_cairo_create_layout(cr);
+        pango_layout_set_text(layout, display_text.c_str(), -1);
+
+        auto config = Config::get();
+        std::string font_family = !m_font_family.empty() ? m_font_family :
+            (m_multiline ? "Monospace" : (!config->metrics.font_family.empty() ? config->metrics.font_family : "Sans"));
+        int font_size = m_font_size > 0 ? m_font_size : (config->metrics.font_size > 0 ? config->metrics.font_size : 11);
+        std::string font_desc_str = font_family + " " + std::to_string(font_size);
+        PangoFontDescription* desc = pango_font_description_from_string(font_desc_str.c_str());
+        pango_layout_set_font_description(layout, desc);
+        pango_font_description_free(desc);
+
+        if (target_w > 0) {
+            pango_layout_set_width(layout, target_w * PANGO_SCALE);
+            pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
+        }
+
+        int text_w = 0, text_h = 0;
+        pango_layout_get_pixel_size(layout, &text_w, &text_h);
+
+        g_object_unref(layout);
+        cairo_destroy(cr);
+        cairo_surface_destroy(temp_surf);
+
+        int total_w = text_w + pad_left + pad_right;
+        int total_h = text_h + pad_top + pad_bottom;
+        return Size(total_w, std::max(240, total_h));
     }
     int pad_v = (m_padding.top + m_padding.bottom > 0) ? (m_padding.top + m_padding.bottom) : 16;
     return Size(m_bounds.width, 22 + pad_v);
@@ -87,6 +129,9 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
     if (draw_w <= 0 || draw_h <= 0) return;
 
     cairo_save(cr);
+    cairo_rectangle(cr, draw_x, draw_y, draw_w, draw_h);
+    cairo_clip(cr);
+
     double radius = static_cast<double>(std::max(0, config->metrics.corner_radius));
 
     if (m_draw_background) {
@@ -140,8 +185,9 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
     PangoLayout* layout = pango_cairo_create_layout(cr);
     pango_layout_set_text(layout, display_text.c_str(), -1);
 
-    std::string font_family = !config->metrics.font_family.empty() ? config->metrics.font_family : "Sans";
-    int font_size = config->metrics.font_size > 0 ? config->metrics.font_size : 11;
+    std::string font_family = !m_font_family.empty() ? m_font_family :
+        (m_multiline ? "Monospace" : (!config->metrics.font_family.empty() ? config->metrics.font_family : "Sans"));
+    int font_size = m_font_size > 0 ? m_font_size : (config->metrics.font_size > 0 ? config->metrics.font_size : 11);
     std::string font_desc_str = font_family + " " + std::to_string(font_size);
     PangoFontDescription* desc = pango_font_description_from_string(font_desc_str.c_str());
     pango_layout_set_font_description(layout, desc);
@@ -149,8 +195,8 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
 
     int pad_left = m_padding.left > 0 ? m_padding.left : (m_draw_background ? 14 : 0);
     int pad_right = m_padding.right > 0 ? m_padding.right : (m_draw_background ? 14 : 0);
-    int pad_top = m_padding.top > 0 ? m_padding.top : (m_multiline ? 12 : 0);
-    int pad_bottom = m_padding.bottom > 0 ? m_padding.bottom : (m_multiline ? 12 : 0);
+    int pad_top = m_padding.top > 0 ? m_padding.top : (m_draw_background && m_multiline ? 12 : 0);
+    int pad_bottom = m_padding.bottom > 0 ? m_padding.bottom : (m_draw_background && m_multiline ? 12 : 0);
     int avail_text_w = std::max(0, draw_w - pad_left - pad_right);
     int avail_text_h = std::max(0, draw_h - pad_top - pad_bottom);
 
@@ -380,7 +426,7 @@ bool EditText::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
             }
             int pad_left = m_padding.left > 0 ? m_padding.left : (m_draw_background ? 14 : 0);
             int pad_right = m_padding.right > 0 ? m_padding.right : (m_draw_background ? 14 : 0);
-            int pad_top = m_padding.top > 0 ? m_padding.top : (m_multiline ? 12 : 0);
+            int pad_top = m_padding.top > 0 ? m_padding.top : (m_draw_background && m_multiline ? 12 : 0);
             int rel_x = lx - (draw_x + pad_left);
             int rel_y = ly - (draw_y + pad_top);
             int avail_text_w = std::max(0, draw_w - pad_left - pad_right);
@@ -398,8 +444,9 @@ bool EditText::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
                 }
 
                 auto config = Config::get();
-                std::string font_family = !config->metrics.font_family.empty() ? config->metrics.font_family : "Sans";
-                int font_size = config->metrics.font_size > 0 ? config->metrics.font_size : 11;
+                std::string font_family = !m_font_family.empty() ? m_font_family :
+                    (m_multiline ? "Monospace" : (!config->metrics.font_family.empty() ? config->metrics.font_family : "Sans"));
+                int font_size = m_font_size > 0 ? m_font_size : (config->metrics.font_size > 0 ? config->metrics.font_size : 11);
                 std::string font_desc_str = font_family + " " + std::to_string(font_size);
                 PangoFontDescription* desc = pango_font_description_from_string(font_desc_str.c_str());
                 pango_layout_set_font_description(layout, desc);
