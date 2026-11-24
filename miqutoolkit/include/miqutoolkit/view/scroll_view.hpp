@@ -24,6 +24,7 @@ public:
     bool is_scrollbar_visible() const { return m_show_scrollbar; }
 
     void scroll_to_view(View* view);
+    void scroll_to_rect(const Rect& rect);
 
     void draw(cairo_t* cr, const Rect& bounds) override;
     Size measure_size() const override;

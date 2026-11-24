@@ -1,5 +1,6 @@
 #include "miqutoolkit/view/edit_text.hpp"
 #include "miqutoolkit/view/card_view.hpp"
+#include "miqutoolkit/view/scroll_view.hpp"
 #include "miqutoolkit/core/config.hpp"
 #include "miqutoolkit/core/window.hpp"
 #include <pango/pangocairo.h>
@@ -265,6 +266,18 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
         cairo_move_to(cr, cur_x, cur_y);
         cairo_line_to(cr, cur_x, cur_y + cur_h);
         cairo_stroke(cr);
+
+        if (m_multiline) {
+            ViewGroup* p = get_parent();
+            while (p) {
+                if (auto* sv = dynamic_cast<ScrollView*>(p)) {
+                    Rect cursor_rect(static_cast<int>(cur_x), static_cast<int>(cur_y), 4, static_cast<int>(cur_h));
+                    sv->scroll_to_rect(cursor_rect);
+                    break;
+                }
+                p = p->get_parent();
+            }
+        }
     } else if (m_editable && m_focused && is_hint) {
         cairo_set_source_rgba(cr, config->colors.primary.r,
                                   config->colors.primary.g,
@@ -274,6 +287,18 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
         cairo_move_to(cr, text_draw_x, text_draw_y);
         cairo_line_to(cr, text_draw_x, text_draw_y + text_h);
         cairo_stroke(cr);
+
+        if (m_multiline) {
+            ViewGroup* p = get_parent();
+            while (p) {
+                if (auto* sv = dynamic_cast<ScrollView*>(p)) {
+                    Rect cursor_rect(static_cast<int>(text_draw_x), static_cast<int>(text_draw_y), 4, text_h);
+                    sv->scroll_to_rect(cursor_rect);
+                    break;
+                }
+                p = p->get_parent();
+            }
+        }
     }
 
     g_object_unref(layout);

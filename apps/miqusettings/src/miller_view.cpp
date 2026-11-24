@@ -495,7 +495,18 @@ void MillerView::update_preview_ribbon() {
 }
 
 bool MillerView::on_key(const KeyPressEvent& event) {
-    (void)event;
+    if (event.pressed && event.has_ctrl() && (event.keysym == XKB_KEY_s || event.keysym == XKB_KEY_S)) {
+        auto item = get_current_selected_item();
+        if (item && item->autostart_cfg && item->autostart_cfg->is_editing) {
+            bool ok = save_autostart_config(item->autostart_cfg->raw_content);
+            item->last_action_message = ok ? "Saved" : "Error saving";
+            item->autostart_cfg->is_editing = false;
+            update_preview_ribbon();
+            rebuild_preview_column();
+            notify_state_changed();
+            return true;
+        }
+    }
     return false;
 }
 
@@ -1246,6 +1257,26 @@ bool MillerView::focus_prev_preview_control() {
         m_window->set_focused_view(*(it - 1));
     }
     return true;
+}
+
+bool MillerView::is_editor_focused() const {
+    if (!m_window) return false;
+    View* cur = m_window->get_focused_view();
+    if (auto* et = dynamic_cast<EditText*>(cur)) {
+        return et->is_editable();
+    }
+    auto item = get_current_selected_item();
+    return item && item->autostart_cfg && item->autostart_cfg->is_editing;
+}
+
+void MillerView::cancel_editing() {
+    auto item = get_current_selected_item();
+    if (item && item->autostart_cfg && item->autostart_cfg->is_editing) {
+        item->autostart_cfg->is_editing = false;
+        update_preview_ribbon();
+        rebuild_preview_column();
+        notify_state_changed();
+    }
 }
 
 bool MillerView::is_preview_content_focused() const {

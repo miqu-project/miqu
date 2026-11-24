@@ -20,20 +20,30 @@ void ScrollView::set_scroll_y(double y) {
 }
 
 void ScrollView::scroll_to_view(View* view) {
-    if (!view || !m_content) return;
-    Rect vb = view->get_bounds();
-    Rect content_rect = get_content_rect(get_bounds());
-    if (content_rect.height <= 0 || vb.height <= 0) return;
+    if (!view) return;
+    scroll_to_rect(view->get_bounds());
+}
 
-    int pad = 24;
-    if (vb.y < content_rect.y + pad) {
-        double delta = (content_rect.y + pad) - vb.y;
-        m_scroll_y = std::clamp(m_scroll_y - delta, 0.0, m_max_scroll);
-        request_redraw();
-    } else if (vb.y + vb.height > content_rect.y + content_rect.height - pad) {
-        double delta = (vb.y + vb.height) - (content_rect.y + content_rect.height - pad);
-        m_scroll_y = std::clamp(m_scroll_y + delta, 0.0, m_max_scroll);
-        request_redraw();
+void ScrollView::scroll_to_rect(const Rect& rect) {
+    if (!m_content || m_max_scroll <= 0.0) return;
+    Rect content_rect = get_content_rect(get_bounds());
+    if (content_rect.height <= 0 || rect.height <= 0) return;
+
+    int pad = 28;
+    if (rect.y < content_rect.y + pad) {
+        double delta = (content_rect.y + pad) - rect.y;
+        double new_scroll = std::clamp(m_scroll_y - delta, 0.0, m_max_scroll);
+        if (new_scroll != m_scroll_y) {
+            m_scroll_y = new_scroll;
+            request_redraw();
+        }
+    } else if (rect.y + rect.height > content_rect.y + content_rect.height - pad) {
+        double delta = (rect.y + rect.height) - (content_rect.y + content_rect.height - pad);
+        double new_scroll = std::clamp(m_scroll_y + delta, 0.0, m_max_scroll);
+        if (new_scroll != m_scroll_y) {
+            m_scroll_y = new_scroll;
+            request_redraw();
+        }
     }
 }
 

@@ -26,6 +26,17 @@ bool SettingsApp::init() {
         })
         ->onShortcut([this](const KeyPressEvent& ev) -> bool {
             if (!ev.pressed) return false;
+
+            // When text editor is active and focused, let all typing (hjkl, etc.) and
+            // cursor navigation pass directly to EditText, while Escape exits edit mode.
+            if (m_miller_view && m_miller_view->is_editor_focused()) {
+                if (ev.keysym == XKB_KEY_Escape) {
+                    m_miller_view->cancel_editing();
+                    return true;
+                }
+                return false;
+            }
+
             if (m_miller_view && m_miller_view->is_preview_content_focused()) {
                 if (ev.has_shift() || ev.has_ctrl() || ev.has_alt()) {
                     return false;
@@ -490,6 +501,10 @@ void SettingsApp::handle_key_press(const KeyPressEvent& event) {
 
     // 4. State 2: Detail Mode (Right Pillar Active)
     if (m_miller_view->is_preview_focused()) {
+        if (m_miller_view->is_editor_focused()) {
+            return;
+        }
+
         // In full-width expanded leaf: Backspace or Escape collapses to 3-pillar mode
         if (m_miller_view->is_preview_expanded()) {
             if (event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {

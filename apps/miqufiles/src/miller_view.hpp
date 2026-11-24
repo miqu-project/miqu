@@ -60,6 +60,7 @@ public:
     bool is_searching() const { return !m_search_query.empty(); }
     std::string get_breadcrumb_path() const;
     bool is_preview_focused() const { return m_preview_focused; }
+    bool is_editor_focused() const;
     std::shared_ptr<FileItem> get_current_selected_item() const;
     bool is_multi_selected() const;
     size_t get_selected_count() const;
@@ -72,15 +73,17 @@ public:
         m_on_state_changed = std::move(cb);
     }
 
+    void cancel_editing();
+    void update_preview_ribbon();
+    void rebuild_preview_column();
+
     void refresh_model();
 
 private:
     void rebuild_columns();
     void update_pillar_styles();
-    void update_preview_ribbon();
     void rebuild_parent_column();
     void rebuild_current_column();
-    void rebuild_preview_column();
     void deferred_rebuild_preview(int delay_ms = 15);
     void add_preview_card(std::shared_ptr<View> card);
 
