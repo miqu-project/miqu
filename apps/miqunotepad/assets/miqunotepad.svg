@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C4DFF" />
+      <stop offset="100%" stop-color="#512DA8" />
+    </linearGradient>
+    <linearGradient id="paperGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#EDE7F6" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD54F" />
+      <stop offset="100%" stop-color="#FFA000" />
+    </linearGradient>
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect x="12" y="12" width="104" height="104" rx="28" fill="url(#bgGrad)" filter="url(#dropShadow)" />
+  <rect x="13.5" y="13.5" width="101" height="101" rx="26.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="2.5" />
+
+  <!-- Notepad Sheet of Paper -->
+  <path d="M 32 28 L 76 28 L 96 48 L 96 100 C 96 102.2 94.2 104 92 104 L 36 104 C 33.8 104 32 102.2 32 100 Z" 
+        fill="url(#paperGrad)" filter="url(#dropShadow)" />
+  
+  <!-- Folded corner -->
+  <path d="M 76 28 L 76 48 L 96 48 Z" fill="#D1C4E9" />
+  
+  <!-- Text lines on sheet -->
+  <line x1="42" y1="46" x2="68" y2="46" stroke="#9575CD" stroke-width="3" stroke-linecap="round" />
+  <line x1="42" y1="58" x2="86" y2="58" stroke="#B39DDB" stroke-width="3" stroke-linecap="round" />
+  <line x1="42" y1="70" x2="86" y2="70" stroke="#B39DDB" stroke-width="3" stroke-linecap="round" />
+  <line x1="42" y1="82" x2="74" y2="82" stroke="#B39DDB" stroke-width="3" stroke-linecap="round" />
+  <line x1="42" y1="94" x2="60" y2="94" stroke="#B39DDB" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Pen / Stylus drawing accent -->
+  <g transform="translate(76, 76) rotate(-45)">
+    <rect x="-4" y="-24" width="8" height="24" rx="2" fill="url(#accentGrad)" filter="url(#dropShadow)" />
+    <polygon points="-4,0 4,0 0,8" fill="#5D4037" />
+    <polygon points="-2,4 2,4 0,8" fill="#212121" />
+  </g>
+</svg>

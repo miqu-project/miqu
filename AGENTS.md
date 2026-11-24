@@ -146,6 +146,7 @@ All inotify config watchers across the entire ecosystem (`miquland`, `miqutoolki
 - **`miqusettings`**: Modern Miller-columns centralized desktop settings manager, visual theme & appearance manager (color schemes, wallpapers, fonts, dark mode, electron/IDE sync, GTK styles), network security, WireGuard VPN, Private DNS (DoT), privacy center, and system configuration manager.
 - **`miqufiles`**: Modern Yazi-style Miller columns file manager with contextual live preview (child directories, images, code/text with monospace formatting, binary file inspect) and instant keyboard/mouse navigation.
 - **`miqumusic`**: Fast, lightweight native MPD (Music Player Daemon) client and audio playback interface.
+- **`miqunotepad`**: Native, lightweight Wayland text editor built with miqutoolkit, featuring instant search/open/save, custom monospace typography, live telemetry, and decoupled dynamic theming.
 
 ### Mobile Applications (`mobile/`)
 - **`doctor`**: Healthcare & medical diagnostic companion application (Android / Jetpack Compose).
