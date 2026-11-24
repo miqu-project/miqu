@@ -255,6 +255,82 @@ void MillerView::init() {
     });
     m_preview_toggle_btn->set_focusable(true);
 
+    // 3a.1 Edit (Pen) button in ribbon
+    m_preview_edit_icon = ImageViewBuilder::create()
+        ->source("document-edit")
+        ->targetSize(16)
+        ->fitMode(FitMode::Contain)
+        ->build();
+    auto edit_icon_box = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->padding(8, 2)
+        ->gravity(Gravity::Center)
+        ->addView(m_preview_edit_icon)
+        ->build();
+    m_preview_edit_btn = CardViewBuilder::create()
+        ->style(CardStyle::Filled)
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
+        ->elevation(0)
+        ->tooltip("Edit (pen)")
+        ->addView(edit_icon_box)
+        ->build();
+    m_preview_edit_btn->set_on_click_listener([this]() {
+        if (!check_and_update_click_debounce()) return;
+        auto item = get_current_selected_item();
+        if (item && item->autostart_cfg) {
+            item->autostart_cfg->is_editing = !item->autostart_cfg->is_editing;
+            item->last_action_message.clear();
+            update_preview_ribbon();
+            rebuild_preview_column();
+        }
+    });
+    m_preview_edit_btn->set_focusable(true);
+
+    // 3a.2 Save button in ribbon
+    auto save_icon = ImageViewBuilder::create()
+        ->source("document-save")
+        ->targetSize(14)
+        ->fitMode(FitMode::Contain)
+        ->build();
+    auto save_lbl = TextViewBuilder::create()
+        ->text("Save")
+        ->textSize(config->metrics.font_size - 1)
+        ->bold(true)
+        ->textColor(config->colors.on_primary)
+        ->build();
+    auto save_box = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->padding(8, 2)
+        ->spacing(4)
+        ->gravity(Gravity::Center)
+        ->addView(save_icon)
+        ->addView(save_lbl)
+        ->build();
+    m_preview_save_btn = CardViewBuilder::create()
+        ->style(CardStyle::Filled)
+        ->backgroundColor(config->colors.primary)
+        ->elevation(0)
+        ->tooltip("Save configuration")
+        ->addView(save_box)
+        ->build();
+    m_preview_save_btn->set_on_click_listener([this]() {
+        if (!check_and_update_click_debounce()) return;
+        auto item = get_current_selected_item();
+        if (item && item->autostart_cfg) {
+            bool ok = save_autostart_config(item->autostart_cfg->raw_content);
+            if (ok) {
+                item->last_action_message = "Saved";
+                item->autostart_cfg->is_editing = false;
+            } else {
+                item->last_action_message = "Error saving";
+            }
+            update_preview_ribbon();
+            rebuild_preview_column();
+            notify_state_changed();
+        }
+    });
+    m_preview_save_btn->set_focusable(true);
+
     m_preview_title = TextViewBuilder::create()
         ->text("")
         ->textSize(config->metrics.font_size)
@@ -262,6 +338,8 @@ void MillerView::init() {
         ->ellipsize(true)
         ->build();
     m_preview_ribbon->add_view(m_preview_title, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+    m_preview_ribbon->add_view(m_preview_edit_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
+    m_preview_ribbon->add_view(m_preview_save_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_ribbon->add_view(m_preview_refresh_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_ribbon->add_view(m_preview_toggle_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_pillar->add_view(m_preview_ribbon, LayoutParams(MATCH_PARENT, 30));
@@ -335,6 +413,12 @@ void MillerView::sync_theme() {
         if (m_preview_refresh_icon) {
             m_preview_refresh_icon->set_text_color(config->colors.primary);
         }
+        if (m_preview_edit_btn) {
+            m_preview_edit_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
+        }
+        if (m_preview_save_btn) {
+            m_preview_save_btn->set_card_background_color(config->colors.primary);
+        }
     }
     m_displayed_parent_items.clear();
     m_displayed_current_items.clear();
@@ -405,11 +489,31 @@ void MillerView::update_preview_ribbon() {
             title_str = "Login Screen";
         } else if (item && item->is_plugin) {
             title_str = !item->plugin_info.display_name.empty() ? item->plugin_info.display_name : item->title;
+        } else if (item && (item->id == "startup_autostart" || item->is_autostart_config)) {
+            title_str = "Autostart";
+            if (!item->last_action_message.empty()) {
+                title_str += " (" + item->last_action_message + ")";
+            }
         }
         m_preview_title->set_text(title_str);
         if (config) {
             m_preview_title->set_text_color(config->colors.on_surface_variant);
         }
+    }
+
+    bool is_autostart = item && (item->is_autostart_config || item->id == "startup_autostart");
+    if (m_preview_edit_btn) {
+        m_preview_edit_btn->set_visibility(is_autostart ? Visibility::Visible : Visibility::Gone);
+        if (is_autostart && item->autostart_cfg) {
+            bool editing = item->autostart_cfg->is_editing;
+            m_preview_edit_btn->set_card_background_color(editing ? config->colors.primary.with_alpha(0.35f)
+                                                                  : config->colors.surface_variant.with_alpha(0.35f));
+            m_preview_edit_btn->set_tooltip(editing ? "Exit editing mode" : "Edit configuration (pen)");
+        }
+    }
+    if (m_preview_save_btn) {
+        bool show_save = is_autostart && item->autostart_cfg && item->autostart_cfg->is_editing;
+        m_preview_save_btn->set_visibility(show_save ? Visibility::Visible : Visibility::Gone);
     }
 
     bool is_spec = item && (item->is_hardware_spec || item->id.rfind("spec_", 0) == 0);
