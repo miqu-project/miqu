@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+#include <fstream>
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -585,6 +586,53 @@ void MillerView::update_preview_ribbon() {
         m_preview_actions->clear_views();
         m_preview_actions->set_visibility(Visibility::Visible);
 
+        // 0. In-place Edit / Save button for text files
+        bool is_text = item && !item->is_dir &&
+                       (item->is_text_file || (item->category == FileCategory::CodeText && item->size_bytes <= 1024 * 1024 * 2));
+        if (is_text) {
+            item->is_text_file = true;
+            auto edit_btn = ButtonBuilder::create()
+                ->icon(item->is_editing ? "document-save" : "document-edit")
+                ->text(item->is_editing ? "Save" : "Edit")
+                ->flat(!item->is_editing)
+                ->padding(8, 2)
+                ->cornerRadius(get_btn_radius(config))
+                ->textSize(static_cast<int>(config->metrics.font_size * 0.9f))
+                ->tooltip(item->is_editing ? "Save changes to file (Ctrl+S)" : "Edit file in-place")
+                ->build();
+            if (item->is_editing) {
+                edit_btn->set_background_color(config->colors.primary);
+                edit_btn->set_text_color(config->colors.on_primary);
+            }
+            edit_btn->set_focusable(true);
+            edit_btn->set_on_click_listener([this, item]() {
+                if (!item) return;
+                if (!item->is_editing) {
+                    item->is_editing = true;
+                    item->last_action_message.clear();
+                } else {
+                    std::ofstream ofs(item->path);
+                    if (ofs.is_open()) {
+                        ofs << item->text_content;
+                        ofs.flush();
+                        ofs.close();
+                        std::error_code ec;
+                        item->size_bytes = fs::file_size(item->path, ec);
+                        item->size_formatted = FilesModel::format_file_size(item->size_bytes);
+                        item->subtitle = item->size_formatted + " • " + item->category_label;
+                        item->last_action_message = "Saved";
+                    } else {
+                        item->last_action_message = "Error saving";
+                    }
+                    item->is_editing = false;
+                }
+                update_preview_ribbon();
+                rebuild_preview_column();
+                notify_state_changed();
+            });
+            m_preview_actions->add_view(edit_btn, LayoutParams(WRAP_CONTENT, 26));
+        }
+
         auto open_btn = ButtonBuilder::create()
             ->icon("media-playback-start")
             ->text("Open")
@@ -659,7 +707,29 @@ void MillerView::update_preview_ribbon() {
 }
 
 bool MillerView::on_key(const KeyPressEvent& event) {
-    (void)event;
+    if (event.pressed && event.has_ctrl() && (event.keysym == XKB_KEY_s || event.keysym == XKB_KEY_S)) {
+        auto item = get_current_selected_item();
+        if (item && item->is_editing) {
+            std::ofstream ofs(item->path);
+            if (ofs.is_open()) {
+                ofs << item->text_content;
+                ofs.flush();
+                ofs.close();
+                std::error_code ec;
+                item->size_bytes = fs::file_size(item->path, ec);
+                item->size_formatted = FilesModel::format_file_size(item->size_bytes);
+                item->subtitle = item->size_formatted + " • " + item->category_label;
+                item->last_action_message = "Saved";
+            } else {
+                item->last_action_message = "Error saving";
+            }
+            item->is_editing = false;
+            update_preview_ribbon();
+            rebuild_preview_column();
+            notify_state_changed();
+            return true;
+        }
+    }
     return false;
 }
 

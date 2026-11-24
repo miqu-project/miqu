@@ -92,14 +92,16 @@ FileCategory FilesModel::detect_category(const fs::path& path, bool is_dir) {
         return FileCategory::Archive;
     }
 
-    if (ext == ".txt" || ext == ".md"   || ext == ".cpp" || ext == ".hpp" ||
-        ext == ".c"   || ext == ".h"    || ext == ".py"  || ext == ".rs"   ||
-        ext == ".js"  || ext == ".ts"   || ext == ".json"|| ext == ".yaml" ||
-        ext == ".yml" || ext == ".toml" || ext == ".sh"  || ext == ".bash" ||
-        ext == ".zsh" || ext == ".conf" || ext == ".ini" || ext == ".xml"  ||
-        ext == ".html"|| ext == ".css"  || ext == ".scss"|| ext == ".go"   ||
-        ext == ".java"|| ext == ".lua"  || ext == ".csv" || ext == ".patch"||
-        ext == ".diff"|| ext == ".service" || ext == ".desktop") {
+    if (ext == ".txt" || ext == ".text" || ext == ".log"  || ext == ".md"   ||
+        ext == ".cpp" || ext == ".hpp" || ext == ".c"   || ext == ".h"    ||
+        ext == ".py"  || ext == ".rs"   || ext == ".js"  || ext == ".ts"   ||
+        ext == ".json"|| ext == ".jsonl"|| ext == ".yaml"|| ext == ".yml"  ||
+        ext == ".toml"|| ext == ".sh"   || ext == ".bash"|| ext == ".zsh"  ||
+        ext == ".conf"|| ext == ".cfg"  || ext == ".ini" || ext == ".env"  ||
+        ext == ".xml" || ext == ".html" || ext == ".css" || ext == ".scss" ||
+        ext == ".go"  || ext == ".java" || ext == ".lua" || ext == ".sql"  ||
+        ext == ".csv" || ext == ".patch"|| ext == ".diff"|| ext == ".service" ||
+        ext == ".desktop") {
         return FileCategory::CodeText;
     }
 
@@ -306,6 +308,8 @@ std::shared_ptr<FileItem> FilesModel::create_file_item(const fs::path& p) {
     } else {
         item->size_formatted = "-";
     }
+
+    item->is_text_file = (item->category == FileCategory::CodeText && item->size_bytes <= 1024 * 1024 * 2);
 
     item->subtitle = item->size_formatted + " • " + item->category_label;
     return item;

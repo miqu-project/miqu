@@ -2,6 +2,7 @@
 #include "preview_common.hpp"
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <iostream>
 #include <cstdlib>
 #include <gdk-pixbuf/gdk-pixbuf.h>
@@ -141,52 +142,72 @@ void MillerView::render_photo_preview(const std::shared_ptr<FileItem>& item, con
 void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config) {
     if (!item) return;
 
-    // 1. Text / Code Preview Card (if applicable)
+    // 1. Text / Code Preview & In-place Editor Card (if applicable)
     bool has_text_preview = false;
-    if ((item->category == FileCategory::CodeText || item->category == FileCategory::Document) &&
-        item->size_bytes > 0 && item->size_bytes < 1024 * 1024 * 5) {
-        std::ifstream ifs(item->path);
-        if (ifs.is_open()) {
-            std::string preview_content;
-            std::string line;
-            int count = 0;
-            while (std::getline(ifs, line) && count < 100) {
-                preview_content += line + "\n";
-                count++;
+    if (item->is_text_file) {
+        if (!item->text_loaded) {
+            std::ifstream ifs(item->path);
+            if (ifs.is_open()) {
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                item->text_content = ss.str();
             }
-
-            if (!preview_content.empty()) {
-                has_text_preview = true;
-                auto code_card = LinearLayoutBuilder::create()
-                    ->orientation(Orientation::Vertical)
-                    ->padding(14, 12)
-                    ->spacing(8)
-                    ->backgroundColor(config->colors.surface)
-                    ->stroke(1, config->colors.outline.with_alpha(0.3f))
-                    ->cornerRadius(get_card_radius(config))
-                    ->build();
-
-                auto code_header = TextViewBuilder::create()
-                    ->text("File Preview (" + std::to_string(count) + " lines)")
-                    ->caption(true)
-                    ->textColor(config->colors.primary)
-                    ->build();
-                code_card->add_view(code_header);
-
-                auto code_text = TextViewBuilder::create()
-                    ->text(preview_content)
-                    ->fontFamily("Monospace")
-                    ->textSize(static_cast<int>(config->metrics.font_size * 0.95f))
-                    ->multiline(true)
-                    ->wrapMode(WrapMode::WordChar)
-                    ->textColor(config->colors.on_surface)
-                    ->build();
-                code_card->add_view(code_text, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
-                code_card->set_focusable(true);
-
-                add_preview_card(code_card);
-            }
+            item->text_loaded = true;
         }
+
+        has_text_preview = true;
+        auto code_card = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->padding(16, 14)
+            ->spacing(8)
+            ->backgroundColor(config->colors.surface)
+            ->stroke(1, item->is_editing ? config->colors.primary.with_alpha(0.85f)
+                                         : config->colors.outline.with_alpha(0.3f))
+            ->cornerRadius(get_card_radius(config))
+            ->build();
+
+        int line_count = 1;
+        for (char c : item->text_content) {
+            if (c == '\n') line_count++;
+        }
+
+        std::string header_str = item->title + " (" + std::to_string(line_count) + " lines)";
+        if (item->is_editing) {
+            header_str += " • Editing";
+        } else if (!item->last_action_message.empty()) {
+            header_str += " • " + item->last_action_message;
+        }
+
+        auto code_header = TextViewBuilder::create()
+            ->text(header_str)
+            ->caption(true)
+            ->textColor(item->is_editing ? config->colors.primary : config->colors.on_surface_variant.with_alpha(0.7f))
+            ->build();
+        code_card->add_view(code_header);
+
+        auto edit_view = EditTextBuilder::create()
+            ->text(item->text_content)
+            ->fontFamily("Monospace")
+            ->hint("# Empty file...")
+            ->multiline(true)
+            ->drawBackground(false)
+            ->editable(item->is_editing)
+            ->onTextChanged([item](std::shared_ptr<EditText> /*view*/, const std::string& new_text) {
+                if (item) {
+                    item->text_content = new_text;
+                }
+            })
+            ->build();
+
+        if (item->is_editing) {
+            edit_view->set_focused(true);
+        }
+
+        LayoutParams edit_lp(MATCH_PARENT, WRAP_CONTENT);
+        code_card->add_view(edit_view, edit_lp);
+        code_card->set_focusable(true);
+
+        add_preview_card(code_card);
     }
 
     // 2. If no text preview (e.g. binary, empty file, archive, media), show a clean overview card

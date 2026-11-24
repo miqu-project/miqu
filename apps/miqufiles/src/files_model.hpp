@@ -52,6 +52,12 @@ public:
     std::string action_label = "Open";
     std::string last_action_message;
 
+    // In-place text editing
+    bool is_text_file = false;
+    bool is_editing = false;
+    bool text_loaded = false;
+    std::string text_content;
+
     void ensure_children() {
         if (provider) {
             auto p = std::move(provider);
