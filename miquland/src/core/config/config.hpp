@@ -548,8 +548,8 @@ public:
     void add_monitor_rule(const MonitorRule& rule) { m_monitor_rules.push_back(rule); }
     const MonitorRule* find_monitor_rule(const std::string& name) const;
 
-    const std::vector<std::string>& get_exec_commands() const { return m_exec_commands; }
-    const std::vector<std::string>& get_exec_once_commands() const { return m_exec_once_commands; }
+    const std::vector<std::string>& get_autostart_commands() const { return m_autostart_commands; }
+    const std::vector<std::string>& get_reload_commands() const { return m_reload_commands; }
     const std::vector<std::string>& get_plugins() const { return m_plugins; }
 
     static std::string get_config_file_path();
@@ -573,13 +573,13 @@ private:
                    std::vector<GestureBinding>& file_gestures, bool& has_gestures_in_file,
                    std::vector<WindowRule>& file_rules, bool& has_rules_in_file,
                    std::vector<MonitorRule>& file_monitors, bool& has_monitors_in_file,
-                   std::vector<std::string>& file_exec_cmds, std::vector<std::string>& file_exec_once_cmds, int depth = 0);
+                   std::vector<std::string>& file_reload_cmds, std::vector<std::string>& file_autostart_cmds, int depth = 0);
     std::string resolve_path(const std::string& path) const;
 
     // Modular section parsers
     void parse_plugins_entry(const std::string& key, const std::string& value);
-    void parse_autostart_entry(const std::string& key, const std::string& value,
-                               std::vector<std::string>& file_exec_cmds, std::vector<std::string>& file_exec_once_cmds);
+    void parse_autostart_line(const std::string& line, std::vector<std::string>& file_autostart_cmds);
+    void parse_on_reload_line(const std::string& line, std::vector<std::string>& file_reload_cmds);
     void parse_monitors_entry(const std::string& key, const std::string& value,
                               std::vector<MonitorRule>& file_monitors, bool& has_monitors_in_file);
     void parse_cursor_entry(const std::string& key, const std::string& value);
@@ -605,8 +605,8 @@ private:
     void parse_animation_directive(const std::string& value);
 
     std::vector<MonitorRule> m_monitor_rules;
-    std::vector<std::string> m_exec_commands;
-    std::vector<std::string> m_exec_once_commands;
+    std::vector<std::string> m_reload_commands;
+    std::vector<std::string> m_autostart_commands;
 
     bool m_smart_gaps = false;
     bool m_gamma_enabled = false;

@@ -24,6 +24,13 @@ static std::string trim(const std::string& str) {
     return str.substr(first, (last - first + 1));
 }
 
+static std::string trim_whitespace(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return "";
+    size_t last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, (last - first + 1));
+}
+
 Config& Config::get() {
     static Config instance;
     return instance;
@@ -94,8 +101,8 @@ void Config::set_defaults() {
     m_gesture_bindings.clear();
     m_window_rules.clear();
     m_monitor_rules.clear();
-    m_exec_commands.clear();
-    m_exec_once_commands.clear();
+    m_reload_commands.clear();
+    m_autostart_commands.clear();
     m_blurred_layers.clear();
     m_plugins.clear();
 
@@ -1137,8 +1144,8 @@ std::string Config::init_user_config() {
     return config_path;
 }
 
-static std::string resolve_exec_command(const std::string& raw_cmd) {
-    std::string cmd = trim(raw_cmd);
+static std::string resolve_command(const std::string& raw_cmd) {
+    std::string cmd = trim_whitespace(raw_cmd);
     if (cmd.empty()) return "";
 
     // Find the first token (binary or script path)
@@ -1344,7 +1351,7 @@ static bool is_hex_color_at(const std::string& str, size_t pos) {
 }
 
 static void strip_inline_comment(const std::string& key, std::string& value) {
-    if (key == "bind" || key == "gesture" || key == "exec" || key == "exec_once") {
+    if (key == "bind" || key == "gesture") {
         return;
     }
 
@@ -1372,20 +1379,66 @@ static void strip_inline_comment(const std::string& key, std::string& value) {
     }
 }
 
+static void strip_command_comment(std::string& cmd) {
+    bool in_quotes = false;
+    char quote_char = 0;
+    size_t comment_pos = std::string::npos;
+
+    for (size_t i = 0; i < cmd.size(); ++i) {
+        char c = cmd[i];
+        if (!in_quotes && (c == '"' || c == '\'')) {
+            in_quotes = true;
+            quote_char = c;
+        } else if (in_quotes && c == quote_char) {
+            in_quotes = false;
+        } else if (!in_quotes && c == '#') {
+            comment_pos = i;
+            break;
+        }
+    }
+
+    if (comment_pos != std::string::npos) {
+        cmd = trim_whitespace(cmd.substr(0, comment_pos));
+    }
+}
+
 void Config::parse_plugins_entry(const std::string& key, const std::string& value) {
     if (key == "load") {
         m_plugins.push_back(value);
     }
 }
 
-void Config::parse_autostart_entry(const std::string& key, const std::string& value,
-                                   std::vector<std::string>& file_exec_cmds, std::vector<std::string>& file_exec_once_cmds) {
-    if (key == "exec_once") {
-        std::string resolved_cmd = resolve_exec_command(value);
-        if (!resolved_cmd.empty()) file_exec_once_cmds.push_back(resolved_cmd);
-    } else if (key == "exec") {
-        std::string resolved_cmd = resolve_exec_command(value);
-        if (!resolved_cmd.empty()) file_exec_cmds.push_back(resolved_cmd);
+void Config::parse_autostart_line(const std::string& line, std::vector<std::string>& file_autostart_cmds) {
+    std::string cmd = line;
+    strip_command_comment(cmd);
+    cmd = trim_whitespace(cmd);
+    if (cmd.empty()) return;
+
+    // Strip trailing & if present (processes are spawned asynchronously by dispatcher)
+    if (cmd.back() == '&') {
+        cmd = trim_whitespace(cmd.substr(0, cmd.size() - 1));
+    }
+
+    std::string resolved = resolve_command(cmd);
+    if (!resolved.empty()) {
+        file_autostart_cmds.push_back(resolved);
+    }
+}
+
+void Config::parse_on_reload_line(const std::string& line, std::vector<std::string>& file_reload_cmds) {
+    std::string cmd = line;
+    strip_command_comment(cmd);
+    cmd = trim_whitespace(cmd);
+    if (cmd.empty()) return;
+
+    // Strip trailing & if present
+    if (cmd.back() == '&') {
+        cmd = trim_whitespace(cmd.substr(0, cmd.size() - 1));
+    }
+
+    std::string resolved = resolve_command(cmd);
+    if (!resolved.empty()) {
+        file_reload_cmds.push_back(resolved);
     }
 }
 
@@ -2438,7 +2491,7 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
                        std::vector<GestureBinding>& file_gestures, bool& has_gestures_in_file,
                        std::vector<WindowRule>& file_rules, bool& has_rules_in_file,
                        std::vector<MonitorRule>& file_monitors, bool& has_monitors_in_file,
-                       std::vector<std::string>& file_exec_cmds, std::vector<std::string>& file_exec_once_cmds, int depth) {
+                       std::vector<std::string>& file_reload_cmds, std::vector<std::string>& file_autostart_cmds, int depth) {
     if (depth > 5) {
         log_error("Maximum config include depth exceeded for " + path);
         return;
@@ -2465,7 +2518,7 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
     std::string line;
 
     while (std::getline(file, line)) {
-        std::string trimmed = trim(line);
+        std::string trimmed = trim_whitespace(line);
         if (trimmed.empty() || trimmed[0] == '#') continue;
 
         if (trimmed.back() == '{') {
@@ -2480,6 +2533,21 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
             continue;
         }
 
+        std::string path_str = get_current_section_path(section_stack);
+        std::string top_type = section_stack.empty() ? "" : section_stack.back().type;
+
+        // Structured autostart block: commands run once on session startup
+        if (path_str == "autostart" || top_type == "autostart") {
+            parse_autostart_line(trimmed, file_autostart_cmds);
+            continue;
+        }
+
+        // Structured on_reload block: commands run every time config reloads
+        if (path_str == "on_reload" || top_type == "on_reload" || path_str == "reload" || top_type == "reload") {
+            parse_on_reload_line(trimmed, file_reload_cmds);
+            continue;
+        }
+
         size_t eq_pos = trimmed.find('=');
         if (eq_pos == std::string::npos) continue;
 
@@ -2491,9 +2559,6 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
         if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
             value = value.substr(1, value.size() - 2);
         }
-
-        std::string path_str = get_current_section_path(section_stack);
-        std::string top_type = section_stack.empty() ? "" : section_stack.back().type;
 
         if (key == "source") {
             std::string resolved = resolve_path(value);
@@ -2512,7 +2577,7 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
                 log_info("Sourcing configuration from " + resolved);
                 load_file(resolved, file_bindings, has_bindings_in_file, file_gestures, has_gestures_in_file,
                           file_rules, has_rules_in_file, file_monitors, has_monitors_in_file,
-                          file_exec_cmds, file_exec_once_cmds, depth + 1);
+                          file_reload_cmds, file_autostart_cmds, depth + 1);
             } else {
                 log_error("Config source file not found: " + value + " (resolved to " + resolved + ")");
             }
@@ -2543,8 +2608,6 @@ void Config::load_file(const std::string& path, std::vector<KeyBinding>& file_bi
             }
         } else if (path_str == "plugins" || top_type == "plugins") {
             parse_plugins_entry(key, value);
-        } else if (path_str == "autostart" || top_type == "autostart" || key == "exec" || key == "exec_once") {
-            parse_autostart_entry(key, value, file_exec_cmds, file_exec_once_cmds);
         } else if (path_str == "monitors" || top_type == "monitors" || key == "monitor") {
             parse_monitors_entry(key, value, file_monitors, has_monitors_in_file);
         } else if (path_str == "cursor" || top_type == "cursor") {
@@ -2587,8 +2650,8 @@ void Config::load() {
     std::vector<GestureBinding> file_gestures;
     std::vector<WindowRule> file_rules;
     std::vector<MonitorRule> file_monitors;
-    std::vector<std::string> file_exec_cmds;
-    std::vector<std::string> file_exec_once_cmds;
+    std::vector<std::string> file_reload_cmds;
+    std::vector<std::string> file_autostart_cmds;
     m_blurred_layers.clear();
     m_layer_rules.clear();
     m_plugins.clear();
@@ -2596,14 +2659,14 @@ void Config::load() {
     m_custom_beziers.clear();
     Easing::clear_named_beziers();
 
-    load_file(path, file_bindings, has_bindings_in_file, file_gestures, has_gestures_in_file, file_rules, has_rules_in_file, file_monitors, has_monitors_in_file, file_exec_cmds, file_exec_once_cmds, 0);
+    load_file(path, file_bindings, has_bindings_in_file, file_gestures, has_gestures_in_file, file_rules, has_rules_in_file, file_monitors, has_monitors_in_file, file_reload_cmds, file_autostart_cmds, 0);
 
     m_keybindings = std::move(file_bindings);
     m_gesture_bindings = std::move(file_gestures);
     m_window_rules = std::move(file_rules);
     m_monitor_rules = std::move(file_monitors);
-    m_exec_commands = std::move(file_exec_cmds);
-    m_exec_once_commands = std::move(file_exec_once_cmds);
+    m_reload_commands = std::move(file_reload_cmds);
+    m_autostart_commands = std::move(file_autostart_cmds);
 
     log_info("Loaded configuration from " + path);
 }
@@ -2630,14 +2693,21 @@ void Config::save() {
         file << "}\n\n";
     }
 
-    file << "autostart {\n";
-    for (const auto& cmd : m_exec_once_commands) {
-        file << "    exec_once = " << cmd << "\n";
+    if (!m_autostart_commands.empty()) {
+        file << "autostart {\n";
+        for (const auto& cmd : m_autostart_commands) {
+            file << "    " << cmd << "\n";
+        }
+        file << "}\n\n";
     }
-    for (const auto& cmd : m_exec_commands) {
-        file << "    exec = " << cmd << "\n";
+
+    if (!m_reload_commands.empty()) {
+        file << "on_reload {\n";
+        for (const auto& cmd : m_reload_commands) {
+            file << "    " << cmd << "\n";
+        }
+        file << "}\n\n";
     }
-    file << "}\n\n";
 
     file << "cursor {\n";
     if (!m_cursor_theme.empty()) file << "    theme = " << m_cursor_theme << "\n";

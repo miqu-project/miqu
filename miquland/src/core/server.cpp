@@ -661,7 +661,7 @@ void Server::reload_config() {
         m_input_manager->reapply_device_config();
     }
 
-    for (const auto& cmd : Config::get().get_exec_commands()) {
+    for (const auto& cmd : Config::get().get_reload_commands()) {
         if (m_dispatcher) {
             m_dispatcher->spawn_command(cmd.c_str());
         }
@@ -731,10 +731,10 @@ void Server::dispatch_autostart() {
     }
 
     if (m_dispatcher) {
-        for (const auto& cmd : Config::get().get_exec_once_commands()) {
+        for (const auto& cmd : Config::get().get_autostart_commands()) {
             m_dispatcher->spawn_command(cmd.c_str());
         }
-        for (const auto& cmd : Config::get().get_exec_commands()) {
+        for (const auto& cmd : Config::get().get_reload_commands()) {
             m_dispatcher->spawn_command(cmd.c_str());
         }
     }
