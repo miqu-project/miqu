@@ -113,7 +113,6 @@ private:
     void render_firewall_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_app_network_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_brightness_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
-    void render_tiling_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_wallpaper_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_icon_packs_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_cursor_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);

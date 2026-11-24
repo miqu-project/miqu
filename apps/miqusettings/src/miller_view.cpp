@@ -833,8 +833,6 @@ void MillerView::rebuild_preview_column() {
         render_app_network_preview(item, config);
     } else if (item->is_display_brightness) {
         render_brightness_preview(item, config);
-    } else if (item->is_tiling_config) {
-        render_tiling_preview(item, config);
     } else if (item->is_wallpaper || item->id == "ws_wallpaper") {
         render_wallpaper_preview(item, config);
     } else if (item->is_icon_packs || item->id == "ws_icon_packs") {

@@ -131,39 +131,7 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     }
 
     // ==============================================================================
-    // 2. Window Management (Depth 1)
-    // ==============================================================================
-    {
-        auto shared_tiling = std::make_shared<TilingConfig>();
-
-        // 2.1 Layout Mode
-        auto tile_mode = SettingItem::create_leaf("tile_mode", "Layout Mode", "", "preferences-system-windows");
-        tile_mode->is_tiling_config = true;
-        tile_mode->tiling_cfg = shared_tiling;
-
-        // 2.2 Windows
-        auto tile_windows = SettingItem::create_leaf("tile_windows", "Windows", "", "preferences-system-windows");
-        tile_windows->is_tiling_config = true;
-        tile_windows->tiling_cfg = shared_tiling;
-
-        // 2.3 Dwindle (BSP) Tuning
-        auto tile_split = SettingItem::create_leaf("tile_split", "Dwindle (BSP) Tuning", "", "view-split-left-right");
-        tile_split->is_tiling_config = true;
-        tile_split->tiling_cfg = shared_tiling;
-
-        // 2.4 Focus Behaviour
-        auto tile_focus = SettingItem::create_leaf("tile_focus", "Focus Behaviour", "", "input-mouse");
-        tile_focus->is_tiling_config = true;
-        tile_focus->tiling_cfg = shared_tiling;
-
-        root.push_back(SettingItem::create_category(
-            "cat_tiling", "Window Management", "preferences-system-windows",
-            {tile_mode, tile_windows, tile_split, tile_focus}
-        ));
-    }
-
-    // ==============================================================================
-    // 3. Bindings (Depth 1)
+    // 2. Bindings (Depth 1)
     // ==============================================================================
     {
         // 3.1 Keybindings
