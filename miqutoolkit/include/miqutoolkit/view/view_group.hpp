@@ -44,6 +44,14 @@ public:
     bool on_mouse_move(int lx, int ly, const Rect& bounds) override;
     bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
     bool on_key(const KeyPressEvent& event) override;
+    bool captures_text_input() const override {
+        for (const auto& child : m_children) {
+            if (child && child->captures_text_input()) {
+                return true;
+            }
+        }
+        return false;
+    }
     bool on_scroll(double delta) override;
     bool on_touch(const TouchEvent& event, const Rect& bounds) override;
     std::shared_ptr<View> find_view_at(int lx, int ly, Rect* out_bounds = nullptr) override;

@@ -1461,8 +1461,8 @@ bool MillerView::focus_prev_preview_control() {
 bool MillerView::is_editor_focused() const {
     if (!m_window) return false;
     View* cur = m_window->get_focused_view();
-    if (auto* et = dynamic_cast<EditText*>(cur)) {
-        return et->is_editable();
+    if (cur && cur->captures_text_input()) {
+        return true;
     }
     auto item = get_current_selected_item();
     return item && item->is_editing;

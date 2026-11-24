@@ -1272,7 +1272,34 @@ void Window::dispatch_key_event(const KeyPressEvent& event) {
         return;
     }
 
-    // 3. Window Accelerators / Shortcuts (Pre-dispatch phase)
+    bool is_text_input = (m_focused_view && m_focused_view->captures_text_input());
+    if (is_text_input) {
+        // 1. Text input views receive typing and cursor navigation FIRST.
+        // Single characters, hjkl, spaces, backspace, and text editing shortcuts (Ctrl+C, Ctrl+V, etc.)
+        // are consumed directly by the active editor.
+        if (m_focused_view->on_key(event)) {
+            schedule_redraw();
+            return;
+        }
+
+        // 2. Unconsumed keys (e.g. Escape, Ctrl+S, Ctrl+Q, F11, Up/Down in search) bubble to window shortcuts
+        if (m_on_shortcut) {
+            if (m_on_shortcut(event)) {
+                schedule_redraw();
+                return;
+            }
+        }
+
+        // 3. App-level general key handler receives unconsumed keys
+        if (m_on_key) {
+            m_on_key(event);
+        }
+
+        // Spatial navigation is explicitly suppressed during text input
+        return;
+    }
+
+    // 3. Window Accelerators / Shortcuts (Pre-dispatch phase for non-text views)
     if (m_on_shortcut) {
         if (m_on_shortcut(event)) {
             schedule_redraw();

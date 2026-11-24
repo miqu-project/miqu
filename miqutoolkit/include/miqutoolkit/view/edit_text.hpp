@@ -64,6 +64,9 @@ public:
     Size measure_size(int avail_width) const override;
 
     bool on_key(const KeyPressEvent& event) override;
+    bool captures_text_input() const override {
+        return is_visible() && is_enabled() && m_editable && (has_focus() || is_focused());
+    }
     bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
 
 private:

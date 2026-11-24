@@ -378,7 +378,7 @@ bool EditText::on_key(const KeyPressEvent& event) {
             if (m_window) m_window->schedule_redraw();
             return true;
         }
-        return m_editable;
+        return false;
     }
 
     if (event.keysym == XKB_KEY_Down) {
@@ -398,7 +398,7 @@ bool EditText::on_key(const KeyPressEvent& event) {
             if (m_window) m_window->schedule_redraw();
             return true;
         }
-        return m_editable;
+        return false;
     }
 
     if (event.keysym == XKB_KEY_Home) {

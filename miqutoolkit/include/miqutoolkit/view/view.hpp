@@ -72,6 +72,7 @@ public:
         }
         return false;
     }
+    virtual bool captures_text_input() const { return false; }
     virtual bool on_scroll(double delta) { (void)delta; return false; }
     virtual bool on_touch(const TouchEvent& event, const Rect& bounds) {
         if (!is_visible() || !is_enabled()) return false;

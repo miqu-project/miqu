@@ -217,6 +217,19 @@ bool LauncherWindow::init() {
         ->onShortcut([this](const KeyPressEvent& event) -> bool {
             if (!event.pressed) return false;
 
+            // When search is capturing input, navigate search results with Down/Up/Page navigation
+            if (m_search && m_search->captures_text_input()) {
+                if (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_KP_Down) {
+                    return m_is_list_view ? (m_list && m_list->on_key(event)) : (m_grid && m_grid->on_key(event));
+                }
+                if (event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_KP_Up) {
+                    return m_is_list_view ? (m_list && m_list->on_key(event)) : (m_grid && m_grid->on_key(event));
+                }
+                if (event.keysym == XKB_KEY_Page_Down || event.keysym == XKB_KEY_Page_Up) {
+                    return m_is_list_view ? (m_list && m_list->on_key(event)) : (m_grid && m_grid->on_key(event));
+                }
+            }
+
             if (event.has_ctrl() && (event.keysym == XKB_KEY_v || event.keysym == XKB_KEY_V)) {
                 toggle_view_mode();
                 return true;
