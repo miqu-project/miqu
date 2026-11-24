@@ -69,6 +69,8 @@ public:
     }
     bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
 
+    void request_scroll_to_cursor() { m_needs_scroll_to_cursor = true; }
+
 private:
     std::string m_text;
     std::string m_hint = "";
@@ -80,6 +82,7 @@ private:
     bool m_password_mode = false;
     bool m_editable = true;
     bool m_multiline = false;
+    bool m_needs_scroll_to_cursor = false;
 
     Color m_text_color;
     Color m_hint_color;

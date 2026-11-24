@@ -30,6 +30,7 @@ void EditText::set_focused(bool focus) {
     if (m_focused != focus) {
         m_focused = focus;
         if (focus) {
+            m_needs_scroll_to_cursor = true;
             if (is_focusable()) {
                 request_focus();
             }
@@ -45,6 +46,9 @@ void EditText::set_focused(bool focus) {
 void EditText::on_focus_changed(bool focused) {
     if (m_focused != focused) {
         m_focused = focused;
+        if (focused) {
+            m_needs_scroll_to_cursor = true;
+        }
         request_redraw();
     }
 }
@@ -52,6 +56,7 @@ void EditText::on_focus_changed(bool focused) {
 void EditText::set_text(std::string text) {
     m_text = std::move(text);
     m_cursor_pos = static_cast<int>(m_text.size());
+    m_needs_scroll_to_cursor = true;
 }
 
 void EditText::clear() {
@@ -267,7 +272,8 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
         cairo_line_to(cr, cur_x, cur_y + cur_h);
         cairo_stroke(cr);
 
-        if (m_multiline) {
+        if (m_multiline && m_needs_scroll_to_cursor) {
+            m_needs_scroll_to_cursor = false;
             ViewGroup* p = get_parent();
             while (p) {
                 if (auto* sv = dynamic_cast<ScrollView*>(p)) {
@@ -288,7 +294,8 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
         cairo_line_to(cr, text_draw_x, text_draw_y + text_h);
         cairo_stroke(cr);
 
-        if (m_multiline) {
+        if (m_multiline && m_needs_scroll_to_cursor) {
+            m_needs_scroll_to_cursor = false;
             ViewGroup* p = get_parent();
             while (p) {
                 if (auto* sv = dynamic_cast<ScrollView*>(p)) {
@@ -312,54 +319,42 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
 bool EditText::on_key(const KeyPressEvent& event) {
     if (!m_editable || !m_focused || !event.pressed) return false;
 
+    bool handled = false;
+
     if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
         if (m_multiline) {
             m_text.insert(m_cursor_pos, "\n");
             m_cursor_pos++;
             if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
-            if (m_window) m_window->schedule_redraw();
-            return true;
-        }
-        if (m_on_submit) {
+            handled = true;
+        } else if (m_on_submit) {
             m_on_submit(m_text);
-            return true;
+            handled = true;
         }
-        return false;
-    }
-
-    if (event.keysym == XKB_KEY_BackSpace) {
+    } else if (event.keysym == XKB_KEY_BackSpace) {
         if (!m_text.empty() && m_cursor_pos > 0) {
             m_text.erase(m_cursor_pos - 1, 1);
             m_cursor_pos--;
             if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
         }
-        return true;
-    }
-
-    if (event.keysym == XKB_KEY_Delete) {
+        handled = true;
+    } else if (event.keysym == XKB_KEY_Delete) {
         if (m_cursor_pos < static_cast<int>(m_text.size())) {
             m_text.erase(m_cursor_pos, 1);
             if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
-            return true;
+            handled = true;
         }
-        return false;
-    }
-
-    if (event.keysym == XKB_KEY_Left) {
+    } else if (event.keysym == XKB_KEY_Left) {
         if (m_cursor_pos > 0) {
             m_cursor_pos--;
         }
-        return true;
-    }
-
-    if (event.keysym == XKB_KEY_Right) {
+        handled = true;
+    } else if (event.keysym == XKB_KEY_Right) {
         if (m_cursor_pos < static_cast<int>(m_text.size())) {
             m_cursor_pos++;
         }
-        return true;
-    }
-
-    if (event.keysym == XKB_KEY_Up) {
+        handled = true;
+    } else if (event.keysym == XKB_KEY_Up) {
         if (m_multiline) {
             if (m_cursor_pos > 0) {
                 size_t current_line_start = m_text.rfind('\n', m_cursor_pos - 1);
@@ -375,13 +370,9 @@ bool EditText::on_key(const KeyPressEvent& event) {
             } else {
                 m_cursor_pos = 0;
             }
-            if (m_window) m_window->schedule_redraw();
-            return true;
+            handled = true;
         }
-        return false;
-    }
-
-    if (event.keysym == XKB_KEY_Down) {
+    } else if (event.keysym == XKB_KEY_Down) {
         if (m_multiline) {
             size_t current_line_start = (m_cursor_pos > 0) ? m_text.rfind('\n', m_cursor_pos - 1) : std::string::npos;
             size_t col = (current_line_start == std::string::npos) ? m_cursor_pos : (m_cursor_pos - (current_line_start + 1));
@@ -395,29 +386,19 @@ bool EditText::on_key(const KeyPressEvent& event) {
                 size_t next_line_len = next_line_end - next_line_start;
                 m_cursor_pos = next_line_start + std::min(col, next_line_len);
             }
-            if (m_window) m_window->schedule_redraw();
-            return true;
+            handled = true;
         }
-        return false;
-    }
-
-    if (event.keysym == XKB_KEY_Home) {
+    } else if (event.keysym == XKB_KEY_Home) {
         m_cursor_pos = 0;
-        return true;
-    }
-
-    if (event.keysym == XKB_KEY_End) {
+        handled = true;
+    } else if (event.keysym == XKB_KEY_End) {
         m_cursor_pos = static_cast<int>(m_text.size());
-        return true;
-    }
-
-    if (event.has_ctrl() && (event.keysym == XKB_KEY_u || event.keysym == XKB_KEY_U)) {
+        handled = true;
+    } else if (event.has_ctrl() && (event.keysym == XKB_KEY_u || event.keysym == XKB_KEY_U)) {
         clear();
         if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
-        return true;
-    }
-
-    if (event.has_ctrl() && (event.keysym == XKB_KEY_w || event.keysym == XKB_KEY_W)) {
+        handled = true;
+    } else if (event.has_ctrl() && (event.keysym == XKB_KEY_w || event.keysym == XKB_KEY_W)) {
         while (!m_text.empty() && m_cursor_pos > 0 && m_text[m_cursor_pos - 1] == ' ') {
             m_text.erase(m_cursor_pos - 1, 1);
             m_cursor_pos--;
@@ -427,13 +408,17 @@ bool EditText::on_key(const KeyPressEvent& event) {
             m_cursor_pos--;
         }
         if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
-        return true;
-    }
-
-    if (!event.utf8_text.empty() && event.utf8_text[0] >= 32 && event.utf8_text[0] != 127 && !event.has_ctrl() && !event.has_alt()) {
+        handled = true;
+    } else if (!event.utf8_text.empty() && event.utf8_text[0] >= 32 && event.utf8_text[0] != 127 && !event.has_ctrl() && !event.has_alt()) {
         m_text.insert(m_cursor_pos, event.utf8_text);
         m_cursor_pos += static_cast<int>(event.utf8_text.size());
         if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
+        handled = true;
+    }
+
+    if (handled) {
+        m_needs_scroll_to_cursor = true;
+        if (m_window) m_window->schedule_redraw();
         return true;
     }
 
@@ -491,6 +476,7 @@ bool EditText::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
                 cairo_destroy(cr);
                 cairo_surface_destroy(temp_surf);
             }
+            m_needs_scroll_to_cursor = true;
             if (m_window) m_window->schedule_redraw();
             return true;
         }
