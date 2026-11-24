@@ -511,7 +511,7 @@ bool GridView::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
     return false;
 }
 
-bool GridView::on_scroll(double delta) {
+bool GridView::on_scroll(double delta, uint32_t axis_source) {
     int cell_w = 0;
     int cols = compute_columns(m_last_width, cell_w);
     int total_rows = (static_cast<int>(get_item_count()) + cols - 1) / cols;
@@ -519,8 +519,10 @@ bool GridView::on_scroll(double delta) {
     double content_h = total_rows * row_stride - m_space_y;
     double max_scroll = std::max(0.0, content_h - m_last_height);
 
+    const double multiplier = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER) ? 1.0 : 30.0;
+
     double old_scroll = m_scroll_y;
-    m_scroll_y = std::clamp(m_scroll_y + delta * 30.0, 0.0, max_scroll);
+    m_scroll_y = std::clamp(m_scroll_y + delta * multiplier, 0.0, max_scroll);
 
     if (m_scroll_y != old_scroll) {
         request_redraw();

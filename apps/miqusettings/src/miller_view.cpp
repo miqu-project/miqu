@@ -559,24 +559,24 @@ bool MillerView::on_mouse_button(int lx, int ly, MouseButton button, bool presse
     return LinearLayout::on_mouse_button(lx, ly, button, pressed, bounds);
 }
 
-bool MillerView::on_scroll(double delta) {
+bool MillerView::on_scroll(double delta, uint32_t axis_source) {
     if (!is_visible() || !is_enabled()) return false;
     Point pt(m_last_mouse_x, m_last_mouse_y);
 
     if (m_preview_pillar && m_preview_pillar->get_bounds().contains(pt)) {
-        if (m_category_list && m_category_list->is_visible()) return m_category_list->on_scroll(delta);
-        if (m_preview_scroll && m_preview_scroll->is_visible()) return m_preview_scroll->on_scroll(delta);
+        if (m_category_list && m_category_list->is_visible()) return m_category_list->on_scroll(delta, axis_source);
+        if (m_preview_scroll && m_preview_scroll->is_visible()) return m_preview_scroll->on_scroll(delta, axis_source);
         return false;
     }
 
     if (m_current_pillar && m_current_pillar->get_bounds().contains(pt)) {
-        return m_current_list && m_current_list->is_visible() && m_current_list->on_scroll(delta);
+        return m_current_list && m_current_list->is_visible() && m_current_list->on_scroll(delta, axis_source);
     }
     if (m_parent_pillar && m_parent_pillar->get_bounds().contains(pt)) {
-        return m_parent_list && m_parent_list->is_visible() && m_parent_list->on_scroll(delta);
+        return m_parent_list && m_parent_list->is_visible() && m_parent_list->on_scroll(delta, axis_source);
     }
 
-    return LinearLayout::on_scroll(delta);
+    return LinearLayout::on_scroll(delta, axis_source);
 }
 
 const std::vector<std::shared_ptr<SettingItem>>& MillerView::get_current_list() const {

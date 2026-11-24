@@ -202,11 +202,18 @@ bool ScrollView::on_mouse_button(int lx, int ly, MouseButton button, bool presse
     return false;
 }
 
-bool ScrollView::on_scroll(double delta) {
+bool ScrollView::on_scroll(double delta, uint32_t axis_source) {
     if (!is_visible() || m_max_scroll <= 0.0) return false;
 
+    // WL_POINTER_AXIS_SOURCE_FINGER == 1
+    // For touchpad (finger), libinput delivers continuous sub-pixel deltas at
+    // 60-120 Hz that are already in surface-local pixels — use them 1:1.
+    // For a discrete mouse wheel (source 0=unknown, 2=wheel, 3=continuous),
+    // one notch is ~10 px raw; multiply by 30 to get a comfortable scroll step.
+    const double multiplier = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER) ? 1.0 : 30.0;
+
     double old_scroll = m_scroll_y;
-    m_scroll_y = std::clamp(m_scroll_y + delta * 30.0, 0.0, m_max_scroll);
+    m_scroll_y = std::clamp(m_scroll_y + delta * multiplier, 0.0, m_max_scroll);
 
     if (m_scroll_y != old_scroll) {
         if (m_window) m_window->schedule_redraw();

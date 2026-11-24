@@ -36,7 +36,7 @@ public:
 
     void sync_theme();
     bool on_mouse_move(int lx, int ly, const miqu::Rect& bounds) override;
-    bool on_scroll(double delta) override;
+    bool on_scroll(double delta, uint32_t axis_source = 0) override;
 
     void update_telemetry();
     void update_clock();

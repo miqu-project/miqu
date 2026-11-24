@@ -230,11 +230,11 @@ bool NavigationView::on_mouse_button(int lx, int ly, MouseButton button, bool pr
     return false;
 }
 
-bool NavigationView::on_scroll(double delta) {
+bool NavigationView::on_scroll(double delta, uint32_t axis_source) {
     if (!is_visible() || m_stack.empty()) return false;
     auto& top = m_stack.back();
     if (top.view && top.view->is_visible()) {
-        return top.view->on_scroll(delta);
+        return top.view->on_scroll(delta, axis_source);
     }
     return false;
 }

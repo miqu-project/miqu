@@ -93,7 +93,7 @@ public:
     bool on_key(const KeyPressEvent& event) override;
     bool on_mouse_move(int lx, int ly, const Rect& bounds) override;
     bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
-    bool on_scroll(double delta) override;
+    bool on_scroll(double delta, uint32_t axis_source = 0) override;
     bool on_touch(const TouchEvent& event, const Rect& bounds) override;
 
 private:

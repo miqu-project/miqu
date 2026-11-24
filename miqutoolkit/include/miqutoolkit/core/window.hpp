@@ -213,6 +213,7 @@ private:
     struct xkb_keymap* m_xkb_keymap = nullptr;
     struct xkb_state* m_xkb_state = nullptr;
     uint32_t m_modifiers = 0;
+    uint32_t m_last_axis_source = 0; // WL_POINTER_AXIS_SOURCE_* (0 = unknown/wheel default)
 
     std::unique_ptr<ShmPool> m_shm_pool;
     std::shared_ptr<View> m_root_view;

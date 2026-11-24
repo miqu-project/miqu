@@ -166,7 +166,7 @@ bool BarRootView::on_mouse_move(int lx, int ly, const miqu::Rect& bounds) {
     return miqu::CardView::on_mouse_move(lx, ly, bounds);
 }
 
-bool BarRootView::on_scroll(double) {
+bool BarRootView::on_scroll(double, uint32_t) {
     // Zero scroll response across miqubar to prevent accidental touch/trackpad triggers
     return false;
 }

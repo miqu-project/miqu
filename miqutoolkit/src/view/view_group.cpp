@@ -368,12 +368,12 @@ bool ViewGroup::on_key(const KeyPressEvent& event) {
     return false;
 }
 
-bool ViewGroup::on_scroll(double delta) {
+bool ViewGroup::on_scroll(double delta, uint32_t axis_source) {
     if (!is_visible()) return false;
 
     for (auto& child : m_children) {
         if (child && child->is_visible()) {
-            if (child->on_scroll(delta)) {
+            if (child->on_scroll(delta, axis_source)) {
                 return true;
             }
         }

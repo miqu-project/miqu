@@ -441,13 +441,18 @@ bool ListView::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
     return false;
 }
 
-bool ListView::on_scroll(double delta) {
+bool ListView::on_scroll(double delta, uint32_t axis_source) {
     int row_stride = m_item_h + m_spacing;
     double content_h = m_items.size() * row_stride - m_spacing;
     double max_scroll = std::max(0.0, content_h - m_last_height);
 
+    // WL_POINTER_AXIS_SOURCE_FINGER == 1: touchpad deltas are already in
+    // surface pixels — use 1:1. Mouse wheel notches are ~10 px raw, so
+    // multiply by 30 to scroll a comfortable distance per click.
+    const double multiplier = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER) ? 1.0 : 30.0;
+
     double old_scroll = m_scroll_y;
-    m_scroll_y = std::clamp(m_scroll_y + delta * 30.0, 0.0, max_scroll);
+    m_scroll_y = std::clamp(m_scroll_y + delta * multiplier, 0.0, max_scroll);
     return std::abs(m_scroll_y - old_scroll) > 0.01;
 }
 

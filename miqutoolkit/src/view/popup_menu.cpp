@@ -187,11 +187,15 @@ public:
         return false;
     }
 
-    bool on_scroll(double delta) override {
+    bool on_scroll(double delta, uint32_t axis_source = 0) override {
         int max_scroll = std::max(0, get_total_content_height() - (m_max_visible_items * m_item_height));
         if (max_scroll <= 0) return false;
 
-        int scroll_step = m_item_height;
+        // For touchpad (finger), delta is in surface pixels — a small divisor
+        // avoids overshooting individual menu items. For wheel, one notch (~10px
+        // raw) × item_height gives a natural one-item-per-click feel.
+        int scroll_step = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER)
+                          ? 1 : m_item_height;
         int new_offset = m_scroll_offset + static_cast<int>(delta * scroll_step);
         new_offset = std::clamp(new_offset, 0, max_scroll);
 
