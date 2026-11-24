@@ -179,7 +179,6 @@ private:
     std::shared_ptr<LinearLayout> m_preview_ribbon;
     std::shared_ptr<CardView> m_preview_edit_btn;
     std::shared_ptr<ImageView> m_preview_edit_icon;
-    std::shared_ptr<CardView> m_preview_save_btn;
     std::shared_ptr<CardView> m_preview_refresh_btn;
     std::shared_ptr<TextView> m_preview_refresh_icon;
     std::shared_ptr<CardView> m_preview_toggle_btn;

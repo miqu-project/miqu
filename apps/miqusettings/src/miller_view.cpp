@@ -255,7 +255,7 @@ void MillerView::init() {
     });
     m_preview_toggle_btn->set_focusable(true);
 
-    // 3a.1 Edit (Pen) button in ribbon
+    // 3a.1 Edit (Pen) / Save morphing button in ribbon
     m_preview_edit_icon = ImageViewBuilder::create()
         ->source("document-edit")
         ->targetSize(16)
@@ -271,65 +271,27 @@ void MillerView::init() {
         ->style(CardStyle::Filled)
         ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
         ->elevation(0)
-        ->tooltip("Edit (pen)")
+        ->tooltip("Edit configuration (pen)")
         ->addView(edit_icon_box)
         ->build();
     m_preview_edit_btn->set_on_click_listener([this]() {
         if (!check_and_update_click_debounce()) return;
         auto item = get_current_selected_item();
         if (item && item->autostart_cfg) {
-            item->autostart_cfg->is_editing = !item->autostart_cfg->is_editing;
-            item->last_action_message.clear();
+            if (!item->autostart_cfg->is_editing) {
+                item->autostart_cfg->is_editing = true;
+                item->last_action_message.clear();
+            } else {
+                bool ok = save_autostart_config(item->autostart_cfg->raw_content);
+                item->last_action_message = ok ? "Saved" : "Error saving";
+                item->autostart_cfg->is_editing = false;
+                notify_state_changed();
+            }
             update_preview_ribbon();
             rebuild_preview_column();
         }
     });
     m_preview_edit_btn->set_focusable(true);
-
-    // 3a.2 Save button in ribbon
-    auto save_icon = ImageViewBuilder::create()
-        ->source("document-save")
-        ->targetSize(14)
-        ->fitMode(FitMode::Contain)
-        ->build();
-    auto save_lbl = TextViewBuilder::create()
-        ->text("Save")
-        ->textSize(config->metrics.font_size - 1)
-        ->bold(true)
-        ->textColor(config->colors.on_primary)
-        ->build();
-    auto save_box = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Horizontal)
-        ->padding(8, 2)
-        ->spacing(4)
-        ->gravity(Gravity::Center)
-        ->addView(save_icon)
-        ->addView(save_lbl)
-        ->build();
-    m_preview_save_btn = CardViewBuilder::create()
-        ->style(CardStyle::Filled)
-        ->backgroundColor(config->colors.primary)
-        ->elevation(0)
-        ->tooltip("Save configuration")
-        ->addView(save_box)
-        ->build();
-    m_preview_save_btn->set_on_click_listener([this]() {
-        if (!check_and_update_click_debounce()) return;
-        auto item = get_current_selected_item();
-        if (item && item->autostart_cfg) {
-            bool ok = save_autostart_config(item->autostart_cfg->raw_content);
-            if (ok) {
-                item->last_action_message = "Saved";
-                item->autostart_cfg->is_editing = false;
-            } else {
-                item->last_action_message = "Error saving";
-            }
-            update_preview_ribbon();
-            rebuild_preview_column();
-            notify_state_changed();
-        }
-    });
-    m_preview_save_btn->set_focusable(true);
 
     m_preview_title = TextViewBuilder::create()
         ->text("")
@@ -339,7 +301,6 @@ void MillerView::init() {
         ->build();
     m_preview_ribbon->add_view(m_preview_title, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
     m_preview_ribbon->add_view(m_preview_edit_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
-    m_preview_ribbon->add_view(m_preview_save_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_ribbon->add_view(m_preview_refresh_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_ribbon->add_view(m_preview_toggle_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_pillar->add_view(m_preview_ribbon, LayoutParams(MATCH_PARENT, 30));
@@ -414,10 +375,10 @@ void MillerView::sync_theme() {
             m_preview_refresh_icon->set_text_color(config->colors.primary);
         }
         if (m_preview_edit_btn) {
-            m_preview_edit_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
-        }
-        if (m_preview_save_btn) {
-            m_preview_save_btn->set_card_background_color(config->colors.primary);
+            auto item = get_current_selected_item();
+            bool editing = item && item->autostart_cfg && item->autostart_cfg->is_editing;
+            m_preview_edit_btn->set_card_background_color(editing ? config->colors.primary.with_alpha(0.35f)
+                                                                  : config->colors.surface_variant.with_alpha(0.35f));
         }
     }
     m_displayed_parent_items.clear();
@@ -506,14 +467,13 @@ void MillerView::update_preview_ribbon() {
         m_preview_edit_btn->set_visibility(is_autostart ? Visibility::Visible : Visibility::Gone);
         if (is_autostart && item->autostart_cfg) {
             bool editing = item->autostart_cfg->is_editing;
+            if (m_preview_edit_icon) {
+                m_preview_edit_icon->set_image_resource(editing ? "document-save" : "document-edit");
+            }
             m_preview_edit_btn->set_card_background_color(editing ? config->colors.primary.with_alpha(0.35f)
                                                                   : config->colors.surface_variant.with_alpha(0.35f));
-            m_preview_edit_btn->set_tooltip(editing ? "Exit editing mode" : "Edit configuration (pen)");
+            m_preview_edit_btn->set_tooltip(editing ? "Save configuration" : "Edit configuration (pen)");
         }
-    }
-    if (m_preview_save_btn) {
-        bool show_save = is_autostart && item->autostart_cfg && item->autostart_cfg->is_editing;
-        m_preview_save_btn->set_visibility(show_save ? Visibility::Visible : Visibility::Gone);
     }
 
     bool is_spec = item && (item->is_hardware_spec || item->id.rfind("spec_", 0) == 0);
@@ -1230,6 +1190,12 @@ void MillerView::navigate_to_depth(size_t target_depth) {
 }
 
 void MillerView::collect_preview_focusable_views(std::vector<View*>& out) {
+    if (m_preview_edit_btn && m_preview_edit_btn->is_visible() && m_preview_edit_btn->is_focusable()) {
+        out.push_back(m_preview_edit_btn.get());
+    }
+    if (m_preview_refresh_btn && m_preview_refresh_btn->is_visible() && m_preview_refresh_btn->is_focusable()) {
+        out.push_back(m_preview_refresh_btn.get());
+    }
     if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
         out.push_back(m_preview_toggle_btn.get());
     }
