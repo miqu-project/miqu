@@ -137,15 +137,18 @@ void MillerView::render_autostart_preview(const std::shared_ptr<SettingItem>& it
         })
         ->build();
 
-    if (cfg.is_editing) {
-        edit_view->set_focused(true);
-    }
-
     LayoutParams edit_lp(static_cast<int>(LayoutDimension::MatchParent),
                          static_cast<int>(LayoutDimension::WrapContent));
     editor_card->add_view(edit_view, edit_lp);
 
     add_preview_card(editor_card);
+
+    if (cfg.is_editing) {
+        edit_view->set_focused(true);
+        if (m_window) {
+            m_window->set_focused_view(edit_view.get());
+        }
+    }
 }
 
 } // namespace miqu

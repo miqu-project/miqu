@@ -199,15 +199,18 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
             })
             ->build();
 
-        if (item->is_editing) {
-            edit_view->set_focused(true);
-        }
-
         LayoutParams edit_lp(MATCH_PARENT, WRAP_CONTENT);
         code_card->add_view(edit_view, edit_lp);
-        code_card->set_focusable(true);
+        code_card->set_focusable(!item->is_editing);
 
         add_preview_card(code_card);
+
+        if (item->is_editing) {
+            edit_view->set_focused(true);
+            if (m_window) {
+                m_window->set_focused_view(edit_view.get());
+            }
+        }
     }
 
     // 2. If no text preview (e.g. binary, empty file, archive, media), show a clean overview card

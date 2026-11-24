@@ -10,7 +10,7 @@ namespace miqu {
 
 void EditText::set_window(Window* win) {
     View::set_window(win);
-    if (win && m_focused && is_focusable() && !win->get_focused_view()) {
+    if (win && m_focused && is_focusable()) {
         win->set_focused_view(this);
     }
 }
@@ -361,25 +361,29 @@ bool EditText::on_key(const KeyPressEvent& event) {
 
     if (event.keysym == XKB_KEY_Up) {
         if (m_multiline) {
-            size_t current_line_start = m_text.rfind('\n', m_cursor_pos > 0 ? m_cursor_pos - 1 : 0);
-            if (current_line_start == std::string::npos) {
-                m_cursor_pos = 0;
+            if (m_cursor_pos > 0) {
+                size_t current_line_start = m_text.rfind('\n', m_cursor_pos - 1);
+                if (current_line_start == std::string::npos) {
+                    m_cursor_pos = 0;
+                } else {
+                    size_t col = m_cursor_pos - (current_line_start + 1);
+                    size_t prev_line_start = (current_line_start > 0) ? m_text.rfind('\n', current_line_start - 1) : std::string::npos;
+                    size_t prev_start = (prev_line_start == std::string::npos) ? 0 : (prev_line_start + 1);
+                    size_t prev_line_len = current_line_start - prev_start;
+                    m_cursor_pos = prev_start + std::min(col, prev_line_len);
+                }
             } else {
-                size_t col = m_cursor_pos - (current_line_start + 1);
-                size_t prev_line_start = m_text.rfind('\n', current_line_start > 0 ? current_line_start - 1 : 0);
-                size_t prev_start = (prev_line_start == std::string::npos) ? 0 : (prev_line_start + 1);
-                size_t prev_line_len = current_line_start - prev_start;
-                m_cursor_pos = prev_start + std::min(col, prev_line_len);
+                m_cursor_pos = 0;
             }
             if (m_window) m_window->schedule_redraw();
             return true;
         }
-        return false;
+        return m_editable;
     }
 
     if (event.keysym == XKB_KEY_Down) {
         if (m_multiline) {
-            size_t current_line_start = m_text.rfind('\n', m_cursor_pos > 0 ? m_cursor_pos - 1 : 0);
+            size_t current_line_start = (m_cursor_pos > 0) ? m_text.rfind('\n', m_cursor_pos - 1) : std::string::npos;
             size_t col = (current_line_start == std::string::npos) ? m_cursor_pos : (m_cursor_pos - (current_line_start + 1));
             size_t next_line_start = m_text.find('\n', m_cursor_pos);
             if (next_line_start == std::string::npos) {
@@ -394,7 +398,7 @@ bool EditText::on_key(const KeyPressEvent& event) {
             if (m_window) m_window->schedule_redraw();
             return true;
         }
-        return false;
+        return m_editable;
     }
 
     if (event.keysym == XKB_KEY_Home) {
