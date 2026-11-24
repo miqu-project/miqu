@@ -46,6 +46,7 @@ add_executable(miqusettings
     src/hardware_backend.cpp
     src/plugin_backend.cpp
     src/preview_plugins.cpp
+    src/preview_startup.cpp
 )
 
 target_include_directories(miqusettings PRIVATE

@@ -1114,7 +1114,7 @@ std::string Config::init_user_config() {
                 log_info("Installed default configuration to " + config_path + " from " + cand);
 
                 // Also copy companion modular config templates if present
-                for (const char* mod_conf : {"window_gaps_border.conf", "cursor.conf", "plugins.conf", "gesture_binding.conf", "input.conf", "keybindings.conf"}) {
+                for (const char* mod_conf : {"window_gaps_border.conf", "cursor.conf", "autostart.conf", "plugins.conf", "gesture_binding.conf", "input.conf", "keybindings.conf"}) {
                     std::string mod_src = std::string(t_dir) + "/" + mod_conf;
                     if (!fs::exists(mod_src)) {
                         for (const char* f_dir : {"assets", "/usr/share/miquland", "/etc/xdg/miquland", "/usr/local/share/miquland"}) {

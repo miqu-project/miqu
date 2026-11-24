@@ -298,6 +298,23 @@ std::vector<std::shared_ptr<SettingItem>> SettingsModel::build_default_tree() {
     }
 
     // ==============================================================================
+    // 4. Startup (Depth 1)
+    // ==============================================================================
+    {
+        auto autostart_leaf = SettingItem::create_leaf(
+            "startup_autostart", "Autostart",
+            "Session services & startup daemons", "system-run"
+        );
+        autostart_leaf->is_autostart_config = true;
+        autostart_leaf->autostart_cfg = std::make_shared<AutostartConfig>();
+
+        root.push_back(SettingItem::create_category(
+            "cat_startup", "Startup", "system-run",
+            {autostart_leaf}
+        ));
+    }
+
+    // ==============================================================================
     // 5. Display (Depth 1)
     // ==============================================================================
     {

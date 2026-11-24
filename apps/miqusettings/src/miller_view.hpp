@@ -128,6 +128,7 @@ private:
     void render_plugin_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_installed_app_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_default_app_role_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
+    void render_autostart_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_keyboards_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_repeat_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);
     void render_pointers_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config);

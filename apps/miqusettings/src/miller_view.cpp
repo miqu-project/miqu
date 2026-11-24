@@ -863,6 +863,8 @@ void MillerView::rebuild_preview_column() {
         render_installed_app_preview(item, config);
     } else if (item->is_default_app_role) {
         render_default_app_role_preview(item, config);
+    } else if (item->is_autostart_config || item->id == "startup_autostart") {
+        render_autostart_preview(item, config);
     } else if (item->is_input_keyboards || item->id == "input_keyboards") {
         render_keyboards_preview(item, config);
     } else if (item->is_input_repeat || item->id == "input_repeat") {

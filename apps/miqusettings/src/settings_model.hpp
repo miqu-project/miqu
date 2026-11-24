@@ -348,6 +348,12 @@ struct LoginScreenConfig {
     bool is_loaded = false;
 };
 
+struct AutostartConfig {
+    std::string raw_content;
+    bool loaded = false;
+    bool is_editing = false;
+};
+
 struct KeybindingEntry {
     std::string action;
     std::string description;
@@ -449,6 +455,9 @@ public:
 
     bool is_login_screen = false;
     std::shared_ptr<LoginScreenConfig> login_screen_cfg = std::make_shared<LoginScreenConfig>();
+
+    bool is_autostart_config = false;
+    std::shared_ptr<AutostartConfig> autostart_cfg = std::make_shared<AutostartConfig>();
 
     bool is_keybinding_group = false;
     bool is_bindings_keys = false;

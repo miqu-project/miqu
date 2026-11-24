@@ -59,6 +59,16 @@ void EditText::clear() {
 }
 
 Size EditText::measure_size() const {
+    if (m_multiline) {
+        if (m_bounds.height > 0) return Size(m_bounds.width, m_bounds.height);
+        int lines = 1;
+        for (char c : m_text) {
+            if (c == '\n') lines++;
+        }
+        int line_h = 22;
+        int pad_v = (m_padding.top + m_padding.bottom > 0) ? (m_padding.top + m_padding.bottom) : 24;
+        return Size(m_bounds.width, std::max(120, lines * line_h + pad_v));
+    }
     int pad_v = (m_padding.top + m_padding.bottom > 0) ? (m_padding.top + m_padding.bottom) : 16;
     return Size(m_bounds.width, 22 + pad_v);
 }
@@ -139,19 +149,23 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
 
     int pad_left = m_padding.left > 0 ? m_padding.left : (m_draw_background ? 14 : 0);
     int pad_right = m_padding.right > 0 ? m_padding.right : (m_draw_background ? 14 : 0);
-    int pad_top = m_padding.top;
-    int pad_bottom = m_padding.bottom;
+    int pad_top = m_padding.top > 0 ? m_padding.top : (m_multiline ? 12 : 0);
+    int pad_bottom = m_padding.bottom > 0 ? m_padding.bottom : (m_multiline ? 12 : 0);
     int avail_text_w = std::max(0, draw_w - pad_left - pad_right);
     int avail_text_h = std::max(0, draw_h - pad_top - pad_bottom);
 
     pango_layout_set_width(layout, avail_text_w * PANGO_SCALE);
-    pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
+    if (!m_multiline) {
+        pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
+    } else {
+        pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
+    }
 
     int text_w = 0, text_h = 0;
     pango_layout_get_pixel_size(layout, &text_w, &text_h);
 
     double text_draw_x = draw_x + pad_left;
-    double text_draw_y = draw_y + pad_top + (avail_text_h - text_h) / 2.0;
+    double text_draw_y = m_multiline ? (draw_y + pad_top) : (draw_y + pad_top + (avail_text_h - text_h) / 2.0);
 
     cairo_move_to(cr, text_draw_x, text_draw_y);
 
@@ -228,6 +242,13 @@ bool EditText::on_key(const KeyPressEvent& event) {
     if (!m_editable || !m_focused || !event.pressed) return false;
 
     if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
+        if (m_multiline) {
+            m_text.insert(m_cursor_pos, "\n");
+            m_cursor_pos++;
+            if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
+            if (m_window) m_window->schedule_redraw();
+            return true;
+        }
         if (m_on_submit) {
             m_on_submit(m_text);
             return true;
@@ -265,6 +286,44 @@ bool EditText::on_key(const KeyPressEvent& event) {
             m_cursor_pos++;
         }
         return true;
+    }
+
+    if (event.keysym == XKB_KEY_Up) {
+        if (m_multiline) {
+            size_t current_line_start = m_text.rfind('\n', m_cursor_pos > 0 ? m_cursor_pos - 1 : 0);
+            if (current_line_start == std::string::npos) {
+                m_cursor_pos = 0;
+            } else {
+                size_t col = m_cursor_pos - (current_line_start + 1);
+                size_t prev_line_start = m_text.rfind('\n', current_line_start > 0 ? current_line_start - 1 : 0);
+                size_t prev_start = (prev_line_start == std::string::npos) ? 0 : (prev_line_start + 1);
+                size_t prev_line_len = current_line_start - prev_start;
+                m_cursor_pos = prev_start + std::min(col, prev_line_len);
+            }
+            if (m_window) m_window->schedule_redraw();
+            return true;
+        }
+        return false;
+    }
+
+    if (event.keysym == XKB_KEY_Down) {
+        if (m_multiline) {
+            size_t current_line_start = m_text.rfind('\n', m_cursor_pos > 0 ? m_cursor_pos - 1 : 0);
+            size_t col = (current_line_start == std::string::npos) ? m_cursor_pos : (m_cursor_pos - (current_line_start + 1));
+            size_t next_line_start = m_text.find('\n', m_cursor_pos);
+            if (next_line_start == std::string::npos) {
+                m_cursor_pos = static_cast<int>(m_text.size());
+            } else {
+                next_line_start++;
+                size_t next_line_end = m_text.find('\n', next_line_start);
+                if (next_line_end == std::string::npos) next_line_end = m_text.size();
+                size_t next_line_len = next_line_end - next_line_start;
+                m_cursor_pos = next_line_start + std::min(col, next_line_len);
+            }
+            if (m_window) m_window->schedule_redraw();
+            return true;
+        }
+        return false;
     }
 
     if (event.keysym == XKB_KEY_Home) {
@@ -320,15 +379,23 @@ bool EditText::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
                 request_focus();
             }
             int pad_left = m_padding.left > 0 ? m_padding.left : (m_draw_background ? 14 : 0);
+            int pad_right = m_padding.right > 0 ? m_padding.right : (m_draw_background ? 14 : 0);
+            int pad_top = m_padding.top > 0 ? m_padding.top : (m_multiline ? 12 : 0);
             int rel_x = lx - (draw_x + pad_left);
+            int rel_y = ly - (draw_y + pad_top);
+            int avail_text_w = std::max(0, draw_w - pad_left - pad_right);
 
-            if (rel_x <= 0) {
+            if (rel_x <= 0 && rel_y <= 0) {
                 m_cursor_pos = 0;
             } else if (!m_text.empty()) {
                 cairo_surface_t* temp_surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
                 cairo_t* cr = cairo_create(temp_surf);
                 PangoLayout* layout = pango_cairo_create_layout(cr);
                 pango_layout_set_text(layout, m_text.c_str(), -1);
+                pango_layout_set_width(layout, avail_text_w * PANGO_SCALE);
+                if (m_multiline) {
+                    pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
+                }
 
                 auto config = Config::get();
                 std::string font_family = !config->metrics.font_family.empty() ? config->metrics.font_family : "Sans";
@@ -339,7 +406,8 @@ bool EditText::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
                 pango_font_description_free(desc);
 
                 int trailing = 0;
-                pango_layout_xy_to_index(layout, rel_x * PANGO_SCALE, 0, &m_cursor_pos, &trailing);
+                int target_y = m_multiline ? std::max(0, rel_y) * PANGO_SCALE : 0;
+                pango_layout_xy_to_index(layout, std::max(0, rel_x) * PANGO_SCALE, target_y, &m_cursor_pos, &trailing);
                 if (trailing > 0) m_cursor_pos += trailing;
                 m_cursor_pos = std::clamp(m_cursor_pos, 0, static_cast<int>(m_text.size()));
 

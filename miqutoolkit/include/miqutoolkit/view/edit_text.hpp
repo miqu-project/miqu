@@ -31,6 +31,9 @@ public:
     void set_editable(bool editable);
     bool is_editable() const { return m_editable; }
 
+    void set_multiline(bool enable) { m_multiline = enable; }
+    bool is_multiline() const { return m_multiline; }
+
     void set_focused(bool focus);
     bool is_focused() const { return m_focused; }
 
@@ -64,6 +67,7 @@ private:
     bool m_draw_background = true;
     bool m_password_mode = false;
     bool m_editable = true;
+    bool m_multiline = false;
 
     Color m_text_color;
     Color m_hint_color;
@@ -131,6 +135,11 @@ public:
 
     std::shared_ptr<EditTextBuilder> editable(bool ed = true) {
         m_view->set_editable(ed);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<EditTextBuilder> multiline(bool enable = true) {
+        m_view->set_multiline(enable);
         return shared_from_this();
     }
 
