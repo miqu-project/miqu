@@ -1,4 +1,6 @@
-#include "file_opener.hpp"
+#include "miqutoolkit/core/file_opener.hpp"
+#include "miqutoolkit/view/popup_menu.hpp"
+#include "miqutoolkit/view/view.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -414,6 +416,78 @@ bool FileOpener::set_default_handler(const std::string& mime, const std::string&
     int code = 0;
     run_capture({"xdg-mime", "default", desktop_id, mime}, &code);
     return code == 0;
+}
+
+std::shared_ptr<PopupMenu> FileOpener::build_open_with_menu(const fs::path& path) {
+    std::string mime;
+    auto handlers = query_handlers(path, &mime);
+    bool is_exec = is_executable_file(path);
+
+    auto menu = PopupMenuBuilder::create()
+        ->minWidth(230)
+        ->maxVisibleItems(10)
+        ->build();
+
+    std::string header = mime.empty() ? "Open with" : ("Open with (" + mime + ")");
+    menu->add_section_header(header);
+
+    if (is_exec) {
+        menu->add_item("Run", "system-run", [path]() {
+            launch_executable(path, false);
+        });
+        menu->add_item("Run in Terminal", "utilities-terminal", [path]() {
+            launch_executable(path, true);
+        });
+        if (!handlers.empty()) {
+            menu->add_separator();
+        }
+    }
+
+    for (const auto& h : handlers) {
+        std::string label = h.is_default ? (h.name + " (Default)") : h.name;
+        menu->add_item(label, h.icon, [h, path]() {
+            launch_handler(h, path);
+        });
+    }
+
+    if (handlers.empty() && !is_exec) {
+        menu->add_item("System Default (xdg-open)", "application-x-executable", [path]() {
+            launch_xdg_open(path);
+        });
+    }
+
+    if (!mime.empty()) {
+        bool has_non_default = false;
+        for (const auto& h : handlers) {
+            if (!h.is_default) {
+                has_non_default = true;
+                break;
+            }
+        }
+        if (has_non_default) {
+            menu->add_separator();
+            menu->add_section_header("Set Default for " + mime);
+            for (const auto& h : handlers) {
+                if (h.is_default) continue;
+                menu->add_item("Always use " + h.name, h.icon, [mime, h]() {
+                    set_default_handler(mime, h.desktop_id);
+                });
+            }
+        }
+    }
+
+    return menu;
+}
+
+void FileOpener::open_or_show_menu(const fs::path& path,
+                                   const std::shared_ptr<View>& anchor,
+                                   std::shared_ptr<PopupMenu>& out_menu) {
+    if (path.empty()) return;
+    if (is_executable_file(path) || !launch_default(path)) {
+        if (!anchor) return;
+        out_menu = build_open_with_menu(path);
+        out_menu->show_as_dropdown(anchor, PopupGravity::BottomStart, 0, 4);
+    }
 }
 
 } // namespace miqu

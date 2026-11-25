@@ -291,6 +291,67 @@ void MillerView::init() {
     });
     m_preview_edit_btn->set_focusable(true);
 
+    // 3a.2 Open / Open With buttons for autostart config leaf
+    auto open_icon = ImageViewBuilder::create()
+        ->source("media-playback-start")
+        ->targetSize(14)
+        ->fitMode(FitMode::Contain)
+        ->build();
+    auto open_label = TextViewBuilder::create()
+        ->text("Open")
+        ->textSize(static_cast<int>(config->metrics.font_size * 0.85f))
+        ->textColor(config->colors.on_surface_variant)
+        ->build();
+    auto open_box = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->padding(8, 2)
+        ->spacing(4)
+        ->gravity(Gravity::Center)
+        ->addView(open_icon)
+        ->addView(open_label)
+        ->build();
+    m_preview_open_btn = CardViewBuilder::create()
+        ->style(CardStyle::Filled)
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
+        ->elevation(0)
+        ->tooltip("Open with default application")
+        ->addView(open_box)
+        ->build();
+    m_preview_open_btn->set_on_click_listener([this]() {
+        if (!check_and_update_click_debounce()) return;
+        auto item = get_current_selected_item();
+        if (!item || !item->autostart_cfg || item->autostart_cfg->file_path.empty()) return;
+        FileOpener::open_or_show_menu(item->autostart_cfg->file_path, m_preview_open_btn, m_open_with_menu);
+    });
+    m_preview_open_btn->set_focusable(true);
+
+    auto open_with_label = TextViewBuilder::create()
+        ->text("▾")
+        ->textSize(static_cast<int>(config->metrics.font_size * 0.85f))
+        ->textColor(config->colors.on_surface_variant)
+        ->build();
+    auto open_with_box = LinearLayoutBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->padding(6, 2)
+        ->gravity(Gravity::Center)
+        ->addView(open_with_label)
+        ->build();
+    m_preview_open_with_btn = CardViewBuilder::create()
+        ->style(CardStyle::Filled)
+        ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
+        ->elevation(0)
+        ->tooltip("Open with...")
+        ->addView(open_with_box)
+        ->build();
+    m_preview_open_with_btn->set_on_click_listener([this]() {
+        if (!check_and_update_click_debounce()) return;
+        auto item = get_current_selected_item();
+        if (!item || !item->autostart_cfg || item->autostart_cfg->file_path.empty()) return;
+        m_open_with_menu = FileOpener::build_open_with_menu(item->autostart_cfg->file_path);
+        m_open_with_menu->show_as_dropdown(m_preview_open_with_btn, PopupGravity::BottomStart, 0, 4);
+    });
+    m_preview_open_with_btn->set_focusable(true);
+
     m_preview_title = TextViewBuilder::create()
         ->text("")
         ->textSize(config->metrics.font_size)
@@ -299,6 +360,8 @@ void MillerView::init() {
         ->build();
     m_preview_ribbon->add_view(m_preview_title, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
     m_preview_ribbon->add_view(m_preview_edit_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
+    m_preview_ribbon->add_view(m_preview_open_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
+    m_preview_ribbon->add_view(m_preview_open_with_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_ribbon->add_view(m_preview_refresh_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_ribbon->add_view(m_preview_toggle_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
     m_preview_pillar->add_view(m_preview_ribbon, LayoutParams(MATCH_PARENT, 30));
@@ -472,6 +535,13 @@ void MillerView::update_preview_ribbon() {
                                                                   : config->colors.surface_variant.with_alpha(0.35f));
             m_preview_edit_btn->set_tooltip(editing ? "Save configuration" : "Edit configuration (pen)");
         }
+    }
+    bool has_autostart_file = is_autostart && item->autostart_cfg && !item->autostart_cfg->file_path.empty();
+    if (m_preview_open_btn) {
+        m_preview_open_btn->set_visibility(has_autostart_file ? Visibility::Visible : Visibility::Gone);
+    }
+    if (m_preview_open_with_btn) {
+        m_preview_open_with_btn->set_visibility(has_autostart_file ? Visibility::Visible : Visibility::Gone);
     }
 
     bool is_spec = item && (item->is_hardware_spec || item->id.rfind("spec_", 0) == 0);
@@ -1213,6 +1283,12 @@ void MillerView::navigate_to_depth(size_t target_depth) {
 void MillerView::collect_preview_focusable_views(std::vector<View*>& out) {
     if (m_preview_edit_btn && m_preview_edit_btn->is_visible() && m_preview_edit_btn->is_focusable()) {
         out.push_back(m_preview_edit_btn.get());
+    }
+    if (m_preview_open_btn && m_preview_open_btn->is_visible() && m_preview_open_btn->is_focusable()) {
+        out.push_back(m_preview_open_btn.get());
+    }
+    if (m_preview_open_with_btn && m_preview_open_with_btn->is_visible() && m_preview_open_with_btn->is_focusable()) {
+        out.push_back(m_preview_open_with_btn.get());
     }
     if (m_preview_refresh_btn && m_preview_refresh_btn->is_visible() && m_preview_refresh_btn->is_focusable()) {
         out.push_back(m_preview_refresh_btn.get());

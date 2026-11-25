@@ -349,6 +349,7 @@ struct LoginScreenConfig {
 };
 
 struct AutostartConfig {
+    std::string file_path;
     std::string raw_content;
     std::string edit_backup_content;
     bool loaded = false;

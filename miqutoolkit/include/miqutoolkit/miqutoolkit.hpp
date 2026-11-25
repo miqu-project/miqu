@@ -10,6 +10,7 @@
 #include "miqutoolkit/core/shm_pool.hpp"
 #include "miqutoolkit/core/app_engine.hpp"
 #include "miqutoolkit/core/window.hpp"
+#include "miqutoolkit/core/file_opener.hpp"
 
 // Android-Style Layout System & Views
 #include "miqutoolkit/view/layout_params.hpp"

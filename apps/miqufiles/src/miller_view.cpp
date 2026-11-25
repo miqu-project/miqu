@@ -1,6 +1,5 @@
 #include "miller_view.hpp"
 #include "preview_common.hpp"
-#include "file_opener.hpp"
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -634,13 +633,7 @@ void MillerView::update_preview_ribbon() {
         open_btn->set_focusable(true);
         open_btn->set_on_click_listener([this, item, open_btn]() {
             if (!item || item->path.empty()) return;
-            if (FileOpener::is_executable_file(item->path)) {
-                show_open_with_menu(item, open_btn);
-                return;
-            }
-            if (!FileOpener::launch_default(item->path)) {
-                show_open_with_menu(item, open_btn);
-            }
+            FileOpener::open_or_show_menu(item->path, open_btn, m_open_with_menu);
         });
         m_preview_actions->add_view(open_btn, LayoutParams(WRAP_CONTENT, 26));
 
@@ -1705,65 +1698,7 @@ std::string MillerView::get_breadcrumb_path() const {
 
 void MillerView::show_open_with_menu(const std::shared_ptr<FileItem>& item, const std::shared_ptr<View>& anchor) {
     if (!item || item->path.empty() || !anchor) return;
-
-    std::string mime;
-    auto handlers = FileOpener::query_handlers(item->path, &mime);
-    bool is_exec = FileOpener::is_executable_file(item->path);
-
-    auto menu = PopupMenuBuilder::create()
-        ->minWidth(230)
-        ->maxVisibleItems(10)
-        ->build();
-
-    std::string header = mime.empty() ? "Open with" : ("Open with (" + mime + ")");
-    menu->add_section_header(header);
-
-    if (is_exec) {
-        menu->add_item("Run", "system-run", [path = item->path]() {
-            FileOpener::launch_executable(path, false);
-        });
-        menu->add_item("Run in Terminal", "utilities-terminal", [path = item->path]() {
-            FileOpener::launch_executable(path, true);
-        });
-        if (!handlers.empty()) {
-            menu->add_separator();
-        }
-    }
-
-    for (const auto& h : handlers) {
-        std::string label = h.is_default ? (h.name + " (Default)") : h.name;
-        menu->add_item(label, h.icon, [h, path = item->path]() {
-            FileOpener::launch_handler(h, path);
-        });
-    }
-
-    if (handlers.empty() && !is_exec) {
-        menu->add_item("System Default (xdg-open)", "application-x-executable", [path = item->path]() {
-            FileOpener::launch_xdg_open(path);
-        });
-    }
-
-    if (!mime.empty()) {
-        bool has_non_default = false;
-        for (const auto& h : handlers) {
-            if (!h.is_default) {
-                has_non_default = true;
-                break;
-            }
-        }
-        if (has_non_default) {
-            menu->add_separator();
-            menu->add_section_header("Set Default for " + mime);
-            for (const auto& h : handlers) {
-                if (h.is_default) continue;
-                menu->add_item("Always use " + h.name, h.icon, [mime, h]() {
-                    FileOpener::set_default_handler(mime, h.desktop_id);
-                });
-            }
-        }
-    }
-
-    m_open_with_menu = menu;
+    m_open_with_menu = FileOpener::build_open_with_menu(item->path);
     m_open_with_menu->show_as_dropdown(anchor, PopupGravity::BottomStart, 0, 4);
 }
 

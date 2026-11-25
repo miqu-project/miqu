@@ -37,6 +37,7 @@ void load_autostart_config(AutostartConfig& cfg) {
     }
 
     if (!path.empty()) {
+        cfg.file_path = path;
         std::ifstream in(path);
         if (in.is_open()) {
             std::stringstream ss;

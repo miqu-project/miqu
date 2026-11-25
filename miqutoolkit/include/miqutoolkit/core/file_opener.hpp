@@ -1,10 +1,14 @@
 #pragma once
 
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace miqu {
+
+class PopupMenu;
+class View;
 
 struct AppHandler {
     std::string desktop_id;   // e.g. "miqunotepad.desktop"
@@ -49,6 +53,14 @@ public:
 
     // Spawn a detached child process safely without shell interpolation.
     static bool spawn_detached(const std::vector<std::string>& argv);
+
+    // Build an "Open With" PopupMenu for the given file path.
+    static std::shared_ptr<PopupMenu> build_open_with_menu(const std::filesystem::path& path);
+
+    // Open with default handler, or show the Open With PopupMenu if executable / no default set.
+    static void open_or_show_menu(const std::filesystem::path& path,
+                                  const std::shared_ptr<View>& anchor,
+                                  std::shared_ptr<PopupMenu>& out_menu);
 };
 
 } // namespace miqu
