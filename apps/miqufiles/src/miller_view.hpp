@@ -88,6 +88,7 @@ private:
     void rebuild_current_column();
     void deferred_rebuild_preview(int delay_ms = 15);
     void add_preview_card(std::shared_ptr<View> card);
+    void show_open_with_menu(const std::shared_ptr<FileItem>& item, const std::shared_ptr<View>& anchor);
 
     // Column Element Builders
     std::shared_ptr<View> create_parent_hero_box(const std::shared_ptr<Config>& config);
@@ -152,6 +153,7 @@ private:
     std::shared_ptr<LinearLayout> m_preview_layout;
     std::shared_ptr<FrameLayout> m_preview_frame;
     std::shared_ptr<PopupWindow> m_active_popup;
+    std::shared_ptr<PopupMenu> m_open_with_menu;
 
     std::string m_search_query;
     std::vector<std::shared_ptr<FileItem>> m_search_results;
