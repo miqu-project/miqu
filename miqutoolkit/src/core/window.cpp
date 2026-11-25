@@ -139,6 +139,7 @@ const struct wl_pointer_listener Window::s_pointer_listener = {
         auto* self = static_cast<Window*>(data);
         if (!self || surface != self->m_surface) return;
         self->m_pointer_inside = true;
+        self->m_pointer_enter_serial = serial;
         self->m_last_x = wl_fixed_to_double(sx);
         self->m_last_y = wl_fixed_to_double(sy);
         self->update_cursor(serial);
@@ -240,22 +241,56 @@ const struct wl_pointer_listener Window::s_pointer_listener = {
         auto* self = static_cast<Window*>(data);
         if (!self || !self->m_pointer_inside) return;
         if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
-            double delta = wl_fixed_to_double(value);
-            uint32_t source = self->m_last_axis_source;
-            if (self->m_popup_view) {
-                if (self->m_popup_view->on_scroll(delta, source)) {
-                    self->schedule_redraw();
-                }
-                return;
-            }
-            if (self->m_root_view) {
-                if (self->m_root_view->on_scroll(delta, source)) {
-                    self->schedule_redraw();
+            self->m_pending_axis_delta += wl_fixed_to_double(value);
+            self->m_has_pending_axis = true;
+        }
+    },
+    .frame = [](void* data, struct wl_pointer*) {
+        auto* self = static_cast<Window*>(data);
+        if (!self) return;
+
+        bool needs_redraw = false;
+        uint32_t source = self->m_last_axis_source;
+
+        if (self->m_has_pending_axis) {
+            double delta = self->m_pending_axis_delta;
+            self->m_pending_axis_delta = 0.0;
+            self->m_has_pending_axis = false;
+
+            if (self->m_pointer_inside) {
+                if (self->m_popup_view) {
+                    if (self->m_popup_view->on_scroll(delta, source)) {
+                        needs_redraw = true;
+                    }
+                } else if (self->m_root_view) {
+                    if (self->m_root_view->on_scroll(delta, source)) {
+                        needs_redraw = true;
+                    }
                 }
             }
         }
+
+        if (self->m_has_pending_axis_stop) {
+            self->m_has_pending_axis_stop = false;
+            // Reset to 0 (unknown) after each scroll burst ends so the next burst
+            // is not misclassified if axis_source fires late or is missing.
+            self->m_last_axis_source = 0;
+
+            if (self->m_popup_view) {
+                if (self->m_popup_view->on_scroll_stop(source)) {
+                    needs_redraw = true;
+                }
+            } else if (self->m_root_view) {
+                if (self->m_root_view->on_scroll_stop(source)) {
+                    needs_redraw = true;
+                }
+            }
+        }
+
+        if (needs_redraw) {
+            self->schedule_redraw();
+        }
     },
-    .frame = [](void*, struct wl_pointer*) {},
     .axis_source = [](void* data, struct wl_pointer*, uint32_t axis_source) {
         auto* self = static_cast<Window*>(data);
         if (self) self->m_last_axis_source = axis_source;
@@ -263,22 +298,8 @@ const struct wl_pointer_listener Window::s_pointer_listener = {
     .axis_stop = [](void* data, struct wl_pointer*, uint32_t, uint32_t axis) {
         auto* self = static_cast<Window*>(data);
         if (!self) return;
-        uint32_t source = self->m_last_axis_source;
-        // Reset to 0 (unknown) after each scroll burst ends so the next burst
-        // is not misclassified if axis_source fires late or is missing.
-        self->m_last_axis_source = 0;
         if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
-            if (self->m_popup_view) {
-                if (self->m_popup_view->on_scroll_stop(source)) {
-                    self->schedule_redraw();
-                }
-                return;
-            }
-            if (self->m_root_view) {
-                if (self->m_root_view->on_scroll_stop(source)) {
-                    self->schedule_redraw();
-                }
-            }
+            self->m_has_pending_axis_stop = true;
         }
     },
     .axis_discrete = [](void*, struct wl_pointer*, uint32_t, int32_t) {},
@@ -1036,6 +1057,14 @@ void Window::request_close() {
     close();
 }
 
+void Window::set_busy(bool busy) {
+    if (m_busy_cursor == busy) return;
+    m_busy_cursor = busy;
+    if (m_pointer_inside && m_pointer_enter_serial != 0) {
+        update_cursor(m_pointer_enter_serial);
+    }
+}
+
 void Window::update_cursor(uint32_t serial) {
     if (!m_pointer) return;
     auto* engine = AppEngine::instance();
@@ -1045,7 +1074,10 @@ void Window::update_cursor(uint32_t serial) {
         struct wp_cursor_shape_device_v1* device =
             wp_cursor_shape_manager_v1_get_pointer(engine->get_cursor_shape_manager(), m_pointer);
         if (device) {
-            wp_cursor_shape_device_v1_set_shape(device, serial, WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
+            uint32_t shape = m_busy_cursor
+                ? WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_PROGRESS
+                : WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT;
+            wp_cursor_shape_device_v1_set_shape(device, serial, shape);
             wp_cursor_shape_device_v1_destroy(device);
             return;
         }
@@ -1065,7 +1097,13 @@ void Window::update_cursor(uint32_t serial) {
     }
     if (!m_cursor_theme) return;
 
-    struct wl_cursor* cursor = wl_cursor_theme_get_cursor(m_cursor_theme, "default");
+    struct wl_cursor* cursor = nullptr;
+    if (m_busy_cursor) {
+        cursor = wl_cursor_theme_get_cursor(m_cursor_theme, "left_ptr_watch");
+        if (!cursor) cursor = wl_cursor_theme_get_cursor(m_cursor_theme, "progress");
+        if (!cursor) cursor = wl_cursor_theme_get_cursor(m_cursor_theme, "watch");
+    }
+    if (!cursor) cursor = wl_cursor_theme_get_cursor(m_cursor_theme, "default");
     if (!cursor) cursor = wl_cursor_theme_get_cursor(m_cursor_theme, "left_ptr");
     if (!cursor || cursor->image_count == 0) return;
 

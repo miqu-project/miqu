@@ -90,6 +90,8 @@ public:
     void set_background_color(const Color& col) { m_background_color = col; m_has_custom_bg = true; }
     const Color& get_background_color() const { return m_background_color; }
     void set_transparent(bool trans) { m_transparent = trans; }
+    void set_busy(bool busy);
+    bool is_busy() const { return m_busy_cursor; }
     bool is_transparent() const { return m_transparent; }
 
     void schedule_redraw();
@@ -206,6 +208,8 @@ private:
     struct wl_callback* m_frame_callback = nullptr;
     struct wl_cursor_theme* m_cursor_theme = nullptr;
     struct wl_surface* m_cursor_surface = nullptr;
+    uint32_t m_pointer_enter_serial = 0;
+    bool m_busy_cursor = false;
 
     void update_cursor(uint32_t serial);
 
@@ -214,6 +218,9 @@ private:
     struct xkb_state* m_xkb_state = nullptr;
     uint32_t m_modifiers = 0;
     uint32_t m_last_axis_source = 0; // WL_POINTER_AXIS_SOURCE_* (0 = unknown/wheel default)
+    bool m_has_pending_axis = false;
+    double m_pending_axis_delta = 0.0;
+    bool m_has_pending_axis_stop = false;
 
     std::unique_ptr<ShmPool> m_shm_pool;
     std::shared_ptr<View> m_root_view;
