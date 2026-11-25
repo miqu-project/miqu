@@ -21,6 +21,7 @@ add_executable(miqufiles
     src/miller_view.cpp
     src/files_model.cpp
     src/preview_files.cpp
+    src/context_menu.cpp
 )
 
 target_include_directories(miqufiles PRIVATE

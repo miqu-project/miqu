@@ -2,8 +2,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <unordered_set>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -92,16 +94,36 @@ FileCategory FilesModel::detect_category(const fs::path& path, bool is_dir) {
         return FileCategory::Archive;
     }
 
-    if (ext == ".txt" || ext == ".text" || ext == ".log"  || ext == ".md"   ||
-        ext == ".cpp" || ext == ".hpp" || ext == ".c"   || ext == ".h"    ||
-        ext == ".py"  || ext == ".rs"   || ext == ".js"  || ext == ".ts"   ||
-        ext == ".json"|| ext == ".jsonl"|| ext == ".yaml"|| ext == ".yml"  ||
-        ext == ".toml"|| ext == ".sh"   || ext == ".bash"|| ext == ".zsh"  ||
-        ext == ".conf"|| ext == ".cfg"  || ext == ".ini" || ext == ".env"  ||
-        ext == ".xml" || ext == ".html" || ext == ".css" || ext == ".scss" ||
-        ext == ".go"  || ext == ".java" || ext == ".lua" || ext == ".sql"  ||
-        ext == ".csv" || ext == ".patch"|| ext == ".diff"|| ext == ".service" ||
-        ext == ".desktop") {
+    static const std::unordered_set<std::string> code_text_exts = {
+        ".txt", ".text", ".log", ".md", ".markdown", ".rst", ".adoc", ".org", ".tex", ".bib",
+        ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".c", ".h",
+        ".py", ".pyi", ".pyx", ".rs", ".js", ".mjs", ".cjs", ".ts", ".mts", ".cts", ".jsx", ".tsx",
+        ".go", ".java", ".kt", ".kts", ".scala", ".swift", ".dart", ".rb", ".php", ".pl", ".pm",
+        ".lua", ".r", ".cs", ".fs", ".vb", ".zig", ".nim", ".v", ".odin", ".hs", ".ml", ".mli",
+        ".ex", ".exs", ".erl", ".clj", ".cljs", ".el", ".vim", ".sql", ".proto", ".graphql", ".gql",
+        ".vue", ".svelte", ".astro", ".nix", ".cmake", ".mk", ".meson", ".ninja",
+        ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd", ".asm", ".s",
+        ".glsl", ".hlsl", ".wgsl",
+        ".json", ".jsonl", ".json5", ".jsonc", ".yaml", ".yml", ".toml", ".xml",
+        ".html", ".htm", ".css", ".scss", ".sass", ".less",
+        ".conf", ".cfg", ".ini", ".env", ".properties", ".csv", ".tsv",
+        ".patch", ".diff", ".service", ".desktop", ".lock"
+    };
+    if (code_text_exts.count(ext)) {
+        return FileCategory::CodeText;
+    }
+
+    std::string fname = path.filename().string();
+    std::transform(fname.begin(), fname.end(), fname.begin(), [](unsigned char c) { return std::tolower(c); });
+    static const std::unordered_set<std::string> code_text_names = {
+        "makefile", "gnumakefile", "dockerfile", "containerfile", "cmakelists.txt",
+        "meson.build", "meson_options.txt", "justfile", "rakefile", "gemfile",
+        "procfile", "vagrantfile", "jenkinsfile", "pkgbuild",
+        "readme", "license", "copying", "authors", "changelog", "todo",
+        ".gitignore", ".gitattributes", ".gitmodules", ".dockerignore", ".editorconfig",
+        ".bashrc", ".bash_profile", ".zshrc", ".zprofile", ".profile", ".xinitrc"
+    };
+    if (code_text_names.count(fname)) {
         return FileCategory::CodeText;
     }
 
@@ -112,6 +134,60 @@ FileCategory FilesModel::detect_category(const fs::path& path, bool is_dir) {
     }
 
     return FileCategory::Other;
+}
+
+bool FilesModel::is_text_previewable(const std::shared_ptr<FileItem>& item) {
+    static constexpr uintmax_t kMaxTextPreviewBytes = 1024 * 1024 * 2;
+    if (!item || item->is_dir || item->size_bytes > kMaxTextPreviewBytes) {
+        return false;
+    }
+    if (item->is_text_file) {
+        return true;
+    }
+    if (item->text_checked) {
+        return false;
+    }
+    item->text_checked = true;
+
+    if (item->category == FileCategory::CodeText) {
+        item->is_text_file = true;
+        return true;
+    }
+
+    if (item->category != FileCategory::Other && item->category != FileCategory::Executable) {
+        return false;
+    }
+
+    std::ifstream ifs(item->path, std::ios::binary);
+    if (!ifs.is_open()) {
+        return false;
+    }
+
+    char buf[4096];
+    ifs.read(buf, sizeof(buf));
+    std::streamsize n = ifs.gcount();
+    if (n <= 0) {
+        item->is_text_file = true;
+        return true;
+    }
+
+    std::streamsize ctrl_count = 0;
+    for (std::streamsize i = 0; i < n; ++i) {
+        unsigned char c = static_cast<unsigned char>(buf[i]);
+        if (c == '\0') {
+            return false;
+        }
+        if ((c < 0x20 && c != '\n' && c != '\r' && c != '\t' && c != '\f' && c != '\b') || c == 0x7f) {
+            ++ctrl_count;
+        }
+    }
+
+    if (ctrl_count * 10 > n) {
+        return false;
+    }
+
+    item->is_text_file = true;
+    return true;
 }
 
 std::string FilesModel::get_icon_for_category(FileCategory cat, const std::string& filename) {

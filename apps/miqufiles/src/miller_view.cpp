@@ -482,6 +482,7 @@ void MillerView::init(const std::string& start_path, bool show_hidden) {
         m_current_index = 0;
     }
 
+    setup_context_menus();
     sync_theme();
     rebuild_columns();
 }
@@ -575,11 +576,9 @@ void MillerView::update_preview_ribbon() {
         m_preview_actions->clear_views();
         m_preview_actions->set_visibility(Visibility::Visible);
 
-        // 0. In-place Edit / Save button for text files
-        bool is_text = item && !item->is_dir &&
-                       (item->is_text_file || (item->category == FileCategory::CodeText && item->size_bytes <= 1024 * 1024 * 2));
+        // 0. In-place Edit / Save button for text/code files
+        bool is_text = FilesModel::is_text_previewable(item);
         if (is_text) {
-            item->is_text_file = true;
             auto edit_btn = ButtonBuilder::create()
                 ->icon(item->is_editing ? "document-save" : "document-edit")
                 ->text(item->is_editing ? "Save" : "Edit")
@@ -652,9 +651,7 @@ void MillerView::update_preview_ribbon() {
         copy_btn->set_focusable(true);
         copy_btn->set_on_click_listener([item]() {
             if (!item || item->path.empty()) return;
-            std::string p = item->path.string();
-            std::string cmd = "printf '%s' " + p + " | wl-copy 2>/dev/null || true";
-            (void)std::system(cmd.c_str());
+            MillerView::copy_text_to_clipboard(item->path.string());
         });
         m_preview_actions->add_view(copy_btn, LayoutParams(WRAP_CONTENT, 26));
 
@@ -670,8 +667,7 @@ void MillerView::update_preview_ribbon() {
         term_btn->set_on_click_listener([item]() {
             if (!item) return;
             fs::path target_dir = item->is_dir ? item->path : item->path.parent_path();
-            std::string cmd = "alacritty --working-directory \"" + target_dir.string() + "\" &";
-            (void)std::system(cmd.c_str());
+            MillerView::open_terminal_in(target_dir);
         });
         m_preview_actions->add_view(term_btn, LayoutParams(WRAP_CONTENT, 26));
 
@@ -843,6 +839,33 @@ bool MillerView::handle_list_key(const KeyPressEvent& event) {
     if (!m_current_list || !m_current_list->is_visible()) return false;
     // Enter / Return is handled by the window/app level (navigate_enter)
     if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) return false;
+
+    if (event.pressed && event.has_ctrl()) {
+        if (event.keysym == XKB_KEY_c || event.keysym == XKB_KEY_C ||
+            event.keysym == XKB_KEY_x || event.keysym == XKB_KEY_X) {
+            bool is_cut = (event.keysym == XKB_KEY_x || event.keysym == XKB_KEY_X);
+            auto items = is_multi_selected() ? get_selected_items() : std::vector<std::shared_ptr<FileItem>>{};
+            if (items.empty()) {
+                if (auto cur = get_current_selected_item()) {
+                    items.push_back(cur);
+                }
+            }
+            if (!items.empty()) {
+                action_copy_items(items, is_cut);
+                return true;
+            }
+        } else if (event.keysym == XKB_KEY_v || event.keysym == XKB_KEY_V) {
+            if (!is_searching() && !m_clipboard_paths.empty()) {
+                fs::path cur_dir = (!m_path.empty() && m_path.back() && m_path.back()->is_dir)
+                    ? m_path.back()->path
+                    : fs::path(m_start_path);
+                if (!cur_dir.empty()) {
+                    action_paste_into(cur_dir);
+                    return true;
+                }
+            }
+        }
+    }
 
     if (m_current_list->on_key(event)) {
         m_current_index = m_current_list->get_selected_index();

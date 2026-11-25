@@ -81,7 +81,28 @@ public:
 
     void refresh_model();
 
+    static std::string resolve_terminal_emulator();
+    static bool open_terminal_in(const std::filesystem::path& dir);
+    static bool run_in_terminal(const std::filesystem::path& working_dir, const std::string& shell_command);
+    static void copy_text_to_clipboard(const std::string& text, const std::string& mime_type = "text/plain");
+
 private:
+    void setup_context_menus();
+    void show_item_context_menu(const std::shared_ptr<FileItem>& item, int lx, int ly, bool is_current_column);
+    void show_empty_context_menu(const std::filesystem::path& dir, int lx, int ly);
+    void show_new_file_menu(const std::filesystem::path& dir, int lx, int ly);
+    void show_text_input_dialog(const std::string& title, const std::string& initial_value,
+                                const std::string& confirm_label, std::function<void(const std::string&)> on_confirm);
+    void show_confirm_dialog(const std::string& title, const std::string& message,
+                             const std::string& confirm_label, bool destructive, std::function<void()> on_confirm);
+    void reload_current_directory(const std::string& select_path = "");
+    void action_copy_items(const std::vector<std::shared_ptr<FileItem>>& items, bool is_cut);
+    void action_paste_into(const std::filesystem::path& target_dir);
+    void action_trash_items(const std::vector<std::shared_ptr<FileItem>>& items);
+    void action_delete_items(const std::vector<std::shared_ptr<FileItem>>& items);
+    void action_add_to_desktop(const std::shared_ptr<FileItem>& item);
+    void action_set_as_wallpaper(const std::shared_ptr<FileItem>& item);
+
     void rebuild_columns();
     void update_pillar_styles();
     void rebuild_parent_column();
@@ -154,6 +175,10 @@ private:
     std::shared_ptr<FrameLayout> m_preview_frame;
     std::shared_ptr<PopupWindow> m_active_popup;
     std::shared_ptr<PopupMenu> m_open_with_menu;
+    std::shared_ptr<PopupMenu> m_context_menu;
+
+    std::vector<std::filesystem::path> m_clipboard_paths;
+    bool m_clipboard_is_cut = false;
 
     std::string m_search_query;
     std::vector<std::shared_ptr<FileItem>> m_search_results;

@@ -54,6 +54,7 @@ public:
 
     // In-place text editing
     bool is_text_file = false;
+    bool text_checked = false;
     bool is_editing = false;
     bool text_loaded = false;
     std::string text_content;
@@ -84,6 +85,7 @@ public:
     static std::string format_permissions(std::filesystem::perms p);
     static std::string format_time(std::filesystem::file_time_type ftime);
     static FileCategory detect_category(const std::filesystem::path& path, bool is_dir);
+    static bool is_text_previewable(const std::shared_ptr<FileItem>& item);
     static std::string get_icon_for_category(FileCategory cat, const std::string& filename = "");
 };
 

@@ -145,7 +145,7 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
 
     // 1. Text / Code Preview & In-place Editor Card (if applicable)
     bool has_text_preview = false;
-    if (item->is_text_file) {
+    if (FilesModel::is_text_previewable(item)) {
         if (!item->text_loaded) {
             if (m_window) m_window->set_busy(true);
 
