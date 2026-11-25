@@ -484,8 +484,12 @@ void ExplorerView::open_item(const std::shared_ptr<FileItem>& item) {
     if (!item || item->path.empty()) return;
     if (item->is_dir) {
         navigate_to_dir(item->path, true);
-    } else {
-        FileOpener::open_or_show_menu(item->path, shared_from_this(), m_open_with_menu);
+    } else if (FileOpener::is_executable_file(item->path) || !FileOpener::launch_default(item->path)) {
+        if (!m_window) return;
+        m_open_with_menu = FileOpener::build_open_with_menu(item->path);
+        int px = std::max(80, m_window->get_width() / 2 - 120);
+        int py = std::max(80, m_window->get_height() / 3);
+        m_open_with_menu->show_at_location(m_window.get(), px, py);
     }
 }
 
@@ -789,22 +793,21 @@ void ExplorerView::rebuild_preview_pane() {
     size_t marks = m_selection_model ? m_selection_model->marks().size() : 0;
     if (marks > 1) {
         render_multi_preview(get_selected_or_cursor_items(), config);
-        return;
-    }
-
-    auto item = get_preview_target_item();
-    if (!item) {
-        render_empty_preview(config);
-        return;
-    }
-
-    if (!item->is_dir && item->category == FileCategory::Image) {
-        render_image_preview(item, config);
-    } else if (!item->is_dir && FilesModel::is_text_previewable(item)) {
-        render_text_preview(item, config);
     } else {
-        render_metadata_preview(item, config);
+        auto item = get_preview_target_item();
+        if (!item) {
+            render_empty_preview(config);
+        } else if (!item->is_dir && item->category == FileCategory::Image) {
+            render_image_preview(item, config);
+        } else if (!item->is_dir && FilesModel::is_text_previewable(item)) {
+            render_text_preview(item, config);
+        } else {
+            render_metadata_preview(item, config);
+        }
     }
+
+    if (m_preview_pillar) m_preview_pillar->request_redraw();
+    request_redraw();
 }
 
 void ExplorerView::set_sidebar_focused(bool focused) {

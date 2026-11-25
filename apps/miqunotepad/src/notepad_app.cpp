@@ -228,6 +228,7 @@ void NotepadApp::setup_ui() {
         ->fontFamily(m_app_config.font_family)
         ->fontSize(m_app_config.font_size)
         ->drawBackground(false)
+        ->drawFocusRing(false)
         ->build();
     m_editor->set_padding(18, 14, 18, 14);
     m_editor->set_on_text_changed_listener([this](auto, const std::string&) {

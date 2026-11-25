@@ -319,9 +319,12 @@ void ExplorerView::show_item_context_menu(const std::shared_ptr<FileItem>& item,
             navigate_to_dir(item->path, true);
         });
     } else {
-        builder->item("Open", "document-open", [this, item]() {
-            if (!item->path.empty()) {
-                FileOpener::open_or_show_menu(item->path, shared_from_this(), m_open_with_menu);
+        builder->item("Open", "document-open", [this, item, lx, ly]() {
+            if (item->path.empty()) return;
+            if (FileOpener::is_executable_file(item->path) || !FileOpener::launch_default(item->path)) {
+                if (!m_window) return;
+                m_open_with_menu = FileOpener::build_open_with_menu(item->path);
+                m_open_with_menu->show_at_location(m_window.get(), lx, ly);
             }
         });
         builder->item("Open With...", "system-run", [this, item, lx, ly]() {

@@ -246,6 +246,7 @@ std::string FileOpener::query_mime_type(const fs::path& path) {
     int code = 0;
     std::string out = trim(run_capture({"xdg-mime", "query", "filetype", path.string()}, &code));
     if (code != 0) return "";
+    if (out == "inode/x-empty" || out == "application/x-zerosize") return "text/plain";
     return out;
 }
 
