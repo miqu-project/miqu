@@ -6,6 +6,7 @@
 #include <functional>
 
 struct _PangoLayout;
+struct _cairo_surface;
 
 namespace miqu {
 
@@ -103,6 +104,14 @@ private:
     bool m_has_custom_bg_color = false;
 
     struct _PangoLayout* ensure_layout(cairo_t* cr, int avail_text_w, int& out_text_w, int& out_text_h) const;
+    void invalidate_tiles() const;
+
+    struct TextTile {
+        int index = 0;
+        int height = 0;
+        struct _cairo_surface* surface = nullptr;
+        uint64_t last_used = 0;
+    };
 
     mutable struct _PangoLayout* m_cached_layout = nullptr;
     mutable bool m_layout_dirty = true;
@@ -113,6 +122,12 @@ private:
     mutable bool m_cached_is_hint = false;
     mutable bool m_cached_multiline = false;
     mutable bool m_cached_password = false;
+
+    mutable std::vector<TextTile> m_tiles;
+    mutable bool m_tiles_dirty = true;
+    mutable int m_tile_avail_w = -1;
+    mutable Color m_tile_color;
+    mutable uint64_t m_tile_lru_counter = 0;
 
     std::function<void(std::shared_ptr<EditText>, const std::string&)> m_on_text_changed;
     std::function<void(const std::string&)> m_on_submit;
