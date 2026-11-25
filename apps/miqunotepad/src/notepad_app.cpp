@@ -1,10 +1,12 @@
 #include "notepad_app.hpp"
+#include "portal_file_chooser.hpp"
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <filesystem>
 #include <algorithm>
+#include <thread>
 
 namespace miqu {
 
@@ -140,7 +142,7 @@ void NotepadApp::setup_ui() {
     new_btn->set_tooltip_shortcut("Ctrl+N");
 
     auto open_btn = m_toolbar->add_action("📂", [this]() {
-        show_open_prompt();
+        open_with_portal();
     });
     open_btn->set_tooltip("Open File");
     open_btn->set_tooltip_shortcut("Ctrl+O");
@@ -152,7 +154,7 @@ void NotepadApp::setup_ui() {
     save_btn->set_tooltip_shortcut("Ctrl+S");
 
     auto saveas_btn = m_toolbar->add_action("⤓", [this]() {
-        show_save_prompt();
+        save_with_portal();
     });
     saveas_btn->set_tooltip("Save As");
     saveas_btn->set_tooltip_shortcut("Ctrl+Shift+S");
@@ -336,6 +338,72 @@ void NotepadApp::show_save_prompt() {
     if (m_window) m_window->schedule_redraw();
 }
 
+void NotepadApp::open_with_portal() {
+    if (m_portal_picker_active) return;
+    m_portal_picker_active = true;
+    update_status("Opening file picker...");
+
+    std::string current_dir;
+    if (!m_current_file_path.empty()) {
+        std::error_code ec;
+        fs::path p = fs::path(FsUtils::expand_user_path(m_current_file_path)).parent_path();
+        if (fs::exists(p, ec)) current_dir = p.string();
+    }
+
+    auto engine = m_engine;
+    std::thread([this, engine, current_dir]() {
+        PortalPickResult res = PortalFileChooser::pick_open_file("Open File", current_dir);
+        if (!engine) return;
+        engine->post([this, res]() {
+            m_portal_picker_active = false;
+            if (!res.available) {
+                show_open_prompt();
+                return;
+            }
+            if (res.accepted && !res.path.empty()) {
+                open_file(res.path);
+            } else {
+                update_status("Ready");
+            }
+        });
+    }).detach();
+}
+
+void NotepadApp::save_with_portal() {
+    if (m_portal_picker_active) return;
+    m_portal_picker_active = true;
+    update_status("Opening save dialog...");
+
+    std::string current_name = "Untitled.txt";
+    std::string current_dir;
+    if (!m_current_file_path.empty()) {
+        fs::path p(FsUtils::expand_user_path(m_current_file_path));
+        if (p.has_filename()) current_name = p.filename().string();
+        std::error_code ec;
+        if (p.has_parent_path() && fs::exists(p.parent_path(), ec)) {
+            current_dir = p.parent_path().string();
+        }
+    }
+
+    auto engine = m_engine;
+    std::thread([this, engine, current_name, current_dir]() {
+        PortalPickResult res = PortalFileChooser::pick_save_file("Save File", current_name, current_dir);
+        if (!engine) return;
+        engine->post([this, res]() {
+            m_portal_picker_active = false;
+            if (!res.available) {
+                show_save_prompt();
+                return;
+            }
+            if (res.accepted && !res.path.empty()) {
+                save_file(res.path);
+            } else {
+                update_status("Ready");
+            }
+        });
+    }).detach();
+}
+
 void NotepadApp::hide_prompt() {
     m_prompt_mode = PromptMode::None;
     m_prompt_bar->set_visibility(Visibility::Gone);
@@ -386,7 +454,7 @@ bool NotepadApp::open_file(const std::string& path) {
 bool NotepadApp::save_file(const std::string& path) {
     std::string target = path.empty() ? m_current_file_path : path;
     if (target.empty()) {
-        show_save_prompt();
+        save_with_portal();
         return false;
     }
 
@@ -469,7 +537,7 @@ bool NotepadApp::handle_key_press(const KeyPressEvent& ev) {
             return true;
         }
         if (!ev.has_shift() && (ev.keysym == XKB_KEY_o || ev.keysym == XKB_KEY_O)) {
-            show_open_prompt();
+            open_with_portal();
             return true;
         }
         if (!ev.has_shift() && (ev.keysym == XKB_KEY_s || ev.keysym == XKB_KEY_S)) {
@@ -477,7 +545,7 @@ bool NotepadApp::handle_key_press(const KeyPressEvent& ev) {
             return true;
         }
         if (ev.has_shift() && (ev.keysym == XKB_KEY_s || ev.keysym == XKB_KEY_S)) {
-            show_save_prompt();
+            save_with_portal();
             return true;
         }
         if (ev.keysym == XKB_KEY_q || ev.keysym == XKB_KEY_Q) {

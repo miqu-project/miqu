@@ -14,10 +14,12 @@ find_package(Threads REQUIRED)
 if(NOT TARGET PkgConfig::MIQUTOOLKIT)
     pkg_check_modules(MIQUTOOLKIT REQUIRED IMPORTED_TARGET miqutoolkit)
 endif()
+pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
 
 add_executable(miqunotepad
     src/main.cpp
     src/notepad_app.cpp
+    src/portal_file_chooser.cpp
 )
 
 target_include_directories(miqunotepad PRIVATE
@@ -26,6 +28,7 @@ target_include_directories(miqunotepad PRIVATE
 
 target_link_libraries(miqunotepad PRIVATE
     PkgConfig::MIQUTOOLKIT
+    PkgConfig::SYSTEMD
     Threads::Threads
     stdc++fs
 )

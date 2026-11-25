@@ -34,6 +34,8 @@ public:
     void new_document();
     void show_open_prompt();
     void show_save_prompt();
+    void open_with_portal();
+    void save_with_portal();
     bool open_file(const std::string& path);
     bool save_file(const std::string& path = "");
     void hide_prompt();
@@ -53,6 +55,7 @@ private:
     NotepadConfig m_app_config;
 
     PromptMode m_prompt_mode = PromptMode::None;
+    bool m_portal_picker_active = false;
 
     std::shared_ptr<LinearLayout> m_root_layout;
     std::shared_ptr<Toolbar> m_toolbar;
