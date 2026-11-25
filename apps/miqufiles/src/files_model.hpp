@@ -57,6 +57,7 @@ public:
     bool is_editing = false;
     bool text_loaded = false;
     std::string text_content;
+    std::string edit_backup_content;
 
     void ensure_children() {
         if (provider) {

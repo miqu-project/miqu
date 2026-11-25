@@ -279,16 +279,14 @@ void MillerView::init() {
         auto item = get_current_selected_item();
         if (item && item->autostart_cfg) {
             if (!item->autostart_cfg->is_editing) {
+                item->autostart_cfg->edit_backup_content = item->autostart_cfg->raw_content;
                 item->autostart_cfg->is_editing = true;
                 item->last_action_message.clear();
+                update_preview_ribbon();
+                rebuild_preview_column();
             } else {
-                bool ok = save_autostart_config(item->autostart_cfg->raw_content);
-                item->last_action_message = ok ? "Saved" : "Error saving";
-                item->autostart_cfg->is_editing = false;
-                notify_state_changed();
+                save_editing();
             }
-            update_preview_ribbon();
-            rebuild_preview_column();
         }
     });
     m_preview_edit_btn->set_focusable(true);
@@ -1285,8 +1283,13 @@ void MillerView::save_editing() {
     auto item = get_current_selected_item();
     if (item && item->autostart_cfg && item->autostart_cfg->is_editing) {
         bool ok = save_autostart_config(item->autostart_cfg->raw_content);
-        item->last_action_message = ok ? "Saved" : "Error saving";
-        item->autostart_cfg->is_editing = false;
+        if (ok) {
+            item->last_action_message = "Saved";
+            item->autostart_cfg->edit_backup_content.clear();
+            item->autostart_cfg->is_editing = false;
+        } else {
+            item->last_action_message = "Error saving";
+        }
         update_preview_ribbon();
         rebuild_preview_column();
         notify_state_changed();
@@ -1296,6 +1299,8 @@ void MillerView::save_editing() {
 void MillerView::cancel_editing() {
     auto item = get_current_selected_item();
     if (item && item->autostart_cfg && item->autostart_cfg->is_editing) {
+        item->autostart_cfg->raw_content = std::move(item->autostart_cfg->edit_backup_content);
+        item->autostart_cfg->edit_backup_content.clear();
         item->autostart_cfg->is_editing = false;
         update_preview_ribbon();
         rebuild_preview_column();
