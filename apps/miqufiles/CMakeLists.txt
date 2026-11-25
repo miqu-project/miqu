@@ -18,7 +18,7 @@ endif()
 add_executable(miqufiles
     src/main.cpp
     src/files_app.cpp
-    src/miller_view.cpp
+    src/explorer_view.cpp
     src/files_model.cpp
     src/preview_files.cpp
     src/context_menu.cpp

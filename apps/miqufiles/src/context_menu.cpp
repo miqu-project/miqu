@@ -1,4 +1,4 @@
-#include "miller_view.hpp"
+#include "explorer_view.hpp"
 #include "preview_common.hpp"
 #include <algorithm>
 #include <cctype>
@@ -133,7 +133,7 @@ bool spawn_in_dir(const fs::path& dir, const std::vector<std::string>& argv) {
 
 } // namespace
 
-std::string MillerView::resolve_terminal_emulator() {
+std::string ExplorerView::resolve_terminal_emulator() {
     if (const char* term = std::getenv("TERMINAL")) {
         if (*term) return term;
     }
@@ -161,7 +161,7 @@ std::string MillerView::resolve_terminal_emulator() {
     return "xterm";
 }
 
-bool MillerView::open_terminal_in(const fs::path& dir) {
+bool ExplorerView::open_terminal_in(const fs::path& dir) {
     std::string term = resolve_terminal_emulator();
     fs::path target = dir;
     std::error_code ec;
@@ -171,13 +171,13 @@ bool MillerView::open_terminal_in(const fs::path& dir) {
     return spawn_in_dir(target, {term});
 }
 
-bool MillerView::run_in_terminal(const fs::path& working_dir, const std::string& shell_command) {
+bool ExplorerView::run_in_terminal(const fs::path& working_dir, const std::string& shell_command) {
     std::string term = resolve_terminal_emulator();
     std::string wrapped = shell_command + "; echo \"\"; printf 'Press Enter to close...'; read _";
     return spawn_in_dir(working_dir, {term, "-e", "sh", "-c", wrapped});
 }
 
-void MillerView::copy_text_to_clipboard(const std::string& text, const std::string& mime_type) {
+void ExplorerView::copy_text_to_clipboard(const std::string& text, const std::string& mime_type) {
     int pipefd[2];
     if (pipe(pipefd) != 0) return;
 
@@ -207,108 +207,58 @@ void MillerView::copy_text_to_clipboard(const std::string& text, const std::stri
     (void)waitpid(pid, nullptr, WNOHANG);
 }
 
-void MillerView::setup_context_menus() {
-    if (m_current_list) {
-        m_current_list->set_on_item_context_click_listener([this](size_t idx, std::shared_ptr<View>, int lx, int ly) {
-            if (idx >= m_displayed_current_items.size()) return;
-            int clicked_idx = static_cast<int>(idx);
-            if (!is_multi_selected() && clicked_idx != m_current_index) {
-                if (m_preview_expanded) {
-                    set_preview_expanded(false);
-                }
-                m_current_index = clicked_idx;
-                rebuild_preview_column();
-                notify_state_changed();
-            }
-            show_item_context_menu(m_displayed_current_items[idx], lx, ly, true);
-        });
+void ExplorerView::setup_context_menus() {
+    auto on_item_ctx = [this](size_t idx, std::shared_ptr<View>, int lx, int ly) {
+        if (idx >= m_displayed_items.size()) return;
+        size_t mark_count = m_selection_model ? m_selection_model->marks().size() : 0;
+        if (mark_count <= 1 && static_cast<int>(idx) != get_cursor_index()) {
+            set_cursor_index(static_cast<int>(idx));
+            update_status_bar();
+            rebuild_preview_pane();
+        }
+        show_item_context_menu(m_displayed_items[idx], lx, ly);
+    };
 
-        m_current_list->set_on_empty_context_click_listener([this](int lx, int ly) {
-            fs::path dir;
-            if (!is_searching()) {
-                if (!m_path.empty() && m_path.back() && m_path.back()->is_dir) {
-                    dir = m_path.back()->path;
-                } else if (m_path.empty() && !m_start_path.empty()) {
-                    dir = m_start_path;
-                }
-            }
-            show_empty_context_menu(dir, lx, ly);
-        });
+    auto on_empty_ctx = [this](int lx, int ly) {
+        show_empty_context_menu(m_current_dir, lx, ly);
+    };
+
+    if (m_grid_view) {
+        m_grid_view->set_on_item_context_click_listener(on_item_ctx);
+        m_grid_view->set_on_empty_context_click_listener(on_empty_ctx);
     }
 
-    if (m_current_pillar) {
-        m_current_pillar->set_context_menu_builder([this](int lx, int ly) -> std::shared_ptr<PopupMenu> {
-            // Only fires when m_current_list is empty or click landed outside list items
-            fs::path dir;
-            if (!is_searching()) {
-                if (!m_path.empty() && m_path.back() && m_path.back()->is_dir) {
-                    dir = m_path.back()->path;
-                } else if (m_path.empty() && !m_start_path.empty()) {
-                    dir = m_start_path;
-                }
-            }
-            show_empty_context_menu(dir, lx, ly);
+    if (m_list_view) {
+        m_list_view->set_on_item_context_click_listener(on_item_ctx);
+        m_list_view->set_on_empty_context_click_listener(on_empty_ctx);
+    }
+
+    if (m_content_pillar) {
+        m_content_pillar->set_context_menu_builder([this](int lx, int ly) -> std::shared_ptr<PopupMenu> {
+            show_empty_context_menu(m_current_dir, lx, ly);
             return nullptr;
         });
     }
-
-    if (m_parent_list) {
-        m_parent_list->set_on_item_context_click_listener([this](size_t idx, std::shared_ptr<View>, int lx, int ly) {
-            if (idx >= m_displayed_parent_items.size()) return;
-            show_item_context_menu(m_displayed_parent_items[idx], lx, ly, false);
-        });
-
-        m_parent_list->set_on_empty_context_click_listener([this](int lx, int ly) {
-            fs::path dir;
-            if (m_path.size() >= 2 && m_path[m_path.size() - 2]) {
-                dir = m_path[m_path.size() - 2]->path;
-            }
-            show_empty_context_menu(dir, lx, ly);
-        });
-    }
 }
 
-void MillerView::reload_current_directory(const std::string& select_path) {
-    std::string target_id = select_path;
-    if (target_id.empty()) {
-        auto cur = get_current_selected_item();
-        if (cur) target_id = cur->id;
+void ExplorerView::reload_current_directory(const std::string& select_path) {
+    if (m_current_dir.empty()) return;
+    std::string target_path = select_path;
+    if (target_path.empty()) {
+        auto cur = get_preview_target_item();
+        if (cur) target_path = cur->path.string();
     }
 
-    if (!m_path.empty() && m_path.back()) {
-        m_path.back()->reload_children(m_show_hidden);
-    } else {
-        m_root_tree = FilesModel::build_default_tree(m_start_path, m_show_hidden);
+    m_all_items = FilesModel::scan_directory(m_current_dir, m_show_hidden);
+    if (m_selection_model) {
+        m_selection_model->clear_marks();
     }
-
-    const auto& pool = get_current_list();
-    if (!pool.empty()) {
-        int found = -1;
-        if (!target_id.empty()) {
-            for (size_t i = 0; i < pool.size(); ++i) {
-                if (pool[i]->id == target_id || pool[i]->path.string() == target_id) {
-                    found = static_cast<int>(i);
-                    break;
-                }
-            }
-        }
-        m_current_index = (found >= 0) ? found : std::clamp(m_current_index, 0, static_cast<int>(pool.size()) - 1);
-    } else {
-        m_current_index = 0;
-    }
-
-    if (m_current_list) {
-        m_current_list->clear_selection();
-    }
-    if (is_searching()) {
-        set_search_query(m_search_query);
-        return;
-    }
-    rebuild_columns();
+    apply_sort_and_filter(target_path);
+    sync_sidebar_selection();
     notify_state_changed();
 }
 
-void MillerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, int lx, int ly, bool is_current_column) {
+void ExplorerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, int lx, int ly) {
     if (!item || !m_window) return;
 
     auto builder = ActionMenuBuilder::create()
@@ -316,8 +266,9 @@ void MillerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, i
         ->maxVisibleItems(18)
         ->itemHeight(34);
 
-    if (is_current_column && is_multi_selected()) {
-        auto selected = get_selected_items();
+    size_t mark_count = m_selection_model ? m_selection_model->marks().size() : 0;
+    if (mark_count > 1) {
+        auto selected = get_selected_or_cursor_items();
         size_t count = selected.size();
         std::string count_str = std::to_string(count) + " items";
 
@@ -356,7 +307,7 @@ void MillerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, i
         });
 
         m_context_menu = menu;
-        m_context_menu->show_at_location(m_window, lx, ly);
+        m_context_menu->show_at_location(m_window.get(), lx, ly);
         return;
     }
 
@@ -364,18 +315,8 @@ void MillerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, i
     std::vector<std::shared_ptr<FileItem>> single_vec = {item};
 
     if (item->is_dir) {
-        builder->item("Open", "folder-open", [this, item, is_current_column]() {
-            if (is_current_column) {
-                navigate_enter();
-            } else {
-                // Click on parent column item jumps into it
-                for (size_t i = 0; i < m_displayed_parent_items.size(); ++i) {
-                    if (m_displayed_parent_items[i] == item) {
-                        handle_parent_item_click(i);
-                        break;
-                    }
-                }
-            }
+        builder->item("Open", "folder-open", [this, item]() {
+            navigate_to_dir(item->path, true);
         });
     } else {
         builder->item("Open", "document-open", [this, item]() {
@@ -386,48 +327,7 @@ void MillerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, i
         builder->item("Open With...", "system-run", [this, item, lx, ly]() {
             if (item->path.empty() || !m_window) return;
             m_open_with_menu = FileOpener::build_open_with_menu(item->path);
-            m_open_with_menu->show_at_location(m_window, lx, ly);
-        });
-    }
-
-    builder->item("Show on Right", "view-right-new", [this, item, is_current_column]() {
-        if (is_current_column) {
-            for (size_t i = 0; i < m_displayed_current_items.size(); ++i) {
-                if (m_displayed_current_items[i] == item) {
-                    if (m_preview_expanded) set_preview_expanded(false);
-                    m_current_index = static_cast<int>(i);
-                    if (m_current_list) m_current_list->set_selected_index(m_current_index);
-                    rebuild_preview_column();
-                    notify_state_changed();
-                    break;
-                }
-            }
-        } else {
-            for (size_t i = 0; i < m_displayed_parent_items.size(); ++i) {
-                if (m_displayed_parent_items[i] == item) {
-                    handle_parent_item_click(i);
-                    break;
-                }
-            }
-        }
-    });
-
-    if (!item->is_dir && FilesModel::is_text_previewable(item)) {
-        builder->item("Edit", "document-edit", [this, item]() {
-            for (size_t i = 0; i < m_displayed_current_items.size(); ++i) {
-                if (m_displayed_current_items[i] == item) {
-                    m_current_index = static_cast<int>(i);
-                    if (m_current_list) m_current_list->set_selected_index(m_current_index);
-                    break;
-                }
-            }
-            item->edit_backup_content = item->text_content;
-            item->is_editing = true;
-            item->last_action_message.clear();
-            set_preview_focused(true);
-            update_preview_ribbon();
-            rebuild_preview_column();
-            notify_state_changed();
+            m_open_with_menu->show_at_location(m_window.get(), lx, ly);
         });
     }
 
@@ -461,19 +361,14 @@ void MillerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, i
             copy_text_to_clipboard(item->path.string());
         });
 
-    if (is_current_column && !is_searching() && !m_clipboard_paths.empty()) {
-        fs::path cur_dir = (!m_path.empty() && m_path.back() && m_path.back()->is_dir)
-            ? m_path.back()->path
-            : fs::path(m_start_path);
-        if (!cur_dir.empty()) {
-            std::string paste_label = "Paste (" + std::to_string(m_clipboard_paths.size()) + ") Here";
-            builder->item(paste_label, "edit-paste", [this, cur_dir]() {
-                action_paste_into(cur_dir);
-            });
-        }
+    if (!m_clipboard.paths.empty() && !m_current_dir.empty()) {
+        std::string paste_label = "Paste (" + std::to_string(m_clipboard.paths.size()) + ") Here";
+        builder->item(paste_label, "edit-paste", [this]() {
+            action_paste_into(m_current_dir);
+        });
     }
 
-    if (item->is_dir && !m_clipboard_paths.empty()) {
+    if (item->is_dir && !m_clipboard.paths.empty()) {
         builder->item("Paste Into Folder", "edit-paste", [this, item]() {
             action_paste_into(item->path);
         });
@@ -520,15 +415,15 @@ void MillerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, i
             });
     });
     menu->add_separator();
-    menu->add_item("Properties", "dialog-information", [this, item]() {
-        show_file_info_popup(item, this, Config::get());
+    menu->add_item("Properties", "dialog-information", [this, item, lx, ly]() {
+        show_file_info_popup(item, lx, ly);
     });
 
     m_context_menu = menu;
-    m_context_menu->show_at_location(m_window, lx, ly);
+    m_context_menu->show_at_location(m_window.get(), lx, ly);
 }
 
-void MillerView::show_empty_context_menu(const fs::path& dir, int lx, int ly) {
+void ExplorerView::show_empty_context_menu(const fs::path& dir, int lx, int ly) {
     if (!m_window) return;
 
     std::error_code ec;
@@ -554,8 +449,8 @@ void MillerView::show_empty_context_menu(const fs::path& dir, int lx, int ly) {
             show_new_file_menu(dir, lx, ly);
         });
 
-        if (!m_clipboard_paths.empty()) {
-            std::string paste_label = "Paste (" + std::to_string(m_clipboard_paths.size()) + ")";
+        if (!m_clipboard.paths.empty()) {
+            std::string paste_label = "Paste (" + std::to_string(m_clipboard.paths.size()) + ")";
             builder->item(paste_label, "edit-paste", [this, dir]() {
                 action_paste_into(dir);
             });
@@ -578,19 +473,21 @@ void MillerView::show_empty_context_menu(const fs::path& dir, int lx, int ly) {
             reload_current_directory();
         });
 
-    if (has_dir && !m_path.empty() && m_path.back() && m_path.back()->path == dir) {
-        auto dir_item = m_path.back();
+    if (has_dir) {
         builder->separator()
-            ->item("Properties", "dialog-information", [this, dir_item]() {
-                show_file_info_popup(dir_item, this, Config::get());
+            ->item("Properties", "dialog-information", [this, dir, lx, ly]() {
+                auto dir_item = FilesModel::create_file_item(dir);
+                if (dir_item) {
+                    show_file_info_popup(dir_item, lx, ly);
+                }
             });
     }
 
     m_context_menu = builder->build();
-    m_context_menu->show_at_location(m_window, lx, ly);
+    m_context_menu->show_at_location(m_window.get(), lx, ly);
 }
 
-void MillerView::show_new_file_menu(const fs::path& dir, int lx, int ly) {
+void ExplorerView::show_new_file_menu(const fs::path& dir, int lx, int ly) {
     if (!m_window || dir.empty()) return;
 
     struct FileTemplate {
@@ -639,17 +536,17 @@ void MillerView::show_new_file_menu(const fs::path& dir, int lx, int ly) {
     }
 
     m_context_menu = builder->build();
-    m_context_menu->show_at_location(m_window, lx, ly);
+    m_context_menu->show_at_location(m_window.get(), lx, ly);
 }
 
-void MillerView::show_text_input_dialog(const std::string& title, const std::string& initial_value,
+void ExplorerView::show_text_input_dialog(const std::string& title, const std::string& initial_value,
                                         const std::string& confirm_label, std::function<void(const std::string&)> on_confirm) {
     auto config = Config::get();
     if (!m_window || !config) return;
 
-    if (m_active_popup && m_active_popup->is_showing()) {
-        m_active_popup->dismiss();
-        m_active_popup = nullptr;
+    if (m_dialog_popup && m_dialog_popup->is_showing()) {
+        m_dialog_popup->dismiss();
+        m_dialog_popup = nullptr;
     }
 
     int card_rad = get_card_radius(config);
@@ -693,9 +590,9 @@ void MillerView::show_text_input_dialog(const std::string& title, const std::str
         ->padding(12, 6)
         ->cornerRadius(btn_rad)
         ->onClick([this]() {
-            if (m_active_popup) {
-                m_active_popup->dismiss();
-                m_active_popup = nullptr;
+            if (m_dialog_popup) {
+                m_dialog_popup->dismiss();
+                m_dialog_popup = nullptr;
             }
         })
         ->build();
@@ -706,9 +603,9 @@ void MillerView::show_text_input_dialog(const std::string& title, const std::str
         ->cornerRadius(btn_rad)
         ->onClick([this, input, on_confirm = std::move(on_confirm)]() {
             std::string val = input->get_text();
-            if (m_active_popup) {
-                m_active_popup->dismiss();
-                m_active_popup = nullptr;
+            if (m_dialog_popup) {
+                m_dialog_popup->dismiss();
+                m_dialog_popup = nullptr;
             }
             if (on_confirm) on_confirm(val);
         })
@@ -720,7 +617,7 @@ void MillerView::show_text_input_dialog(const std::string& title, const std::str
     btn_row->add_view(ok_btn, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
     container->add_view(btn_row, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
-    m_active_popup = PopupWindowBuilder::create()
+    m_dialog_popup = PopupWindowBuilder::create()
         ->content(container)
         ->width(340)
         ->elevation(6)
@@ -728,24 +625,24 @@ void MillerView::show_text_input_dialog(const std::string& title, const std::str
         ->dismissOnOutsideClick(true)
         ->dismissOnEscape(true)
         ->onDismiss([this]() {
-            m_active_popup = nullptr;
+            m_dialog_popup = nullptr;
         })
         ->build();
 
     int px = std::max(16, (m_window->get_width() - 340) / 2);
     int py = std::max(16, (m_window->get_height() - 150) / 2);
-    m_active_popup->show_at_location(m_window, px, py);
+    m_dialog_popup->show_at_location(m_window.get(), px, py);
     input->set_focused(true);
 }
 
-void MillerView::show_confirm_dialog(const std::string& title, const std::string& message,
+void ExplorerView::show_confirm_dialog(const std::string& title, const std::string& message,
                                      const std::string& confirm_label, bool destructive, std::function<void()> on_confirm) {
     auto config = Config::get();
     if (!m_window || !config) return;
 
-    if (m_active_popup && m_active_popup->is_showing()) {
-        m_active_popup->dismiss();
-        m_active_popup = nullptr;
+    if (m_dialog_popup && m_dialog_popup->is_showing()) {
+        m_dialog_popup->dismiss();
+        m_dialog_popup = nullptr;
     }
 
     int card_rad = get_card_radius(config);
@@ -786,9 +683,9 @@ void MillerView::show_confirm_dialog(const std::string& title, const std::string
         ->padding(12, 6)
         ->cornerRadius(btn_rad)
         ->onClick([this]() {
-            if (m_active_popup) {
-                m_active_popup->dismiss();
-                m_active_popup = nullptr;
+            if (m_dialog_popup) {
+                m_dialog_popup->dismiss();
+                m_dialog_popup = nullptr;
             }
         })
         ->build();
@@ -798,9 +695,9 @@ void MillerView::show_confirm_dialog(const std::string& title, const std::string
         ->padding(14, 6)
         ->cornerRadius(btn_rad)
         ->onClick([this, on_confirm = std::move(on_confirm)]() {
-            if (m_active_popup) {
-                m_active_popup->dismiss();
-                m_active_popup = nullptr;
+            if (m_dialog_popup) {
+                m_dialog_popup->dismiss();
+                m_dialog_popup = nullptr;
             }
             if (on_confirm) on_confirm();
         })
@@ -812,7 +709,7 @@ void MillerView::show_confirm_dialog(const std::string& title, const std::string
     btn_row->add_view(ok_btn, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
     container->add_view(btn_row, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
-    m_active_popup = PopupWindowBuilder::create()
+    m_dialog_popup = PopupWindowBuilder::create()
         ->content(container)
         ->width(350)
         ->elevation(6)
@@ -820,23 +717,23 @@ void MillerView::show_confirm_dialog(const std::string& title, const std::string
         ->dismissOnOutsideClick(true)
         ->dismissOnEscape(true)
         ->onDismiss([this]() {
-            m_active_popup = nullptr;
+            m_dialog_popup = nullptr;
         })
         ->build();
 
     int px = std::max(16, (m_window->get_width() - 350) / 2);
     int py = std::max(16, (m_window->get_height() - 150) / 2);
-    m_active_popup->show_at_location(m_window, px, py);
+    m_dialog_popup->show_at_location(m_window.get(), px, py);
 }
 
-void MillerView::action_copy_items(const std::vector<std::shared_ptr<FileItem>>& items, bool is_cut) {
-    m_clipboard_paths.clear();
-    m_clipboard_is_cut = is_cut;
+void ExplorerView::action_copy_items(const std::vector<std::shared_ptr<FileItem>>& items, bool is_cut) {
+    m_clipboard.paths.clear();
+    m_clipboard.is_cut = is_cut;
 
     std::string uri_list;
     for (const auto& item : items) {
         if (!item || item->path.empty()) continue;
-        m_clipboard_paths.push_back(item->path);
+        m_clipboard.paths.push_back(item->path);
         uri_list += "file://" + url_encode_path(item->path.string()) + "\r\n";
     }
 
@@ -845,19 +742,19 @@ void MillerView::action_copy_items(const std::vector<std::shared_ptr<FileItem>>&
     }
 }
 
-void MillerView::action_paste_into(const fs::path& target_dir) {
-    if (m_clipboard_paths.empty() || target_dir.empty()) return;
+void ExplorerView::action_paste_into(const fs::path& target_dir) {
+    if (m_clipboard.paths.empty() || target_dir.empty()) return;
 
     std::error_code ec;
     if (!fs::exists(target_dir, ec) || !fs::is_directory(target_dir, ec)) return;
 
     std::string last_pasted;
-    for (const auto& src : m_clipboard_paths) {
+    for (const auto& src : m_clipboard.paths) {
         if (!fs::exists(src, ec) && !fs::is_symlink(src, ec)) continue;
         if (fs::is_directory(src, ec) && is_subpath_of(target_dir, src)) continue;
 
-        fs::path dst = make_unique_path(target_dir, src.filename().string(), m_clipboard_is_cut ? "" : "copy");
-        if (m_clipboard_is_cut) {
+        fs::path dst = make_unique_path(target_dir, src.filename().string(), m_clipboard.is_cut ? "" : "copy");
+        if (m_clipboard.is_cut) {
             fs::rename(src, dst, ec);
             if (ec) {
                 ec.clear();
@@ -875,15 +772,15 @@ void MillerView::action_paste_into(const fs::path& target_dir) {
         }
     }
 
-    if (m_clipboard_is_cut) {
-        m_clipboard_paths.clear();
-        m_clipboard_is_cut = false;
+    if (m_clipboard.is_cut) {
+        m_clipboard.paths.clear();
+        m_clipboard.is_cut = false;
     }
 
     reload_current_directory(last_pasted);
 }
 
-void MillerView::action_trash_items(const std::vector<std::shared_ptr<FileItem>>& items) {
+void ExplorerView::action_trash_items(const std::vector<std::shared_ptr<FileItem>>& items) {
     fs::path trash_root = get_trash_dir();
     if (trash_root.empty()) return;
 
@@ -925,7 +822,7 @@ void MillerView::action_trash_items(const std::vector<std::shared_ptr<FileItem>>
     reload_current_directory();
 }
 
-void MillerView::action_delete_items(const std::vector<std::shared_ptr<FileItem>>& items) {
+void ExplorerView::action_delete_items(const std::vector<std::shared_ptr<FileItem>>& items) {
     std::error_code ec;
     for (const auto& item : items) {
         if (!item || item->path.empty()) continue;
@@ -934,7 +831,7 @@ void MillerView::action_delete_items(const std::vector<std::shared_ptr<FileItem>
     reload_current_directory();
 }
 
-void MillerView::action_add_to_desktop(const std::shared_ptr<FileItem>& item) {
+void ExplorerView::action_add_to_desktop(const std::shared_ptr<FileItem>& item) {
     if (!item || item->path.empty()) return;
     fs::path desktop = get_desktop_dir();
     if (desktop.empty()) return;
@@ -947,7 +844,7 @@ void MillerView::action_add_to_desktop(const std::shared_ptr<FileItem>& item) {
     fs::create_symlink(item->path, link_path, ec);
 }
 
-void MillerView::action_set_as_wallpaper(const std::shared_ptr<FileItem>& item) {
+void ExplorerView::action_set_as_wallpaper(const std::shared_ptr<FileItem>& item) {
     if (!item || item->path.empty()) return;
     FileOpener::spawn_detached({"miqubg", "img", item->path.string()});
 }

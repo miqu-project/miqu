@@ -8,6 +8,7 @@
 #include <memory>
 #include <functional>
 #include <unordered_set>
+#include <chrono>
 
 namespace miqu {
 
@@ -28,6 +29,8 @@ public:
     void set_cell_height(int h) { m_cell_h = h; }
     void set_horizontal_spacing(int sx) { m_space_x = sx; }
     void set_vertical_spacing(int sy) { m_space_y = sy; }
+    void set_bottom_padding(int px) { m_bottom_padding = std::max(0, px); }
+    void set_clear_selection_on_empty_click(bool clear) { m_clear_on_empty_click = clear; }
     void set_stretch_mode(StretchMode mode) { m_stretch_mode = mode; }
 
     using ItemProviderCallback = std::function<std::shared_ptr<View>(size_t index)>;
@@ -56,6 +59,7 @@ public:
 
     void set_keyboard_navigation_enabled(bool enabled) { m_keyboard_navigation_enabled = enabled; }
     bool is_keyboard_navigation_enabled() const { return m_keyboard_navigation_enabled; }
+    void scroll_to_top() { m_scroll_y = 0.0; request_redraw(); }
 
     // Cursor & items
     void set_selected_index(int index);
@@ -82,6 +86,9 @@ public:
     // Event listeners
     void set_on_item_click_listener(std::function<void(size_t index, std::shared_ptr<View> item)> cb) {
         m_on_item_click = std::move(cb);
+    }
+    void set_on_item_double_click_listener(std::function<void(size_t index, std::shared_ptr<View> item)> cb) {
+        m_on_item_double_click = std::move(cb);
     }
     void set_on_selection_changed(std::function<void(const std::unordered_set<int>&)> cb) {
         m_on_selection_changed = std::move(cb);
@@ -143,7 +150,13 @@ private:
     size_t m_virtual_count = 0;
     ItemProviderCallback m_item_provider;
 
+    int m_bottom_padding = 0;
+    bool m_clear_on_empty_click = false;
+    int m_last_click_index = -1;
+    std::chrono::steady_clock::time_point m_last_click_time{};
+
     std::function<void(size_t, std::shared_ptr<View>)> m_on_item_click;
+    std::function<void(size_t, std::shared_ptr<View>)> m_on_item_double_click;
     std::function<void(const std::unordered_set<int>&)> m_on_selection_changed;
     std::function<void(int)> m_on_cursor_changed;
     std::function<void(size_t, std::shared_ptr<View>, int, int)> m_on_item_context_click;
@@ -224,8 +237,23 @@ public:
         return shared_from_this();
     }
 
+    std::shared_ptr<GridViewBuilder> bottomPadding(int px) {
+        m_view->set_bottom_padding(px);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<GridViewBuilder> clearSelectionOnEmptyClick(bool clear) {
+        m_view->set_clear_selection_on_empty_click(clear);
+        return shared_from_this();
+    }
+
     std::shared_ptr<GridViewBuilder> onItemClick(std::function<void(size_t, std::shared_ptr<View>)> cb) {
         m_view->set_on_item_click_listener(std::move(cb));
+        return shared_from_this();
+    }
+
+    std::shared_ptr<GridViewBuilder> onItemDoubleClick(std::function<void(size_t, std::shared_ptr<View>)> cb) {
+        m_view->set_on_item_double_click_listener(std::move(cb));
         return shared_from_this();
     }
 

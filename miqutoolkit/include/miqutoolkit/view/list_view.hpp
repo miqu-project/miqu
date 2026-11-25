@@ -8,6 +8,7 @@
 #include <memory>
 #include <functional>
 #include <unordered_set>
+#include <chrono>
 
 namespace miqu {
 
@@ -78,10 +79,16 @@ public:
 
     void set_keyboard_navigation_enabled(bool enabled) { m_keyboard_navigation_enabled = enabled; }
     bool is_keyboard_navigation_enabled() const { return m_keyboard_navigation_enabled; }
+    void scroll_to_top() { m_scroll_y = 0.0; request_redraw(); }
 
     // Event listeners
+    void set_bottom_padding(int px) { m_bottom_padding = std::max(0, px); }
+    void set_clear_selection_on_empty_click(bool clear) { m_clear_on_empty_click = clear; }
     void set_on_item_click_listener(std::function<void(size_t index, std::shared_ptr<View> item)> cb) {
         m_on_item_click = std::move(cb);
+    }
+    void set_on_item_double_click_listener(std::function<void(size_t index, std::shared_ptr<View> item)> cb) {
+        m_on_item_double_click = std::move(cb);
     }
     void set_on_item_context_click_listener(std::function<void(size_t index, std::shared_ptr<View> item, int x, int y)> cb) {
         m_on_item_context_click = std::move(cb);
@@ -130,8 +137,14 @@ private:
     mutable int m_last_height = 0;
     bool m_scroll_to_selected = false;
 
+    int m_bottom_padding = 0;
+    bool m_clear_on_empty_click = false;
+    int m_last_click_index = -1;
+    std::chrono::steady_clock::time_point m_last_click_time{};
+
     std::vector<std::shared_ptr<View>> m_items;
     std::function<void(size_t, std::shared_ptr<View>)> m_on_item_click;
+    std::function<void(size_t, std::shared_ptr<View>)> m_on_item_double_click;
     std::function<void(size_t, std::shared_ptr<View>, int, int)> m_on_item_context_click;
     std::function<void(int, int)> m_on_empty_context_click;
 };
@@ -209,8 +222,23 @@ public:
         return shared_from_this();
     }
 
+    std::shared_ptr<ListViewBuilder> bottomPadding(int px) {
+        m_view->set_bottom_padding(px);
+        return shared_from_this();
+    }
+
+    std::shared_ptr<ListViewBuilder> clearSelectionOnEmptyClick(bool clear) {
+        m_view->set_clear_selection_on_empty_click(clear);
+        return shared_from_this();
+    }
+
     std::shared_ptr<ListViewBuilder> onItemClick(std::function<void(size_t, std::shared_ptr<View>)> cb) {
         m_view->set_on_item_click_listener(std::move(cb));
+        return shared_from_this();
+    }
+
+    std::shared_ptr<ListViewBuilder> onItemDoubleClick(std::function<void(size_t, std::shared_ptr<View>)> cb) {
+        m_view->set_on_item_double_click_listener(std::move(cb));
         return shared_from_this();
     }
 

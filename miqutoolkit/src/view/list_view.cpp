@@ -279,7 +279,7 @@ void ListView::draw(cairo_t* cr, const Rect& bounds) {
     }
 
     int row_stride_for_fling = m_item_h + m_spacing;
-    double content_h_for_fling = m_items.empty() ? 0.0 : (m_items.size() * row_stride_for_fling - m_spacing);
+    double content_h_for_fling = m_items.empty() ? 0.0 : (m_items.size() * row_stride_for_fling - m_spacing + m_bottom_padding);
     double max_scroll_for_fling = std::max(0.0, content_h_for_fling - m_last_height);
     m_scroll_y = std::clamp(m_scroll_y, 0.0, max_scroll_for_fling);
 
@@ -379,7 +379,7 @@ void ListView::draw(cairo_t* cr, const Rect& bounds) {
     }
 
     // Scrollbar
-    double content_h = m_items.size() * row_stride - m_spacing;
+    double content_h = m_items.empty() ? 0.0 : (m_items.size() * row_stride - m_spacing + m_bottom_padding);
     double max_scroll = std::max(0.0, content_h - bounds.height);
     if (m_scrollbar_enabled && max_scroll > 0.0) {
         double track_h = bounds.height - 8;
@@ -410,27 +410,17 @@ bool ListView::on_mouse_move(int lx, int ly, const Rect& bounds) {
 }
 
 bool ListView::on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) {
-    if (m_items.empty()) return false;
-    if (!m_selectable && !m_on_item_click && !m_on_item_context_click) return false;
     int count = static_cast<int>(m_items.size());
 
-    if (button == MouseButton::Left && pressed) {
-        int idx = item_at(lx, ly, bounds);
-        if (idx >= 0 && idx < count) {
-            Window* win = get_window();
-            bool is_shift = win && win->has_shift();
-            bool is_ctrl = win && win->has_ctrl();
-
-            if (m_on_item_click) {
-                m_on_item_click(idx, m_items[idx]);
+    if (button == MouseButton::Right && pressed) {
+        if (m_items.empty()) {
+            if (m_on_empty_context_click) {
+                m_on_empty_context_click(lx, ly);
+                request_redraw();
+                return true;
             }
-            if (m_selectable && m_selection_model) {
-                m_selection_model->handle_click(idx, is_shift, is_ctrl, count);
-            }
-            request_redraw();
-            return true;
+            return false;
         }
-    } else if (button == MouseButton::Right && pressed) {
         int idx = item_at(lx, ly, bounds);
         if (idx >= 0 && idx < count) {
             if (m_selectable && m_selection_model) {
@@ -446,13 +436,64 @@ bool ListView::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
             request_redraw();
             return true;
         }
+        return false;
+    }
+
+    if (m_items.empty()) return false;
+    if (!m_selectable && !m_on_item_click && !m_on_item_double_click && !m_on_item_context_click) return false;
+
+    if (button == MouseButton::Left && pressed) {
+        int idx = item_at(lx, ly, bounds);
+        Window* win = get_window();
+        bool is_shift = win && win->has_shift();
+        bool is_ctrl = win && win->has_ctrl();
+
+        if (idx >= 0 && idx < count) {
+            auto now = std::chrono::steady_clock::now();
+            bool is_double = (!is_shift && !is_ctrl && idx == m_last_click_index &&
+                              std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_click_time).count() <= 400);
+
+            if (is_double) {
+                m_last_click_index = -1;
+                if (m_selectable && m_selection_model) {
+                    m_selection_model->handle_click(idx, false, false, count);
+                }
+                if (m_on_item_double_click) {
+                    m_on_item_double_click(idx, m_items[idx]);
+                } else if (m_on_item_click) {
+                    m_on_item_click(idx, m_items[idx]);
+                }
+                request_redraw();
+                return true;
+            }
+
+            m_last_click_index = idx;
+            m_last_click_time = now;
+
+            if (m_selectable && m_selection_model) {
+                m_selection_model->handle_click(idx, is_shift, is_ctrl, count);
+            }
+            if (m_on_item_click) {
+                m_on_item_click(idx, m_items[idx]);
+            }
+            request_redraw();
+            return true;
+        } else {
+            m_last_click_index = -1;
+            if (m_clear_on_empty_click && !is_shift && !is_ctrl && m_selectable && m_selection_model) {
+                m_selection_model->clear_marks();
+                m_selection_model->set_cursor(-1);
+                request_redraw();
+                return true;
+            }
+        }
     }
     return false;
 }
 
 bool ListView::on_scroll(double delta, uint32_t axis_source) {
     int row_stride = m_item_h + m_spacing;
-    double content_h = m_items.empty() ? 0.0 : (m_items.size() * row_stride - m_spacing);
+    double content_h = m_items.empty() ? 0.0 : (m_items.size() * row_stride - m_spacing + m_bottom_padding);
     double max_scroll = std::max(0.0, content_h - m_last_height);
     if (max_scroll <= 0.0) return false;
 
@@ -545,9 +586,15 @@ bool ListView::on_key(const KeyPressEvent& event) {
 
         case XKB_KEY_Return:
         case XKB_KEY_KP_Enter:
-            if (old_cursor >= 0 && old_cursor < count && m_on_item_click) {
-                m_on_item_click(old_cursor, m_items[old_cursor]);
-                return true;
+            if (old_cursor >= 0 && old_cursor < count) {
+                if (m_on_item_double_click) {
+                    m_on_item_double_click(old_cursor, m_items[old_cursor]);
+                    return true;
+                }
+                if (m_on_item_click) {
+                    m_on_item_click(old_cursor, m_items[old_cursor]);
+                    return true;
+                }
             }
             return false;
 

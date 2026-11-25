@@ -334,7 +334,7 @@ void GridView::draw(cairo_t* cr, const Rect& bounds) {
     size_t count = get_item_count();
     int total_rows = (static_cast<int>(count) + cols - 1) / cols;
     int row_stride = m_cell_h + m_space_y;
-    double content_h = std::max(0, total_rows * row_stride - m_space_y);
+    double content_h = std::max(0, total_rows * row_stride - m_space_y) + m_bottom_padding;
     double max_scroll = std::max(0.0, content_h - bounds.height);
 
     m_scroll_y = std::clamp(m_scroll_y, 0.0, max_scroll);
@@ -481,19 +481,49 @@ bool GridView::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
     int count = static_cast<int>(get_item_count());
     if (button == MouseButton::Left && pressed) {
         int idx = item_at(lx, ly, bounds);
-        if (idx >= 0 && idx < count) {
-            Window* win = get_window();
-            bool is_shift = win && win->has_shift();
-            bool is_ctrl = win && win->has_ctrl();
+        Window* win = get_window();
+        bool is_shift = win && win->has_shift();
+        bool is_ctrl = win && win->has_ctrl();
 
-            if (m_on_item_click) {
-                m_on_item_click(idx, get_item_at(static_cast<size_t>(idx)));
+        if (idx >= 0 && idx < count) {
+            auto now = std::chrono::steady_clock::now();
+            bool is_double = (!is_shift && !is_ctrl && idx == m_last_click_index &&
+                              std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_click_time).count() <= 400);
+
+            auto item = get_item_at(static_cast<size_t>(idx));
+            if (is_double) {
+                m_last_click_index = -1;
+                if (m_selection_model) {
+                    m_selection_model->handle_click(idx, false, false, count);
+                }
+                if (m_on_item_double_click) {
+                    m_on_item_double_click(idx, item);
+                } else if (m_on_item_click) {
+                    m_on_item_click(idx, item);
+                }
+                request_redraw();
+                return true;
             }
+
+            m_last_click_index = idx;
+            m_last_click_time = now;
+
             if (m_selection_model) {
                 m_selection_model->handle_click(idx, is_shift, is_ctrl, count);
             }
+            if (m_on_item_click) {
+                m_on_item_click(idx, item);
+            }
             request_redraw();
             return true;
+        } else {
+            m_last_click_index = -1;
+            if (m_clear_on_empty_click && !is_shift && !is_ctrl && m_selection_model) {
+                m_selection_model->clear_marks();
+                m_selection_model->set_cursor(-1);
+                request_redraw();
+                return true;
+            }
         }
     } else if (button == MouseButton::Right && pressed) {
         int idx = item_at(lx, ly, bounds);
@@ -520,7 +550,7 @@ bool GridView::on_scroll(double delta, uint32_t axis_source) {
     int cols = compute_columns(m_last_width, cell_w);
     int total_rows = (static_cast<int>(get_item_count()) + cols - 1) / cols;
     int row_stride = m_cell_h + m_space_y;
-    double content_h = std::max(0, total_rows * row_stride - m_space_y);
+    double content_h = std::max(0, total_rows * row_stride - m_space_y) + m_bottom_padding;
     double max_scroll = std::max(0.0, content_h - m_last_height);
     if (max_scroll <= 0.0) return false;
 
@@ -581,9 +611,16 @@ bool GridView::on_key(const KeyPressEvent& event) {
 
     // Return / KP_Enter
     if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
-        if (old_cursor >= 0 && old_cursor < total && m_on_item_click) {
-            m_on_item_click(old_cursor, get_item_at(static_cast<size_t>(old_cursor)));
-            return true;
+        if (old_cursor >= 0 && old_cursor < total) {
+            auto item = get_item_at(static_cast<size_t>(old_cursor));
+            if (m_on_item_double_click) {
+                m_on_item_double_click(old_cursor, item);
+                return true;
+            }
+            if (m_on_item_click) {
+                m_on_item_click(old_cursor, item);
+                return true;
+            }
         }
         return false;
     }

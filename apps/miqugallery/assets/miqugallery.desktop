@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Miqu Gallery
+GenericName=Image Viewer
+Comment=Fast Wayland Image Viewer
+Exec=miqugallery %f
+Icon=image-x-generic
+Terminal=false
+Categories=Graphics;Viewer;
+MimeType=image/png;image/jpeg;image/webp;image/gif;image/bmp;image/svg+xml;image/tiff;image/avif;image/heic;
+StartupNotify=false

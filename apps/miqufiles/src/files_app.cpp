@@ -1,13 +1,17 @@
 #include "files_app.hpp"
+#include "preview_common.hpp"
 #include <xkbcommon/xkbcommon-keysyms.h>
-#include <iostream>
-#include <fstream>
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
 namespace miqu {
+
+constexpr int MATCH_PARENT = static_cast<int>(LayoutDimension::MatchParent);
+constexpr int WRAP_CONTENT = static_cast<int>(LayoutDimension::WrapContent);
 
 static bool read_config_show_hidden() {
     std::string user_conf = FsUtils::get_user_config_file("miqufiles");
@@ -59,7 +63,7 @@ bool FilesApp::init() {
         ->title("Files")
         ->appId("miqufiles")
         ->role(WindowRole::Toplevel)
-        ->preferredSize(1020, 660)
+        ->preferredSize(1120, 680)
         ->closeOnEscape(false)
         ->keyboardInteractive(true)
         ->contentView(m_root_layout)
@@ -68,112 +72,54 @@ bool FilesApp::init() {
         })
         ->onShortcut([this](const KeyPressEvent& ev) -> bool {
             if (!ev.pressed) return false;
-
-            // When text editor is active and focused, let all typing (hjkl, etc.) and
-            // cursor navigation pass directly to EditText, while Escape cancels editing
-            // and Ctrl+S saves and exits editing.
-            if (m_miller_view && m_miller_view->is_editor_focused()) {
-                if (ev.has_ctrl() && (ev.keysym == XKB_KEY_s || ev.keysym == XKB_KEY_S)) {
-                    m_miller_view->save_editing();
-                    return true;
-                }
+            if (m_search_view && m_search_view->is_focused()) {
                 if (ev.keysym == XKB_KEY_Escape) {
-                    m_miller_view->cancel_editing();
+                    m_search_view->set_query("");
+                    m_search_view->set_focused(false);
+                    if (m_window) m_window->clear_focus();
+                    if (m_explorer_view) m_explorer_view->set_search_query("");
                     return true;
                 }
                 return false;
             }
-
-            if (m_miller_view && m_miller_view->is_preview_content_focused()) {
-                if (ev.keysym == XKB_KEY_Down || ev.keysym == XKB_KEY_j) {
-                    if (m_window && m_window->focus_direction(FocusDirection::Down)) {
-                        return true;
-                    }
-                    m_miller_view->scroll_preview(1.5);
+            if (ev.has_ctrl() && (ev.keysym == XKB_KEY_f || ev.keysym == XKB_KEY_F)) {
+                if (m_search_view) {
+                    m_search_view->set_focused(true);
+                    if (m_window) m_window->set_focused_view(m_search_view.get());
+                }
+                return true;
+            }
+            handle_key_press(ev);
+            return true;
+        })
+        ->onKey([this](const KeyPressEvent& ev) -> bool {
+            if (!ev.pressed) return false;
+            if (m_search_view && m_search_view->is_focused()) {
+                if (ev.keysym == XKB_KEY_Escape) {
+                    m_search_view->set_query("");
+                    m_search_view->set_focused(false);
+                    if (m_window) m_window->clear_focus();
+                    if (m_explorer_view) m_explorer_view->set_search_query("");
                     return true;
                 }
-                if (ev.keysym == XKB_KEY_Up || ev.keysym == XKB_KEY_k) {
-                    if (m_window && m_window->focus_direction(FocusDirection::Up)) {
-                        return true;
-                    }
-                    if (m_miller_view->is_preview_scroll_at_top()) {
-                        m_miller_view->focus_preview_ribbon();
-                    } else {
-                        m_miller_view->scroll_preview(-1.5);
-                    }
+                if (m_search_view->on_key(ev)) {
                     return true;
-                }
-                if (ev.keysym == XKB_KEY_Right || ev.keysym == XKB_KEY_l) {
-                    if (m_window && m_window->focus_direction(FocusDirection::Right)) {
-                        return true;
-                    }
-                }
-                if (ev.keysym == XKB_KEY_Page_Down) {
-                    m_miller_view->scroll_preview(8.0);
-                    return true;
-                }
-                if (ev.keysym == XKB_KEY_Page_Up) {
-                    m_miller_view->scroll_preview(-8.0);
-                    return true;
-                }
-                if (ev.keysym == XKB_KEY_Left || ev.keysym == XKB_KEY_h) {
-                    if (m_window && m_window->focus_direction(FocusDirection::Left)) {
-                        return true;
-                    }
-                    if (m_miller_view->is_preview_expanded()) {
-                        m_miller_view->set_preview_expanded(false);
-                    } else {
-                        if (m_window) m_window->clear_focus();
-                        m_miller_view->set_preview_focused(false);
-                    }
-                    return true;
-                }
-            } else if (m_miller_view && m_miller_view->is_preview_ribbon_focused()) {
-                if (ev.keysym == XKB_KEY_Down || ev.keysym == XKB_KEY_j) {
-                    return m_miller_view->focus_preview_content();
-                }
-                if (ev.keysym == XKB_KEY_Up || ev.keysym == XKB_KEY_k) {
-                    return true; // Already at top ribbon
-                }
-                if (ev.keysym == XKB_KEY_Left || ev.keysym == XKB_KEY_h) {
-                    if (m_miller_view->focus_prev_ribbon_control()) {
-                        return true;
-                    }
-                    // Leftmost ribbon control: exit preview back to middle pillar
-                    if (m_miller_view->is_preview_expanded()) {
-                        m_miller_view->set_preview_expanded(false);
-                    } else {
-                        if (m_window) m_window->clear_focus();
-                        m_miller_view->set_preview_focused(false);
-                    }
-                    return true;
-                }
-                if (ev.keysym == XKB_KEY_Right || ev.keysym == XKB_KEY_l) {
-                    return m_miller_view->focus_next_ribbon_control();
                 }
             }
-            return false;
-        })
-        ->onKey([this](const KeyPressEvent& ev) {
             handle_key_press(ev);
+            return true;
         })
         ->build();
 
-    if (!m_window) {
-        std::cerr << "[miqufiles] Failed to build main window.\n";
-        return false;
-    }
-
-    m_engine->register_window(m_window);
-    sync_theme();
+    if (!m_window) return false;
+    m_explorer_view->set_explorer_window(m_window);
     update_header();
-    update_hidden_btn_ui();
-
     return true;
 }
 
 void FilesApp::setup_ui() {
     auto config = Config::get();
+    if (!config) return;
 
     m_root_layout = LinearLayoutBuilder::create()
         ->orientation(Orientation::Vertical)
@@ -181,7 +127,7 @@ void FilesApp::setup_ui() {
         ->backgroundColor(Color::transparent())
         ->build();
 
-    // 1. Top Toolbar (Centered Title "Files", close button on right)
+    // 1. Top Toolbar
     m_toolbar = ToolbarBuilder::create()
         ->title("Files")
         ->iconResource("system-file-manager")
@@ -194,75 +140,74 @@ void FilesApp::setup_ui() {
         })
         ->closeTooltip("Quit Files")
         ->build();
+    m_root_layout->add_view(m_toolbar, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
-    LayoutParams toolbar_lp;
-    toolbar_lp.width = static_cast<int>(LayoutDimension::MatchParent);
-    toolbar_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-    m_root_layout->add_view(m_toolbar, toolbar_lp);
-
-    // 2. Ribbon between Toolbar and Main Content (Back button + Clickable Breadcrumbs + Search)
+    // 2. Explorer Ribbon: Nav (Back/Forward/Up) + Breadcrumbs + Search + View Modes + Hidden + Preview
     m_ribbon = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
-        ->padding(16, 0)
-        ->spacing(12)
+        ->padding(14, 4)
+        ->spacing(8)
         ->backgroundColor(Color::transparent())
         ->build();
 
-    m_back_label = TextViewBuilder::create()
-        ->text("‹ Back")
-        ->textSize(config->metrics.font_size)
-        ->textColor(config->colors.primary)
-        ->build();
+    auto make_pill_btn = [&](std::shared_ptr<CardView>& card_out, std::shared_ptr<TextView>& lbl_out,
+                             const std::string& text, const std::string& tooltip, const std::string& shortcut,
+                             std::function<void()> on_click) {
+        lbl_out = TextViewBuilder::create()
+            ->text(text)
+            ->textSize(config->metrics.font_size)
+            ->textColor(config->colors.on_surface_variant)
+            ->build();
 
-    auto back_content = LinearLayoutBuilder::create()
-        ->orientation(Orientation::Horizontal)
-        ->padding(10, 3)
-        ->spacing(4)
-        ->addView(m_back_label)
-        ->build();
+        auto content = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Horizontal)
+            ->padding(8, 3)
+            ->gravity(Gravity::Center)
+            ->addView(lbl_out)
+            ->build();
 
-    m_back_btn = CardViewBuilder::create()
-        ->style(CardStyle::Filled)
-        ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
-        ->elevation(0)
-        ->tooltip("Back")
-        ->tooltipShortcut("Left / Backspace")
-        ->addView(back_content)
-        ->build();
+        card_out = CardViewBuilder::create()
+            ->style(CardStyle::Filled)
+            ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
+            ->elevation(0)
+            ->cornerRadius(get_btn_radius(config))
+            ->tooltip(tooltip)
+            ->tooltipShortcut(shortcut)
+            ->addView(content)
+            ->build();
+        card_out->set_focusable(false);
+        card_out->set_on_click_listener(std::move(on_click));
 
-    m_back_btn->set_on_click_listener([this]() {
-        if (m_miller_view && m_miller_view->check_and_update_click_debounce() && m_miller_view->can_navigate_back()) {
-            if (m_miller_view->is_searching()) {
-                if (m_search_view) {
-                    m_search_view->set_query("");
-                    m_search_view->set_focused(false);
-                }
-                if (m_window) m_window->clear_focus();
-            }
-            m_miller_view->navigate_back();
+        LayoutParams lp(WRAP_CONTENT, 26, Gravity::CenterVertical);
+        m_ribbon->add_view(card_out, lp);
+    };
+
+    make_pill_btn(m_back_btn, m_back_label, "‹", "Back", "Alt+Left", [this]() {
+        if (m_explorer_view && m_explorer_view->check_and_update_click_debounce()) {
+            m_explorer_view->navigate_back();
         }
     });
-
-    LayoutParams back_lp;
-    back_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-    back_lp.height = 26;
-    back_lp.gravity = Gravity::CenterVertical;
-    m_ribbon->add_view(m_back_btn, back_lp);
+    make_pill_btn(m_forward_btn, m_forward_label, "›", "Forward", "Alt+Right", [this]() {
+        if (m_explorer_view && m_explorer_view->check_and_update_click_debounce()) {
+            m_explorer_view->navigate_forward();
+        }
+    });
+    make_pill_btn(m_up_btn, m_up_label, "↑", "Up", "Backspace", [this]() {
+        if (m_explorer_view && m_explorer_view->check_and_update_click_debounce()) {
+            m_explorer_view->navigate_up();
+        }
+    });
 
     m_breadcrumb_container = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
         ->spacing(2)
         ->gravity(Gravity::CenterVertical)
         ->build();
+    LayoutParams bc_lp(MATCH_PARENT, WRAP_CONTENT, 1.0f);
+    bc_lp.gravity = Gravity::CenterVertical;
+    m_ribbon->add_view(m_breadcrumb_container, bc_lp);
 
-    LayoutParams breadcrumb_lp;
-    breadcrumb_lp.width = static_cast<int>(LayoutDimension::MatchParent);
-    breadcrumb_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-    breadcrumb_lp.weight = 1.0f;
-    breadcrumb_lp.gravity = Gravity::CenterVertical;
-    m_ribbon->add_view(m_breadcrumb_container, breadcrumb_lp);
-
-    // Search bar integrated into the ribbon header
+    // Search
     m_search_view = SearchViewBuilder::create()
         ->hint("Search")
         ->focused(false)
@@ -273,34 +218,33 @@ void FilesApp::setup_ui() {
         ->stroke(0, Color::transparent())
         ->onQueryTextListener(
             [this](const std::string& query) {
-                if (m_miller_view) {
-                    m_miller_view->set_search_query(query);
-                }
+                if (m_explorer_view) m_explorer_view->set_search_query(query);
             },
             [this](const std::string&) {
-                if (m_search_view) {
-                    m_search_view->set_focused(false);
-                }
-                if (m_window) {
-                    m_window->clear_focus();
-                }
-                if (m_miller_view) {
-                    m_miller_view->navigate_enter();
-                }
+                if (m_search_view) m_search_view->set_focused(false);
+                if (m_window) m_window->clear_focus();
+                if (m_explorer_view) m_explorer_view->navigate_enter();
             }
         )
         ->build();
     m_search_view->set_focused(false);
+    m_ribbon->add_view(m_search_view, LayoutParams(200, 26, Gravity::CenterVertical));
 
-    LayoutParams search_lp;
-    search_lp.width = 240;
-    search_lp.height = 28;
-    search_lp.gravity = Gravity::CenterVertical;
-    m_ribbon->add_view(m_search_view, search_lp);
+    // View Mode Switcher: Grid | List | Details
+    make_pill_btn(m_grid_mode_btn, m_grid_mode_lbl, "Grid", "Grid View", "Ctrl+1", [this]() {
+        if (m_explorer_view) m_explorer_view->set_view_mode(ExplorerViewMode::Grid);
+    });
+    make_pill_btn(m_list_mode_btn, m_list_mode_lbl, "List", "List View", "Ctrl+2", [this]() {
+        if (m_explorer_view) m_explorer_view->set_view_mode(ExplorerViewMode::List);
+    });
+    make_pill_btn(m_details_mode_btn, m_details_mode_lbl, "Details", "Details View", "Ctrl+3", [this]() {
+        if (m_explorer_view) m_explorer_view->set_view_mode(ExplorerViewMode::Details);
+    });
 
+    // Hidden Toggle
     m_hidden_icon = ImageViewBuilder::create()
         ->source("show-hidden")
-        ->targetSize(16)
+        ->targetSize(15)
         ->fitMode(FitMode::Contain)
         ->alpha(0.6f)
         ->build();
@@ -314,9 +258,9 @@ void FilesApp::setup_ui() {
     auto hidden_content = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
         ->padding(8, 3)
-        ->spacing(6)
+        ->spacing(5)
         ->gravity(Gravity::Center)
-        ->addView(m_hidden_icon, LayoutParams(16, 16, Gravity::CenterVertical))
+        ->addView(m_hidden_icon, LayoutParams(15, 15, Gravity::CenterVertical))
         ->addView(m_hidden_label)
         ->build();
 
@@ -324,401 +268,192 @@ void FilesApp::setup_ui() {
         ->style(CardStyle::Filled)
         ->backgroundColor(config->colors.surface_variant.with_alpha(0.35f))
         ->elevation(0)
+        ->cornerRadius(get_btn_radius(config))
+        ->tooltip("Show Hidden Files")
+        ->tooltipShortcut("Ctrl+H")
         ->addView(hidden_content)
         ->build();
     m_hidden_btn->set_focusable(false);
-    m_hidden_btn->set_tooltip("Show Hidden Files");
-    m_hidden_btn->set_tooltip_shortcut("Ctrl+H");
+    m_hidden_btn->set_on_click_listener([this]() { toggle_show_hidden(); });
+    m_ribbon->add_view(m_hidden_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
 
-    m_hidden_btn->set_on_click_listener([this]() {
-        toggle_show_hidden();
+    // Preview Pane Toggle
+    make_pill_btn(m_preview_btn, m_preview_label, "Preview", "Toggle Preview Pane", "Alt+P", [this]() {
+        if (m_explorer_view) m_explorer_view->toggle_preview();
     });
 
-    LayoutParams hidden_lp;
-    hidden_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-    hidden_lp.height = 26;
-    hidden_lp.gravity = Gravity::CenterVertical;
-    m_ribbon->add_view(m_hidden_btn, hidden_lp);
+    m_root_layout->add_view(m_ribbon, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
-    LayoutParams ribbon_lp;
-    ribbon_lp.width = static_cast<int>(LayoutDimension::MatchParent);
-    ribbon_lp.height = 36;
-    m_root_layout->add_view(m_ribbon, ribbon_lp);
+    auto top_div = DividerViewBuilder::create()
+        ->orientation(Orientation::Horizontal)
+        ->thickness(1)
+        ->color(config->colors.outline.with_alpha(0.25f))
+        ->build();
+    m_root_layout->add_view(top_div, LayoutParams(MATCH_PARENT, 1));
 
-    // 3. Middle Body: MillerView
-    bool initial_show_hidden = read_config_show_hidden();
-    m_miller_view = std::make_shared<MillerView>();
-    m_miller_view->init(m_start_path, initial_show_hidden);
-    m_miller_view->set_on_state_changed([this]() {
-        update_header();
-    });
-
-    LayoutParams miller_lp;
-    miller_lp.width = static_cast<int>(LayoutDimension::MatchParent);
-    miller_lp.height = static_cast<int>(LayoutDimension::MatchParent);
-    miller_lp.weight = 1.0f;
-    m_root_layout->add_view(m_miller_view, miller_lp);
-}
-
-void FilesApp::sync_theme() {
-    auto config = Config::get();
-    m_root_layout->set_background_color(Color::transparent());
-
-    if (m_ribbon) {
-        m_ribbon->set_background_color(Color::transparent());
-    }
-    if (m_back_label) {
-        m_back_label->set_text_color(config->colors.primary);
-        m_back_label->set_text_size(config->metrics.font_size);
-    }
-    if (m_back_btn) {
-        m_back_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
-    }
-    if (m_search_view) {
-        m_search_view->set_background_color(config->colors.surface_variant.with_alpha(0.35f));
-        m_search_view->set_stroke(0, Color::transparent());
-    }
-    if (m_hidden_btn) {
-        update_hidden_btn_ui();
-    }
-
-    if (m_miller_view) {
-        m_miller_view->sync_theme();
-    }
-
-    update_header();
-    if (m_window) {
-        m_window->schedule_redraw();
-    }
+    // 3. Explorer View
+    bool initial_hidden = read_config_show_hidden();
+    m_explorer_view = std::make_shared<ExplorerView>(m_start_path, initial_hidden);
+    m_explorer_view->set_on_state_changed([this]() { update_header(); });
+    m_root_layout->add_view(m_explorer_view, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
 }
 
 void FilesApp::update_header() {
-    if (!m_miller_view) return;
+    auto config = Config::get();
+    if (!config || !m_explorer_view) return;
 
+    if (m_toolbar) {
+        m_toolbar->set_title(m_explorer_view->get_current_dir_title());
+    }
+
+    // Rebuild clickable breadcrumbs from m_explorer_view->get_current_dir()
     if (m_breadcrumb_container) {
         m_breadcrumb_container->clear_views();
-        auto config = Config::get();
-
-        auto add_separator = [this, config]() {
-            auto sep = TextViewBuilder::create()
-                ->text("›")
-                ->textSize(config->metrics.font_size)
-                ->textColor(config->colors.on_surface_variant.with_alpha(0.45f))
-                ->build();
-            LayoutParams sep_lp;
-            sep_lp.width = static_cast<int>(LayoutDimension::WrapContent);
-            sep_lp.height = static_cast<int>(LayoutDimension::WrapContent);
-            sep_lp.gravity = Gravity::CenterVertical;
-            m_breadcrumb_container->add_view(sep, sep_lp);
-        };
-
-        auto add_crumb = [this, config](const std::string& label, std::function<void()> on_click, bool is_current) {
-            LayoutParams lp;
-            lp.width = static_cast<int>(LayoutDimension::WrapContent);
-            lp.height = static_cast<int>(LayoutDimension::WrapContent);
-            lp.gravity = Gravity::CenterVertical;
-
-            if (is_current) {
-                auto crumb_view = TextViewBuilder::create()
-                    ->text(label)
-                    ->textSize(config->metrics.font_size)
-                    ->textColor(config->colors.on_surface)
-                    ->build();
-                m_breadcrumb_container->add_view(crumb_view, lp);
-            } else {
-                auto crumb_btn = ButtonBuilder::create()
-                    ->text(label)
-                    ->flat(true)
-                    ->padding(4, 2)
-                    ->cornerRadius(5)
-                    ->textSize(config->metrics.font_size)
-                    ->textColor(config->colors.on_surface_variant)
-                    ->build();
-                crumb_btn->set_focusable(false);
-                if (on_click) {
-                    crumb_btn->set_on_click_listener(std::move(on_click));
-                }
-                m_breadcrumb_container->add_view(crumb_btn, lp);
+        fs::path cur = m_explorer_view->get_current_dir();
+        if (!cur.empty()) {
+            std::vector<fs::path> segments;
+            fs::path acc;
+            for (const auto& part : cur) {
+                acc /= part;
+                segments.push_back(acc);
             }
-        };
 
-        if (m_miller_view->is_searching()) {
-            add_crumb("/", [this]() {
-                if (m_search_view) {
-                    m_search_view->set_query("");
-                    m_search_view->set_focused(false);
+            // Show up to last 4 segments if deep
+            size_t start_i = segments.size() > 5 ? segments.size() - 5 : 0;
+            for (size_t i = start_i; i < segments.size(); ++i) {
+                if (i > start_i) {
+                    auto sep = TextViewBuilder::create()
+                        ->text("›")
+                        ->caption(true)
+                        ->textColor(config->colors.on_surface_variant.with_alpha(0.5f))
+                        ->build();
+                    m_breadcrumb_container->add_view(sep, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::CenterVertical));
                 }
-                if (m_miller_view) {
-                    m_miller_view->navigate_to_depth(0);
-                }
-            }, false);
 
-            add_separator();
+                fs::path seg_path = segments[i];
+                std::string label_str = seg_path.filename().string();
+                if (label_str.empty()) label_str = "/";
+                bool is_last = (i + 1 == segments.size());
 
-            std::string search_label = "Search: \"" + m_miller_view->get_search_query() + "\"";
-            auto current = m_miller_view->get_current_selected_item();
-            if (current) {
-                add_crumb(search_label, [this]() {
-                    if (m_search_view) {
-                        m_search_view->set_focused(true);
-                    }
-                }, false);
-                add_separator();
-                add_crumb(current->title, nullptr, true);
-            } else {
-                add_crumb(search_label, nullptr, true);
-            }
-        } else {
-            const auto& path = m_miller_view->get_path();
-            auto current = m_miller_view->get_current_selected_item();
+                auto lbl = TextViewBuilder::create()
+                    ->text(label_str)
+                    ->caption(true)
+                    ->bold(is_last)
+                    ->textColor(is_last ? config->colors.on_surface : config->colors.on_surface_variant)
+                    ->build();
 
-            if (path.empty()) {
-                if (!current) {
-                    add_crumb("/", nullptr, true);
-                } else {
-                    add_crumb("/", [this]() {
-                        if (m_miller_view) {
-                            m_miller_view->navigate_to_depth(0);
+                auto btn = CardViewBuilder::create()
+                    ->style(CardStyle::Filled)
+                    ->backgroundColor(is_last ? config->colors.surface_variant.with_alpha(0.4f) : Color::transparent())
+                    ->elevation(0)
+                    ->cornerRadius(get_chip_radius(config))
+                    ->padding(6, 2)
+                    ->addView(lbl)
+                    ->build();
+                btn->set_focusable(false);
+                btn->set_on_click_listener([this, seg_path]() {
+                    if (m_explorer_view) {
+                        if (m_search_view && m_explorer_view->is_searching()) {
+                            m_search_view->set_query("");
+                            m_explorer_view->set_search_query("");
                         }
-                    }, false);
-                    add_separator();
-                    add_crumb(current->title, nullptr, true);
-                }
-            } else {
-                add_crumb("/", [this]() {
-                    if (m_miller_view) {
-                        m_miller_view->navigate_to_depth(0);
+                        m_explorer_view->navigate_to_dir(seg_path, true);
                     }
-                }, false);
-
-                for (size_t i = 0; i < path.size(); ++i) {
-                    add_separator();
-                    size_t target_depth = i + 1;
-                    bool is_last = (i == path.size() - 1) && (!current);
-                    add_crumb(path[i]->title, is_last ? nullptr : std::function<void()>([this, target_depth]() {
-                        if (m_miller_view) {
-                            m_miller_view->navigate_to_depth(target_depth);
-                        }
-                    }), is_last);
-                }
-
-                if (current) {
-                    add_separator();
-                    if (m_miller_view->is_preview_expanded()) {
-                        add_crumb(current->title, [this]() {
-                            if (m_miller_view) {
-                                m_miller_view->set_preview_expanded(false);
-                            }
-                        }, false);
-                    } else {
-                        add_crumb(current->title, nullptr, true);
-                    }
-                }
+                });
+                m_breadcrumb_container->add_view(btn, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::CenterVertical));
             }
         }
     }
 
-    if (m_back_btn) {
-        bool can_back = m_miller_view->can_navigate_back();
-        m_back_btn->set_visibility(can_back ? Visibility::Visible : Visibility::Gone);
-    }
+    update_nav_buttons_ui();
+    update_view_mode_buttons_ui();
+    update_hidden_btn_ui();
+    update_preview_btn_ui();
+}
 
-    if (m_search_view && !m_miller_view->is_searching() && !m_search_view->get_query().empty()) {
-        m_search_view->set_query("");
-    }
+void FilesApp::update_nav_buttons_ui() {
+    auto config = Config::get();
+    if (!config || !m_explorer_view) return;
 
-    if (m_window) {
-        m_window->schedule_redraw();
-    }
+    auto style_nav = [&](const std::shared_ptr<CardView>& btn, const std::shared_ptr<TextView>& lbl, bool enabled) {
+        if (!btn || !lbl) return;
+        btn->set_card_background_color(config->colors.surface_variant.with_alpha(enabled ? 0.38f : 0.15f));
+        lbl->set_text_color(enabled ? config->colors.primary : config->colors.on_surface_variant.with_alpha(0.35f));
+    };
+
+    style_nav(m_back_btn, m_back_label, m_explorer_view->can_navigate_back());
+    style_nav(m_forward_btn, m_forward_label, m_explorer_view->can_navigate_forward());
+    style_nav(m_up_btn, m_up_label, m_explorer_view->can_navigate_up());
+}
+
+void FilesApp::update_view_mode_buttons_ui() {
+    auto config = Config::get();
+    if (!config || !m_explorer_view) return;
+    ExplorerViewMode mode = m_explorer_view->get_view_mode();
+
+    auto style_mode = [&](const std::shared_ptr<CardView>& btn, const std::shared_ptr<TextView>& lbl, bool active) {
+        if (!btn || !lbl) return;
+        btn->set_card_background_color(active ? config->colors.primary_container
+                                              : config->colors.surface_variant.with_alpha(0.35f));
+        lbl->set_text_color(active ? config->colors.primary : config->colors.on_surface_variant);
+    };
+
+    style_mode(m_grid_mode_btn, m_grid_mode_lbl, mode == ExplorerViewMode::Grid);
+    style_mode(m_list_mode_btn, m_list_mode_lbl, mode == ExplorerViewMode::List);
+    style_mode(m_details_mode_btn, m_details_mode_lbl, mode == ExplorerViewMode::Details);
 }
 
 void FilesApp::update_hidden_btn_ui() {
-    if (!m_miller_view || !m_hidden_btn || !m_hidden_label) return;
     auto config = Config::get();
-    bool is_hidden_shown = m_miller_view->is_show_hidden();
+    if (!config || !m_explorer_view) return;
+    bool active = m_explorer_view->get_show_hidden();
 
-    if (is_hidden_shown) {
-        m_hidden_label->set_text_color(config->colors.primary);
-        if (m_hidden_icon) {
-            m_hidden_icon->set_image_resource("view-reveal");
-            m_hidden_icon->set_alpha(1.0f);
-        }
-        m_hidden_btn->set_card_background_color(config->colors.primary.with_alpha(0.20f));
-        m_hidden_btn->set_tooltip("Hide Hidden Files");
-    } else {
-        m_hidden_label->set_text_color(config->colors.on_surface_variant);
-        if (m_hidden_icon) {
-            m_hidden_icon->set_image_resource("show-hidden");
-            m_hidden_icon->set_alpha(0.6f);
-        }
-        m_hidden_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
-        m_hidden_btn->set_tooltip("Show Hidden Files");
+    if (m_hidden_btn) {
+        m_hidden_btn->set_card_background_color(active ? config->colors.primary_container
+                                                       : config->colors.surface_variant.with_alpha(0.35f));
     }
-    m_hidden_btn->set_tooltip_shortcut("Ctrl+H");
+    if (m_hidden_icon) m_hidden_icon->set_alpha(active ? 1.0f : 0.6f);
+    if (m_hidden_label) {
+        m_hidden_label->set_text_color(active ? config->colors.primary : config->colors.on_surface_variant);
+    }
+}
+
+void FilesApp::update_preview_btn_ui() {
+    auto config = Config::get();
+    if (!config || !m_explorer_view) return;
+    bool active = m_explorer_view->is_preview_visible();
+
+    if (m_preview_btn) {
+        m_preview_btn->set_card_background_color(active ? config->colors.primary_container
+                                                        : config->colors.surface_variant.with_alpha(0.35f));
+    }
+    if (m_preview_label) {
+        m_preview_label->set_text_color(active ? config->colors.primary : config->colors.on_surface_variant);
+    }
 }
 
 void FilesApp::toggle_show_hidden() {
-    if (!m_miller_view) return;
-    if (!m_miller_view->check_and_update_click_debounce()) return;
-
-    m_miller_view->toggle_show_hidden();
+    if (!m_explorer_view) return;
+    m_explorer_view->set_show_hidden(!m_explorer_view->get_show_hidden());
     update_hidden_btn_ui();
+}
+
+void FilesApp::sync_theme() {
+    if (m_explorer_view) m_explorer_view->sync_theme();
     update_header();
-    if (m_window) {
-        m_window->schedule_redraw();
-    }
 }
 
 void FilesApp::handle_key_press(const KeyPressEvent& event) {
-    if (!event.pressed || !m_miller_view) return;
+    if (!event.pressed || !m_explorer_view) return;
 
-    // 1. Global: Ctrl+F to focus search bar from anywhere
-    if (event.has_ctrl() && (event.keysym == XKB_KEY_f || event.keysym == XKB_KEY_F)) {
-        if (m_search_view) {
-            m_search_view->set_focused(true);
-            if (m_window) m_window->schedule_redraw();
-            return;
-        }
-    }
-
-    // Global: Ctrl+H to toggle show/hide hidden files
-    if (event.has_ctrl() && (event.keysym == XKB_KEY_h || event.keysym == XKB_KEY_H)) {
-        toggle_show_hidden();
-        return;
-    }
-
-    // F11: Toggle full-width / standard 3-column view on leaf files
-    if (event.keysym == XKB_KEY_F11) {
-        auto item = m_miller_view->get_current_selected_item();
-        if (item && !item->is_category) {
-            m_miller_view->set_preview_expanded(!m_miller_view->is_preview_expanded());
-            return;
-        }
-    }
-
-    // 2. Tab / Shift+Tab: Strictly reserved for cycling controls inside preview forms
-    if (event.keysym == XKB_KEY_Tab || event.keysym == XKB_KEY_ISO_Left_Tab) {
-        if (m_miller_view && m_miller_view->is_preview_focused()) {
-            if (event.has_shift() || event.keysym == XKB_KEY_ISO_Left_Tab) {
-                m_miller_view->focus_prev_preview_control();
-            } else {
-                m_miller_view->focus_next_preview_control();
-            }
-            if (m_window) m_window->schedule_redraw();
-        }
-        return;
-    }
-
-    // 3. State 1: Search Mode
-    bool is_search_active = m_search_view && (m_search_view->is_focused() || m_search_view->has_focus() ||
-                            (m_search_view->get_edit_text() && m_search_view->get_edit_text()->has_focus()));
-    if (is_search_active) {
-        if (event.keysym == XKB_KEY_Escape) {
-            m_search_view->set_focused(false);
-            m_search_view->set_query("");
-            if (m_miller_view->is_searching()) {
-                m_miller_view->set_search_query("");
-            }
-            if (m_window) m_window->clear_focus();
-            return;
-        }
-        if (event.keysym == XKB_KEY_Up) {
-            m_miller_view->navigate_up();
-            return;
-        }
-        if (event.keysym == XKB_KEY_Down) {
-            m_miller_view->navigate_down();
-            return;
-        }
-        if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
-            if (m_search_view) {
-                m_search_view->set_focused(false);
-            }
-            if (m_window) {
-                m_window->clear_focus();
-            }
-            m_miller_view->navigate_enter();
-            return;
-        }
-        return;
-    }
-
-    // 4. State 2: Detail Mode (Right Pillar Active)
-    if (m_miller_view->is_preview_focused()) {
-        if (m_miller_view->is_editor_focused()) {
-            return;
-        }
-
-        // In full-width expanded leaf: Backspace or Escape collapses to 3-pillar mode
-        if (m_miller_view->is_preview_expanded()) {
-            if (event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
-                m_miller_view->set_preview_expanded(false);
-                return;
-            }
-        } else {
-            // In standard 3-pillar mode: Left, Backspace, or Escape exits to middle pillar
-            if (event.keysym == XKB_KEY_Left || event.keysym == XKB_KEY_h ||
-                event.keysym == XKB_KEY_BackSpace || event.keysym == XKB_KEY_Escape) {
-                if (m_window) m_window->clear_focus();
-                m_miller_view->set_preview_focused(false);
-                return;
-            }
-        }
-
-        // If right pillar is active but no control has focus yet (e.g. empty space clicked)
-        if (!m_window || !m_window->get_focused_view() || !m_window->get_focused_view()->has_focus()) {
-            if (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_Up ||
-                event.keysym == XKB_KEY_j || event.keysym == XKB_KEY_k ||
-                event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) {
-                m_miller_view->focus_first_preview_control();
-                return;
-            }
-        }
-        return;
-    }
-
-    // 5. State 3: List Mode (Middle Pillar Active)
-    if (m_miller_view->handle_list_key(event)) {
+    if (m_explorer_view->handle_key(event)) {
         update_header();
         return;
     }
 
-    switch (event.keysym) {
-        case XKB_KEY_k:
-        case XKB_KEY_Up:
-            m_miller_view->navigate_up();
-            break;
-
-        case XKB_KEY_j:
-        case XKB_KEY_Down:
-            m_miller_view->navigate_down();
-            break;
-
-        case XKB_KEY_l:
-        case XKB_KEY_Right:
-        case XKB_KEY_Return:
-        case XKB_KEY_KP_Enter:
-            m_miller_view->navigate_enter();
-            break;
-
-        case XKB_KEY_h:
-        case XKB_KEY_Left:
-        case XKB_KEY_BackSpace:
-            m_miller_view->navigate_back();
-            break;
-
-        case XKB_KEY_Escape:
-            if (!m_miller_view->navigate_back()) {
-                if (m_engine) m_engine->quit();
-            }
-            break;
-
-        case XKB_KEY_period:
-            toggle_show_hidden();
-            break;
-
-        default:
-            break;
+    if (event.has_ctrl() && (event.keysym == XKB_KEY_h || event.keysym == XKB_KEY_H)) {
+        toggle_show_hidden();
+        return;
     }
 }
 
