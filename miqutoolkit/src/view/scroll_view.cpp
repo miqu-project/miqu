@@ -32,6 +32,27 @@ void ScrollView::scroll_to_rect(const Rect& rect) {
     if (content_rect.height <= 0 || rect.height <= 0) return;
 
     int pad = 28;
+    if (rect.height >= content_rect.height - 2 * pad) {
+        // Child is taller than the viewport: never jump to its bottom when focused.
+        // Only scroll if it is completely outside the viewport.
+        if (rect.y > content_rect.y + content_rect.height - pad) {
+            double delta = rect.y - (content_rect.y + pad);
+            double new_scroll = std::clamp(m_scroll_y + delta, 0.0, m_max_scroll);
+            if (new_scroll != m_scroll_y) {
+                m_scroll_y = new_scroll;
+                request_redraw();
+            }
+        } else if (rect.y + rect.height < content_rect.y + pad) {
+            double delta = (content_rect.y + content_rect.height - pad) - (rect.y + rect.height);
+            double new_scroll = std::clamp(m_scroll_y - delta, 0.0, m_max_scroll);
+            if (new_scroll != m_scroll_y) {
+                m_scroll_y = new_scroll;
+                request_redraw();
+            }
+        }
+        return;
+    }
+
     if (rect.y < content_rect.y + pad) {
         double delta = (content_rect.y + pad) - rect.y;
         double new_scroll = std::clamp(m_scroll_y - delta, 0.0, m_max_scroll);
