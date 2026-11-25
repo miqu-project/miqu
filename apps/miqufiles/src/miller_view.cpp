@@ -233,13 +233,20 @@ void MillerView::init(const std::string& start_path, bool show_hidden) {
         ->build();
     m_current_list->set_focusable(false);
     m_current_list->set_draw_focus_ring(false);
-    m_current_list->set_on_selection_changed([this](const std::unordered_set<int>&) {
-        int sel = m_current_list->get_selected_index();
-        if (sel >= 0) {
-            m_current_index = sel;
+    m_current_list->set_on_cursor_changed([this](int cursor) {
+        if (cursor >= 0 && cursor != m_current_index) {
+            m_current_index = cursor;
             rebuild_preview_column();
             notify_state_changed();
         }
+    });
+    m_current_list->set_on_selection_changed([this](const std::unordered_set<int>&) {
+        int sel = m_current_list->get_selected_index();
+        if (sel >= 0 && sel != m_current_index) {
+            m_current_index = sel;
+            rebuild_preview_column();
+        }
+        notify_state_changed();
     });
     m_current_list->set_on_item_click_listener([this](size_t idx, std::shared_ptr<View>) {
         if (!check_and_update_click_debounce()) return;
@@ -529,24 +536,6 @@ void MillerView::update_preview_ribbon() {
     if (!m_preview_ribbon) return;
 
     auto config = Config::get();
-
-    if (is_multi_selected()) {
-        m_preview_ribbon->set_visibility(Visibility::Visible);
-        if (m_preview_title) {
-            m_preview_title->set_text(std::to_string(get_selected_count()) + " items selected");
-            if (config) {
-                m_preview_title->set_text_color(config->colors.primary);
-            }
-        }
-        if (m_preview_actions) {
-            m_preview_actions->clear_views();
-            m_preview_actions->set_visibility(Visibility::Gone);
-        }
-        if (m_preview_toggle_btn) {
-            m_preview_toggle_btn->set_visibility(Visibility::Gone);
-        }
-        return;
-    }
 
     if (m_preview_toggle_btn) {
         m_preview_toggle_btn->set_visibility(Visibility::Visible);
@@ -1151,17 +1140,6 @@ void MillerView::rebuild_preview_column() {
     auto item = get_current_selected_item();
 
     update_preview_ribbon();
-
-    if (is_multi_selected()) {
-        m_displayed_category_items.clear();
-        if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
-        if (m_preview_frame) m_preview_frame->set_visibility(Visibility::Gone);
-        if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
-        m_preview_layout->set_padding(Padding(14, 4, 14, 14));
-        m_preview_layout->set_divider_spacing(10);
-        render_multi_selection_preview(get_selected_items(), config);
-        return;
-    }
 
     if (!item) {
         m_displayed_category_items.clear();
