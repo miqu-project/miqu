@@ -2,7 +2,7 @@
 
 #include "miqutoolkit/view/view.hpp"
 #include "miqutoolkit/view/view_builder.hpp"
-#include "miqutoolkit/view/kinetic_scroller.hpp"
+
 #include "miqutoolkit/view/selection_model.hpp"
 #include <vector>
 #include <memory>
@@ -126,7 +126,7 @@ private:
     double m_touch_last_y = 0.0;
     bool m_touch_scrolling = false;
     double m_scroll_y = 0.0;
-    KineticScroller m_kinetic;
+
     mutable int m_last_height = 0;
     bool m_scroll_to_selected = false;
 

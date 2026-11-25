@@ -2,7 +2,7 @@
 
 #include "miqutoolkit/view/view_group.hpp"
 #include "miqutoolkit/view/view_builder.hpp"
-#include "miqutoolkit/view/kinetic_scroller.hpp"
+
 #include <memory>
 
 namespace miqu {
@@ -43,7 +43,7 @@ private:
     std::shared_ptr<View> m_content;
     double m_scroll_y = 0.0;
     double m_max_scroll = 0.0;
-    KineticScroller m_kinetic;
+
     bool m_show_scrollbar = true;
 
     bool m_is_hovered = false;

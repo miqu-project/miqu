@@ -89,9 +89,6 @@ void ScrollView::draw(cairo_t* cr, const Rect& bounds) {
 
     int total_child_h = child_h + margin.top + margin.bottom;
     m_max_scroll = std::max(0.0, static_cast<double>(total_child_h - content_rect.height));
-    if (m_kinetic.step(m_scroll_y, m_max_scroll)) {
-        request_redraw();
-    }
     m_scroll_y = std::clamp(m_scroll_y, 0.0, m_max_scroll);
 
     // Clip to content rect and apply sub-pixel scroll fraction
@@ -228,7 +225,6 @@ bool ScrollView::on_scroll(double delta, uint32_t axis_source) {
     // one notch is ~10 px raw; multiply by 30 to get a comfortable scroll step.
     const double multiplier = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER) ? 4.5 : 30.0;
     const double pixel_delta = delta * multiplier;
-    m_kinetic.record_scroll(pixel_delta, axis_source);
 
     double old_scroll = m_scroll_y;
     m_scroll_y = std::clamp(m_scroll_y + pixel_delta, 0.0, m_max_scroll);
@@ -240,15 +236,7 @@ bool ScrollView::on_scroll(double delta, uint32_t axis_source) {
     return false;
 }
 
-bool ScrollView::on_scroll_stop(uint32_t axis_source) {
-    if (!is_visible() || m_max_scroll <= 0.0) {
-        m_kinetic.cancel();
-        return false;
-    }
-    if (m_kinetic.start_fling(axis_source)) {
-        if (m_window) m_window->schedule_redraw();
-        return true;
-    }
+bool ScrollView::on_scroll_stop(uint32_t /*axis_source*/) {
     return false;
 }
 
