@@ -308,58 +308,59 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
             int first_tile = vis_top / kTileHeight;
             int last_tile = (vis_bot - 1) / kTileHeight;
 
-            for (int t = first_tile; t <= last_tile; ++t) {
-                TextTile* found = nullptr;
+            // Helper: render tile index `t` into the cache (no painting).
+            // Returns the cached tile, or nullptr if out of range.
+            auto ensure_tile = [&](int t) -> TextTile* {
+                if (t < 0 || t * kTileHeight >= text_h) return nullptr;
                 for (auto& tile : m_tiles) {
                     if (tile.index == t) {
-                        found = &tile;
-                        break;
+                        tile.last_used = ++m_tile_lru_counter;
+                        return &tile;
+                    }
+                }
+                int tile_y = t * kTileHeight;
+                int tile_h = std::min(kTileHeight, text_h - tile_y);
+                if (tile_h <= 0) return nullptr;
+
+                cairo_surface_t* surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, avail_text_w, tile_h);
+                cairo_t* tcr = cairo_create(surf);
+                cairo_set_source_rgba(tcr, text_col.r, text_col.g, text_col.b, text_col.a);
+
+                PangoLayoutIter* iter = pango_layout_get_iter(layout);
+                do {
+                    PangoRectangle logical_rect;
+                    pango_layout_iter_get_line_extents(iter, nullptr, &logical_rect);
+                    double line_top = static_cast<double>(logical_rect.y) / PANGO_SCALE;
+                    double line_bottom = line_top + static_cast<double>(logical_rect.height) / PANGO_SCALE;
+
+                    if (line_bottom < tile_y) continue;
+                    if (line_top >= tile_y + tile_h) break;
+
+                    int baseline = pango_layout_iter_get_baseline(iter);
+                    double line_x = static_cast<double>(logical_rect.x) / PANGO_SCALE;
+                    double line_baseline_y = static_cast<double>(baseline) / PANGO_SCALE - tile_y;
+                    cairo_move_to(tcr, line_x, line_baseline_y);
+                    pango_cairo_show_layout_line(tcr, pango_layout_iter_get_line_readonly(iter));
+                } while (pango_layout_iter_next_line(iter));
+                pango_layout_iter_free(iter);
+                cairo_destroy(tcr);
+
+                if (m_tiles.size() >= kMaxCachedTiles) {
+                    auto oldest = std::min_element(m_tiles.begin(), m_tiles.end(),
+                        [](const TextTile& a, const TextTile& b) { return a.last_used < b.last_used; });
+                    if (oldest != m_tiles.end()) {
+                        if (oldest->surface) cairo_surface_destroy(oldest->surface);
+                        m_tiles.erase(oldest);
                     }
                 }
 
-                if (!found) {
-                    int tile_y = t * kTileHeight;
-                    int tile_h = std::min(kTileHeight, text_h - tile_y);
-                    if (tile_h <= 0) continue;
+                m_tiles.push_back({t, tile_h, surf, ++m_tile_lru_counter});
+                return &m_tiles.back();
+            };
 
-                    cairo_surface_t* surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, avail_text_w, tile_h);
-                    cairo_t* tcr = cairo_create(surf);
-                    cairo_set_source_rgba(tcr, text_col.r, text_col.g, text_col.b, text_col.a);
-
-                    PangoLayoutIter* iter = pango_layout_get_iter(layout);
-                    do {
-                        PangoRectangle logical_rect;
-                        pango_layout_iter_get_line_extents(iter, nullptr, &logical_rect);
-                        double line_top = static_cast<double>(logical_rect.y) / PANGO_SCALE;
-                        double line_bottom = line_top + static_cast<double>(logical_rect.height) / PANGO_SCALE;
-
-                        if (line_bottom < tile_y) continue;
-                        if (line_top >= tile_y + tile_h) break;
-
-                        int baseline = pango_layout_iter_get_baseline(iter);
-                        double line_x = static_cast<double>(logical_rect.x) / PANGO_SCALE;
-                        double line_baseline_y = static_cast<double>(baseline) / PANGO_SCALE - tile_y;
-                        cairo_move_to(tcr, line_x, line_baseline_y);
-                        pango_cairo_show_layout_line(tcr, pango_layout_iter_get_line_readonly(iter));
-                    } while (pango_layout_iter_next_line(iter));
-                    pango_layout_iter_free(iter);
-                    cairo_destroy(tcr);
-
-                    if (m_tiles.size() >= kMaxCachedTiles) {
-                        auto oldest = std::min_element(m_tiles.begin(), m_tiles.end(),
-                            [](const TextTile& a, const TextTile& b) { return a.last_used < b.last_used; });
-                        if (oldest != m_tiles.end()) {
-                            if (oldest->surface) cairo_surface_destroy(oldest->surface);
-                            m_tiles.erase(oldest);
-                        }
-                    }
-
-                    m_tiles.push_back({t, tile_h, surf, ++m_tile_lru_counter});
-                    found = &m_tiles.back();
-                } else {
-                    found->last_used = ++m_tile_lru_counter;
-                }
-
+            // Draw visible tiles.
+            for (int t = first_tile; t <= last_tile; ++t) {
+                TextTile* found = ensure_tile(t);
                 if (found && found->surface) {
                     double dest_y = text_draw_y + static_cast<double>(t * kTileHeight);
                     cairo_save(cr);
@@ -368,6 +369,11 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
                     cairo_restore(cr);
                 }
             }
+
+            // Look-ahead: pre-warm the tiles just above and below the visible
+            // range so the next scroll frame is always a cache-hit blit.
+            ensure_tile(first_tile - 1);
+            ensure_tile(last_tile + 1);
         }
     } else if (m_multiline) {
         cairo_set_source_rgba(cr, text_col.r, text_col.g, text_col.b, text_col.a);
