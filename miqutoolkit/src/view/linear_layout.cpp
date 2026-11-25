@@ -158,11 +158,13 @@ void LinearLayout::draw(cairo_t* cr, const Rect& bounds) {
                 used_fixed_space += margin.top + margin.bottom;
             }
         } else {
-            Size measured = child->measure_size();
             if (m_orientation == Orientation::Horizontal) {
+                Size measured = child->measure_size();
                 int child_w = (params.width >= 0) ? params.width : measured.width;
                 used_fixed_space += child_w + margin.left + margin.right;
             } else {
+                int child_avail_w = std::max(0, avail_w - margin.left - margin.right);
+                Size measured = child->measure_size(child_avail_w);
                 int child_h = (params.height >= 0) ? params.height : measured.height;
                 used_fixed_space += child_h + margin.top + margin.bottom;
             }
