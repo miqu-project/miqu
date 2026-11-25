@@ -3,6 +3,7 @@
 #include "miqutoolkit/core/config.hpp"
 #include "miqutoolkit/core/window.hpp"
 #include <algorithm>
+#include <cmath>
 
 namespace miqu {
 
@@ -93,13 +94,17 @@ void ScrollView::draw(cairo_t* cr, const Rect& bounds) {
     }
     m_scroll_y = std::clamp(m_scroll_y, 0.0, m_max_scroll);
 
-    // Clip to content rect
+    // Clip to content rect and apply sub-pixel scroll fraction
+    double scroll_floor = std::floor(m_scroll_y);
+    double scroll_frac = m_scroll_y - scroll_floor;
+
     cairo_save(cr);
     cairo_rectangle(cr, content_rect.x, content_rect.y, content_rect.width, content_rect.height);
     cairo_clip(cr);
+    cairo_translate(cr, 0.0, -scroll_frac);
 
     int child_x = content_rect.x + margin.left;
-    int child_y = content_rect.y + margin.top - static_cast<int>(m_scroll_y);
+    int child_y = content_rect.y + margin.top - static_cast<int>(scroll_floor);
     Rect child_bounds(child_x, child_y, child_w, child_h);
 
     m_child_entries.clear();
@@ -136,11 +141,19 @@ bool ScrollView::on_mouse_move(int lx, int ly, const Rect& bounds) {
     m_is_hovered = bounds.contains(Point(lx, ly));
 
     if (m_dragging_thumb && m_max_scroll > 0.0) {
-        int content_h = get_content_rect(bounds).height;
+        Rect content_rect = get_content_rect(bounds);
+        int content_h = content_rect.height;
         int track_h = content_h - 8;
-        Size measured = m_content ? m_content->measure_size() : Size(0, 0);
-        int total_child_h = measured.height;
-        int thumb_h = std::max(20, static_cast<int>((static_cast<double>(content_h) / total_child_h) * track_h));
+        int total_child_h = 0;
+        if (m_content) {
+            const auto& margin = m_content->get_margin();
+            int content_avail_w = std::max(0, content_rect.width - margin.left - margin.right);
+            Size measured = m_content->measure_size(content_avail_w);
+            const auto& params = m_content->get_layout_params();
+            int child_h = (params.height >= 0) ? params.height : measured.height;
+            total_child_h = child_h + margin.top + margin.bottom;
+        }
+        int thumb_h = std::max(20, static_cast<int>((static_cast<double>(content_h) / std::max(1, total_child_h)) * track_h));
         int available_track = track_h - thumb_h;
         if (available_track > 0) {
             double dy = ly - m_drag_start_y;

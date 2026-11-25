@@ -303,7 +303,7 @@ int GridView::item_at(int lx, int ly, const Rect& bounds) const {
     int cols = compute_columns(bounds.width, cell_w);
 
     int rel_x = lx - bounds.x;
-    int rel_y = ly - bounds.y + static_cast<int>(m_scroll_y);
+    int rel_y = ly - bounds.y + static_cast<int>(std::floor(m_scroll_y));
 
     if (rel_x < 0 || rel_x >= bounds.width || rel_y < 0) {
         return -1;
@@ -342,12 +342,16 @@ void GridView::draw(cairo_t* cr, const Rect& bounds) {
     }
     m_scroll_y = std::clamp(m_scroll_y, 0.0, max_scroll);
 
+    double scroll_floor = std::floor(m_scroll_y);
+    double scroll_frac = m_scroll_y - scroll_floor;
+
     cairo_save(cr);
     cairo_rectangle(cr, bounds.x, bounds.y, bounds.width, bounds.height);
     cairo_clip(cr);
+    cairo_translate(cr, 0.0, -scroll_frac);
 
-    int start_row = std::max(0, static_cast<int>(m_scroll_y / row_stride));
-    int end_row = std::min(total_rows, static_cast<int>((m_scroll_y + bounds.height) / row_stride) + 1);
+    int start_row = std::max(0, static_cast<int>(scroll_floor / row_stride));
+    int end_row = std::min(total_rows, static_cast<int>((scroll_floor + bounds.height) / row_stride) + 2);
 
     int start_idx = start_row * cols;
     int end_idx = std::min(end_row * cols, static_cast<int>(count));
@@ -360,7 +364,7 @@ void GridView::draw(cairo_t* cr, const Rect& bounds) {
         int grid_col = i % cols;
 
         int cell_x = bounds.x + grid_col * (cell_w + m_space_x);
-        double cell_y = bounds.y + grid_row * row_stride - m_scroll_y;
+        double cell_y = bounds.y + grid_row * row_stride - scroll_floor;
         Rect cell_rect(cell_x, static_cast<int>(cell_y), cell_w, m_cell_h);
 
         bool is_cursor = (m_selection_model && m_selection_model->is_cursor(i));

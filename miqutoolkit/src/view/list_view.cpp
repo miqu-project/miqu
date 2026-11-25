@@ -254,7 +254,7 @@ int ListView::item_at(int lx, int ly, const Rect& bounds) const {
     if (m_items.empty()) return -1;
     if (lx < bounds.x || lx >= bounds.x + bounds.width) return -1;
 
-    double relative_y = ly - bounds.y + m_scroll_y;
+    double relative_y = ly - bounds.y + std::floor(m_scroll_y);
     if (relative_y < 0) return -1;
 
     int row_stride = m_item_h + m_spacing;
@@ -289,19 +289,23 @@ void ListView::draw(cairo_t* cr, const Rect& bounds) {
     auto config = Config::get();
     if (!config) return;
 
+    double scroll_floor = std::floor(m_scroll_y);
+    double scroll_frac = m_scroll_y - scroll_floor;
+
     cairo_save(cr);
     cairo_rectangle(cr, bounds.x, bounds.y, bounds.width, bounds.height);
     cairo_clip(cr);
+    cairo_translate(cr, 0.0, -scroll_frac);
 
     int row_stride = m_item_h + m_spacing;
-    int start_idx = std::max(0, static_cast<int>(m_scroll_y / row_stride));
+    int start_idx = std::max(0, static_cast<int>(scroll_floor / row_stride));
     int end_idx = std::min(static_cast<int>(m_items.size()),
-                           static_cast<int>((m_scroll_y + bounds.height) / row_stride) + 1);
+                           static_cast<int>((scroll_floor + bounds.height) / row_stride) + 2);
 
     double radius = m_corner_radius > 0 ? static_cast<double>(m_corner_radius) : 6.0;
 
     for (int i = start_idx; i < end_idx; ++i) {
-        int item_y = bounds.y + i * row_stride - static_cast<int>(m_scroll_y);
+        int item_y = bounds.y + i * row_stride - static_cast<int>(scroll_floor);
         int h_margin = 4;
         Rect item_rect(bounds.x + h_margin, item_y, std::max(0, bounds.width - (h_margin * 2)), m_item_h);
 
