@@ -354,6 +354,7 @@ void MillerView::init() {
         ->contentView(m_preview_layout)
         ->scrollbar(true)
         ->build();
+    m_preview_scroll->set_focusable(true);
 
     m_preview_pillar->add_view(m_preview_scroll, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
     add_view(m_preview_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
@@ -1221,6 +1222,11 @@ void MillerView::collect_preview_focusable_views(std::vector<View*>& out) {
     }
     if (m_preview_toggle_btn && m_preview_toggle_btn->is_visible() && m_preview_toggle_btn->is_focusable()) {
         out.push_back(m_preview_toggle_btn.get());
+    }
+    // Include the ScrollView in the Tab cycle when it is visible and actually scrollable
+    if (m_preview_scroll && m_preview_scroll->is_visible() && m_preview_scroll->is_focusable()
+            && m_preview_scroll->get_max_scroll() > 0.0) {
+        out.push_back(m_preview_scroll.get());
     }
     if (m_preview_layout && m_preview_layout->is_visible()) {
         m_preview_layout->collect_focusable_views(out);
