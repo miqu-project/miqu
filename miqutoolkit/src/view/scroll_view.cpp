@@ -4,6 +4,7 @@
 #include "miqutoolkit/core/window.hpp"
 #include <algorithm>
 #include <cmath>
+#include <xkbcommon/xkbcommon-keysyms.h>
 
 namespace miqu {
 
@@ -333,6 +334,44 @@ bool ScrollView::on_touch(const TouchEvent& event, const Rect& bounds) {
             content->on_touch(event, child_b);
         }
         return true;
+    }
+
+    return false;
+}
+
+bool ScrollView::on_key(const KeyPressEvent& event) {
+    // Only handle keys when this ScrollView itself is focused and there is content to scroll.
+    if (!has_focus() || !event.pressed || m_max_scroll <= 0.0)
+        return false;
+
+    constexpr double LINE_STEP = 60.0;   // px per Up/Down arrow press
+    double page_step = m_bounds.height > 0 ? static_cast<double>(m_bounds.height) * 0.9 : 400.0;
+
+    double delta = 0.0;
+    bool handled = false;
+
+    if (event.keysym == XKB_KEY_Down || event.keysym == XKB_KEY_KP_Down) {
+        delta = +LINE_STEP;  handled = true;
+    } else if (event.keysym == XKB_KEY_Up || event.keysym == XKB_KEY_KP_Up) {
+        delta = -LINE_STEP;  handled = true;
+    } else if (event.keysym == XKB_KEY_Page_Down || event.keysym == XKB_KEY_KP_Page_Down) {
+        delta = +page_step;  handled = true;
+    } else if (event.keysym == XKB_KEY_Page_Up || event.keysym == XKB_KEY_KP_Page_Up) {
+        delta = -page_step;  handled = true;
+    } else if (event.keysym == XKB_KEY_Home || event.keysym == XKB_KEY_KP_Home) {
+        set_scroll_y(0.0);
+        return true;
+    } else if (event.keysym == XKB_KEY_End || event.keysym == XKB_KEY_KP_End) {
+        set_scroll_y(m_max_scroll);
+        return true;
+    }
+
+    if (handled) {
+        double old_scroll = m_scroll_y;
+        m_scroll_y = std::clamp(m_scroll_y + delta, 0.0, m_max_scroll);
+        if (m_scroll_y != old_scroll && m_window)
+            m_window->schedule_redraw();
+        return true;  // consume — do NOT let spatial nav jump focus
     }
 
     return false;
