@@ -4,14 +4,20 @@
 namespace miqu {
 
 Size RelativeLayout::measure_size() const {
+    return measure_size(-1);
+}
+
+Size RelativeLayout::measure_size(int avail_width) const {
+    int inner_w = (avail_width >= 0) ? std::max(0, avail_width - m_padding.left - m_padding.right) : -1;
     int max_w = 0;
     int max_h = 0;
 
     for (const auto& child : m_children) {
         if (!child || child->get_visibility() == Visibility::Gone) continue;
 
-        Size child_size = child->measure_size();
         const auto& margin = child->get_margin();
+        int child_avail_w = (inner_w >= 0) ? std::max(0, inner_w - margin.left - margin.right) : -1;
+        Size child_size = child->measure_size(child_avail_w);
         int child_total_w = child_size.width + margin.left + margin.right;
         int child_total_h = child_size.height + margin.top + margin.bottom;
 
@@ -82,13 +88,14 @@ void RelativeLayout::draw(cairo_t* cr, const Rect& bounds) {
 
             if (dep_ready) {
                 const auto& margin = child->get_margin();
-                Size measured = child->measure_size();
+                int child_avail_w = std::max(0, avail_w - margin.left - margin.right);
+                Size measured = child->measure_size(child_avail_w);
 
                 int child_w = (params.width >= 0) ? params.width : measured.width;
                 int child_h = (params.height >= 0) ? params.height : measured.height;
 
                 if (params.width == static_cast<int>(LayoutDimension::MatchParent)) {
-                    child_w = std::max(0, avail_w - margin.left - margin.right);
+                    child_w = child_avail_w;
                 }
                 if (params.height == static_cast<int>(LayoutDimension::MatchParent)) {
                     child_h = std::max(0, avail_h - margin.top - margin.bottom);
@@ -140,12 +147,13 @@ void RelativeLayout::draw(cairo_t* cr, const Rect& bounds) {
             pending.erase(pending.begin());
             const auto& params = child->get_layout_params();
             const auto& margin = child->get_margin();
-            Size measured = child->measure_size();
+            int child_avail_w = std::max(0, avail_w - margin.left - margin.right);
+            Size measured = child->measure_size(child_avail_w);
 
             int child_w = (params.width >= 0) ? params.width : measured.width;
             int child_h = (params.height >= 0) ? params.height : measured.height;
             if (params.width == static_cast<int>(LayoutDimension::MatchParent)) {
-                child_w = std::max(0, avail_w - margin.left - margin.right);
+                child_w = child_avail_w;
             }
             if (params.height == static_cast<int>(LayoutDimension::MatchParent)) {
                 child_h = std::max(0, avail_h - margin.top - margin.bottom);

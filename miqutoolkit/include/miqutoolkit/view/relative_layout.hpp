@@ -11,6 +11,7 @@ public:
 
     void draw(cairo_t* cr, const Rect& bounds) override;
     Size measure_size() const override;
+    Size measure_size(int avail_width) const override;
 };
 
 class RelativeLayoutBuilder : public ViewGroupBuilder<RelativeLayoutBuilder, RelativeLayout> {

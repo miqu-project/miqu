@@ -3,6 +3,8 @@
 #include "miqutoolkit/view/view_builder.hpp"
 #include <string>
 
+struct _PangoLayout;
+
 namespace miqu {
 
 enum class WrapMode {
@@ -23,10 +25,12 @@ class TextView : public View {
 public:
     TextView() = default;
     explicit TextView(std::string text) : m_text(std::move(text)) {}
+    ~TextView() override;
 
     void set_text(std::string text) {
         if (m_text != text) {
             m_text = std::move(text);
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -36,24 +40,55 @@ public:
     const Color& get_text_color() const { return m_color; }
     bool has_custom_color() const { return m_has_custom_color; }
 
-    void set_font_family(std::string family) { m_font_family = std::move(family); request_redraw(); }
+    void set_font_family(std::string family) {
+        if (m_font_family != family) {
+            m_font_family = std::move(family);
+            m_layout_dirty = true;
+            request_redraw();
+        }
+    }
     const std::string& get_font_family() const { return m_font_family; }
 
-    void set_text_size(int size) { m_font_size = size; request_redraw(); }
+    void set_text_size(int size) {
+        if (m_font_size != size) {
+            m_font_size = size;
+            m_layout_dirty = true;
+            request_redraw();
+        }
+    }
     int get_text_size() const { return m_font_size; }
 
-    void set_bold(bool bold) { m_bold = bold; request_redraw(); }
+    void set_bold(bool bold) {
+        if (m_bold != bold) {
+            m_bold = bold;
+            m_layout_dirty = true;
+            request_redraw();
+        }
+    }
     bool is_bold() const { return m_bold; }
 
-    void set_italic(bool italic) { m_italic = italic; request_redraw(); }
+    void set_italic(bool italic) {
+        if (m_italic != italic) {
+            m_italic = italic;
+            m_layout_dirty = true;
+            request_redraw();
+        }
+    }
     bool is_italic() const { return m_italic; }
 
-    void set_heading_level(int level) { m_heading_level = level; request_redraw(); }
+    void set_heading_level(int level) {
+        if (m_heading_level != level) {
+            m_heading_level = level;
+            m_layout_dirty = true;
+            request_redraw();
+        }
+    }
     int get_heading_level() const { return m_heading_level; }
 
     void set_caption(bool c) {
         if (m_caption != c) {
             m_caption = c;
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -70,6 +105,7 @@ public:
     void set_text_alignment(TextAlignment align) {
         if (m_align != align) {
             m_align = align;
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -95,6 +131,7 @@ public:
             if (m && m_wrap_mode == WrapMode::None) {
                 m_wrap_mode = WrapMode::WordChar;
             }
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -109,6 +146,7 @@ public:
             if (mode != WrapMode::None) {
                 m_multiline = true;
             }
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -117,6 +155,7 @@ public:
     void set_max_lines(int max_lines) {
         if (m_max_lines != max_lines) {
             m_max_lines = max_lines;
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -130,6 +169,7 @@ public:
             } else if (m_ellipsize_mode == EllipsizeMode::None) {
                 m_ellipsize_mode = EllipsizeMode::End;
             }
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -139,6 +179,7 @@ public:
         if (m_ellipsize_mode != mode) {
             m_ellipsize_mode = mode;
             m_ellipsize = (mode != EllipsizeMode::None);
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -147,6 +188,7 @@ public:
     void set_line_spacing(float spacing) {
         if (std::abs(m_line_spacing - spacing) > 0.001f) {
             m_line_spacing = spacing;
+            m_layout_dirty = true;
             request_redraw();
         }
     }
@@ -176,6 +218,16 @@ private:
     bool m_ellipsize = true;
     EllipsizeMode m_ellipsize_mode = EllipsizeMode::End;
     float m_line_spacing = 1.0f;
+
+    struct _PangoLayout* ensure_layout(cairo_t* cr, int target_w, int target_h, int& out_text_w, int& out_text_h) const;
+
+    mutable struct _PangoLayout* m_cached_layout = nullptr;
+    mutable bool m_layout_dirty = true;
+    mutable int m_cached_target_w = -2;
+    mutable int m_cached_target_h = -2;
+    mutable int m_cached_text_w = 0;
+    mutable int m_cached_text_h = 0;
+    mutable std::string m_cached_font_desc;
 };
 
 class TextViewBuilder : public ViewBuilder<TextViewBuilder, TextView> {
