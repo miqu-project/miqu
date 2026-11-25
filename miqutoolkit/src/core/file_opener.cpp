@@ -418,9 +418,16 @@ bool FileOpener::set_default_handler(const std::string& mime, const std::string&
     return code == 0;
 }
 
-std::shared_ptr<PopupMenu> FileOpener::build_open_with_menu(const fs::path& path) {
+std::shared_ptr<PopupMenu> FileOpener::build_open_with_menu(const fs::path& path,
+                                                            const std::string& exclude_desktop_id) {
     std::string mime;
     auto handlers = query_handlers(path, &mime);
+    if (!exclude_desktop_id.empty()) {
+        handlers.erase(
+            std::remove_if(handlers.begin(), handlers.end(),
+                           [&](const AppHandler& h) { return h.desktop_id == exclude_desktop_id; }),
+            handlers.end());
+    }
     bool is_exec = is_executable_file(path);
 
     auto menu = PopupMenuBuilder::create()

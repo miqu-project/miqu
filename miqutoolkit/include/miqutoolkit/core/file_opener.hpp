@@ -54,8 +54,9 @@ public:
     // Spawn a detached child process safely without shell interpolation.
     static bool spawn_detached(const std::vector<std::string>& argv);
 
-    // Build an "Open With" PopupMenu for the given file path.
-    static std::shared_ptr<PopupMenu> build_open_with_menu(const std::filesystem::path& path);
+    // Build an "Open With" PopupMenu for the given file path (optionally excluding a desktop ID).
+    static std::shared_ptr<PopupMenu> build_open_with_menu(const std::filesystem::path& path,
+                                                           const std::string& exclude_desktop_id = "");
 
     // Open with default handler, or show the Open With PopupMenu if executable / no default set.
     static void open_or_show_menu(const std::filesystem::path& path,

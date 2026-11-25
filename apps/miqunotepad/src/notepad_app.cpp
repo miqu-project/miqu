@@ -157,6 +157,16 @@ void NotepadApp::setup_ui() {
     saveas_btn->set_tooltip("Save As");
     saveas_btn->set_tooltip_shortcut("Ctrl+Shift+S");
 
+    m_open_with_btn = m_toolbar->add_action("↗", [this]() {
+        if (m_current_file_path.empty()) {
+            update_status("Save file first to open in another app");
+            return;
+        }
+        m_open_with_menu = FileOpener::build_open_with_menu(m_current_file_path, "miqunotepad.desktop");
+        m_open_with_menu->show_as_dropdown(m_open_with_btn, PopupGravity::BottomStart, 0, 4);
+    });
+    m_open_with_btn->set_tooltip("Open With Other App");
+
     m_root_layout->add_view(m_toolbar);
 
     // 2. Prompt Bar (Inline file path input for Open / Save As)

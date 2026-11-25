@@ -56,6 +56,8 @@ private:
 
     std::shared_ptr<LinearLayout> m_root_layout;
     std::shared_ptr<Toolbar> m_toolbar;
+    std::shared_ptr<ImageButton> m_open_with_btn;
+    std::shared_ptr<PopupMenu> m_open_with_menu;
 
     // Quick file open/save action bar
     std::shared_ptr<LinearLayout> m_prompt_bar;
