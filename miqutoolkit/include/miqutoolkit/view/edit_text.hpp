@@ -5,16 +5,19 @@
 #include <string>
 #include <functional>
 
+struct _PangoLayout;
+
 namespace miqu {
 
 class EditText : public View {
 public:
     EditText() { m_focusable = true; }
+    ~EditText() override;
 
     void set_text(std::string text);
     const std::string& get_text() const { return m_text; }
 
-    void set_hint(std::string hint) { m_hint = std::move(hint); }
+    void set_hint(std::string hint) { m_hint = std::move(hint); m_layout_dirty = true; }
     const std::string& get_hint() const { return m_hint; }
 
     void set_on_text_changed_listener(std::function<void(std::shared_ptr<EditText>, const std::string&)> cb) {
@@ -25,13 +28,17 @@ public:
         m_on_submit = std::move(cb);
     }
 
-    void set_password_mode(bool enable) { m_password_mode = enable; }
+    void set_password_mode(bool enable) {
+        if (m_password_mode != enable) { m_password_mode = enable; m_layout_dirty = true; }
+    }
     bool is_password_mode() const { return m_password_mode; }
 
     void set_editable(bool editable);
     bool is_editable() const { return m_editable; }
 
-    void set_multiline(bool enable) { m_multiline = enable; }
+    void set_multiline(bool enable) {
+        if (m_multiline != enable) { m_multiline = enable; m_layout_dirty = true; }
+    }
     bool is_multiline() const { return m_multiline; }
 
     void set_focused(bool focus);
@@ -44,10 +51,14 @@ public:
     void set_hint_color(const Color& col) { m_hint_color = col; m_has_custom_hint_color = true; }
     void set_background_color(const Color& col) { m_bg_color = col; m_has_custom_bg_color = true; }
 
-    void set_font_family(std::string family) { m_font_family = std::move(family); }
+    void set_font_family(std::string family) {
+        if (m_font_family != family) { m_font_family = std::move(family); m_layout_dirty = true; }
+    }
     const std::string& get_font_family() const { return m_font_family; }
 
-    void set_font_size(int size) { m_font_size = size; }
+    void set_font_size(int size) {
+        if (m_font_size != size) { m_font_size = size; m_layout_dirty = true; }
+    }
     int get_font_size() const { return m_font_size; }
 
     const Color& get_text_color() const { return m_text_color; }
@@ -90,6 +101,18 @@ private:
     bool m_has_custom_text_color = false;
     bool m_has_custom_hint_color = false;
     bool m_has_custom_bg_color = false;
+
+    struct _PangoLayout* ensure_layout(cairo_t* cr, int avail_text_w, int& out_text_w, int& out_text_h) const;
+
+    mutable struct _PangoLayout* m_cached_layout = nullptr;
+    mutable bool m_layout_dirty = true;
+    mutable int m_cached_avail_w = -2;
+    mutable int m_cached_text_w = 0;
+    mutable int m_cached_text_h = 0;
+    mutable std::string m_cached_font_desc;
+    mutable bool m_cached_is_hint = false;
+    mutable bool m_cached_multiline = false;
+    mutable bool m_cached_password = false;
 
     std::function<void(std::shared_ptr<EditText>, const std::string&)> m_on_text_changed;
     std::function<void(const std::string&)> m_on_submit;

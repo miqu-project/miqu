@@ -8,6 +8,13 @@
 #include <algorithm>
 namespace miqu {
 
+EditText::~EditText() {
+    if (m_cached_layout) {
+        g_object_unref(m_cached_layout);
+        m_cached_layout = nullptr;
+    }
+}
+
 void EditText::set_window(Window* win) {
     View::set_window(win);
     if (win && m_focused && is_focusable()) {
@@ -57,11 +64,91 @@ void EditText::set_text(std::string text) {
     m_text = std::move(text);
     m_cursor_pos = static_cast<int>(m_text.size());
     m_needs_scroll_to_cursor = true;
+    m_layout_dirty = true;
 }
 
 void EditText::clear() {
     m_text.clear();
     m_cursor_pos = 0;
+    m_layout_dirty = true;
+}
+
+PangoLayout* EditText::ensure_layout(cairo_t* cr, int avail_text_w, int& out_text_w, int& out_text_h) const {
+    auto config = Config::get();
+    bool is_hint = m_text.empty();
+
+    std::string font_family = !m_font_family.empty() ? m_font_family :
+        (m_multiline ? "Monospace" : (!config->metrics.font_family.empty() ? config->metrics.font_family : "Sans"));
+    int font_size = m_font_size > 0 ? m_font_size : (config->metrics.font_size > 0 ? config->metrics.font_size : 11);
+    std::string font_desc_str = font_family + " " + std::to_string(font_size);
+
+    if (!m_cached_layout) {
+        if (cr) {
+            m_cached_layout = pango_cairo_create_layout(cr);
+        } else {
+            cairo_surface_t* temp_surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
+            cairo_t* temp_cr = cairo_create(temp_surf);
+            m_cached_layout = pango_cairo_create_layout(temp_cr);
+            cairo_destroy(temp_cr);
+            cairo_surface_destroy(temp_surf);
+        }
+        m_layout_dirty = true;
+    } else if (cr) {
+        pango_cairo_update_layout(cr, m_cached_layout);
+    }
+
+    if (m_layout_dirty ||
+        m_cached_avail_w != avail_text_w ||
+        m_cached_font_desc != font_desc_str ||
+        m_cached_is_hint != is_hint ||
+        m_cached_multiline != m_multiline ||
+        m_cached_password != m_password_mode) {
+
+        std::string display_text;
+        if (is_hint) {
+            display_text = m_hint;
+        } else if (m_password_mode) {
+            display_text.reserve(m_text.size() * 3);
+            for (size_t i = 0; i < m_text.size(); ++i) {
+                display_text += "\xe2\x80\xa2"; // UTF-8 for bullet • (U+2022)
+            }
+        } else {
+            display_text = m_text;
+        }
+
+        pango_layout_set_text(m_cached_layout, display_text.c_str(), -1);
+
+        PangoFontDescription* desc = pango_font_description_from_string(font_desc_str.c_str());
+        pango_layout_set_font_description(m_cached_layout, desc);
+        pango_font_description_free(desc);
+
+        if (avail_text_w > 0) {
+            pango_layout_set_width(m_cached_layout, avail_text_w * PANGO_SCALE);
+        } else {
+            pango_layout_set_width(m_cached_layout, -1);
+        }
+
+        if (!m_multiline) {
+            pango_layout_set_ellipsize(m_cached_layout, PANGO_ELLIPSIZE_END);
+            pango_layout_set_wrap(m_cached_layout, PANGO_WRAP_WORD_CHAR);
+        } else {
+            pango_layout_set_ellipsize(m_cached_layout, PANGO_ELLIPSIZE_NONE);
+            pango_layout_set_wrap(m_cached_layout, PANGO_WRAP_WORD_CHAR);
+        }
+
+        pango_layout_get_pixel_size(m_cached_layout, &m_cached_text_w, &m_cached_text_h);
+
+        m_cached_avail_w = avail_text_w;
+        m_cached_font_desc = std::move(font_desc_str);
+        m_cached_is_hint = is_hint;
+        m_cached_multiline = m_multiline;
+        m_cached_password = m_password_mode;
+        m_layout_dirty = false;
+    }
+
+    out_text_w = m_cached_text_w;
+    out_text_h = m_cached_text_h;
+    return m_cached_layout;
 }
 
 Size EditText::measure_size() const {
@@ -82,36 +169,12 @@ Size EditText::measure_size(int avail_width) const {
             target_w = avail_width - pad_left - pad_right;
         }
 
-        std::string display_text = m_text.empty() ? m_hint : m_text;
-        if (display_text.empty()) {
+        if (m_text.empty() && m_hint.empty()) {
             return Size(std::max(100, avail_width), std::max(240, 22 + pad_top + pad_bottom));
         }
 
-        cairo_surface_t* temp_surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
-        cairo_t* cr = cairo_create(temp_surf);
-        PangoLayout* layout = pango_cairo_create_layout(cr);
-        pango_layout_set_text(layout, display_text.c_str(), -1);
-
-        auto config = Config::get();
-        std::string font_family = !m_font_family.empty() ? m_font_family :
-            (m_multiline ? "Monospace" : (!config->metrics.font_family.empty() ? config->metrics.font_family : "Sans"));
-        int font_size = m_font_size > 0 ? m_font_size : (config->metrics.font_size > 0 ? config->metrics.font_size : 11);
-        std::string font_desc_str = font_family + " " + std::to_string(font_size);
-        PangoFontDescription* desc = pango_font_description_from_string(font_desc_str.c_str());
-        pango_layout_set_font_description(layout, desc);
-        pango_font_description_free(desc);
-
-        if (target_w > 0) {
-            pango_layout_set_width(layout, target_w * PANGO_SCALE);
-            pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
-        }
-
         int text_w = 0, text_h = 0;
-        pango_layout_get_pixel_size(layout, &text_w, &text_h);
-
-        g_object_unref(layout);
-        cairo_destroy(cr);
-        cairo_surface_destroy(temp_surf);
+        ensure_layout(nullptr, target_w, text_w, text_h);
 
         int total_w = text_w + pad_left + pad_right;
         int total_h = text_h + pad_top + pad_bottom;
@@ -173,31 +236,7 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
 
     // Text content or placeholder
     bool is_hint = m_text.empty();
-    std::string display_text;
-    int pango_cursor_index = m_cursor_pos;
-
-    if (is_hint) {
-        display_text = m_hint;
-    } else if (m_password_mode) {
-        display_text = "";
-        for (size_t i = 0; i < m_text.size(); ++i) {
-            display_text += "\xe2\x80\xa2"; // UTF-8 for bullet • (U+2022)
-        }
-        pango_cursor_index = m_cursor_pos * 3;
-    } else {
-        display_text = m_text;
-    }
-
-    PangoLayout* layout = pango_cairo_create_layout(cr);
-    pango_layout_set_text(layout, display_text.c_str(), -1);
-
-    std::string font_family = !m_font_family.empty() ? m_font_family :
-        (m_multiline ? "Monospace" : (!config->metrics.font_family.empty() ? config->metrics.font_family : "Sans"));
-    int font_size = m_font_size > 0 ? m_font_size : (config->metrics.font_size > 0 ? config->metrics.font_size : 11);
-    std::string font_desc_str = font_family + " " + std::to_string(font_size);
-    PangoFontDescription* desc = pango_font_description_from_string(font_desc_str.c_str());
-    pango_layout_set_font_description(layout, desc);
-    pango_font_description_free(desc);
+    int pango_cursor_index = m_password_mode ? (m_cursor_pos * 3) : m_cursor_pos;
 
     int pad_left = m_padding.left > 0 ? m_padding.left : (m_draw_background ? 14 : 0);
     int pad_right = m_padding.right > 0 ? m_padding.right : (m_draw_background ? 14 : 0);
@@ -206,20 +245,11 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
     int avail_text_w = std::max(0, draw_w - pad_left - pad_right);
     int avail_text_h = std::max(0, draw_h - pad_top - pad_bottom);
 
-    pango_layout_set_width(layout, avail_text_w * PANGO_SCALE);
-    if (!m_multiline) {
-        pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
-    } else {
-        pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
-    }
-
     int text_w = 0, text_h = 0;
-    pango_layout_get_pixel_size(layout, &text_w, &text_h);
+    PangoLayout* layout = ensure_layout(cr, avail_text_w, text_w, text_h);
 
     double text_draw_x = draw_x + pad_left;
     double text_draw_y = m_multiline ? (draw_y + pad_top) : (draw_y + pad_top + (avail_text_h - text_h) / 2.0);
-
-    cairo_move_to(cr, text_draw_x, text_draw_y);
 
     if (is_hint) {
         if (m_has_custom_hint_color) {
@@ -252,7 +282,31 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
         }
     }
 
-    pango_cairo_show_layout(cr, layout);
+    if (m_multiline) {
+        double clip_x1 = 0.0, clip_y1 = 0.0, clip_x2 = 0.0, clip_y2 = 0.0;
+        cairo_clip_extents(cr, &clip_x1, &clip_y1, &clip_x2, &clip_y2);
+
+        PangoLayoutIter* iter = pango_layout_get_iter(layout);
+        do {
+            PangoRectangle logical_rect;
+            pango_layout_iter_get_line_extents(iter, nullptr, &logical_rect);
+            double line_top = text_draw_y + static_cast<double>(logical_rect.y) / PANGO_SCALE;
+            double line_bottom = line_top + static_cast<double>(logical_rect.height) / PANGO_SCALE;
+
+            if (line_bottom < clip_y1) continue;
+            if (line_top > clip_y2) break;
+
+            int baseline = pango_layout_iter_get_baseline(iter);
+            double line_x = text_draw_x + static_cast<double>(logical_rect.x) / PANGO_SCALE;
+            double line_baseline_y = text_draw_y + static_cast<double>(baseline) / PANGO_SCALE;
+            cairo_move_to(cr, line_x, line_baseline_y);
+            pango_cairo_show_layout_line(cr, pango_layout_iter_get_line_readonly(iter));
+        } while (pango_layout_iter_next_line(iter));
+        pango_layout_iter_free(iter);
+    } else {
+        cairo_move_to(cr, text_draw_x, text_draw_y);
+        pango_cairo_show_layout(cr, layout);
+    }
 
     // Draw Cursor
     if (m_editable && m_focused && !is_hint) {
@@ -308,7 +362,6 @@ void EditText::draw(cairo_t* cr, const Rect& bounds) {
         }
     }
 
-    g_object_unref(layout);
     cairo_restore(cr);
 
     if (has_focus() && should_draw_focus_ring() && !m_draw_background) {
@@ -325,6 +378,7 @@ bool EditText::on_key(const KeyPressEvent& event) {
         if (m_multiline) {
             m_text.insert(m_cursor_pos, "\n");
             m_cursor_pos++;
+            m_layout_dirty = true;
             if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
             handled = true;
         } else if (m_on_submit) {
@@ -335,12 +389,14 @@ bool EditText::on_key(const KeyPressEvent& event) {
         if (!m_text.empty() && m_cursor_pos > 0) {
             m_text.erase(m_cursor_pos - 1, 1);
             m_cursor_pos--;
+            m_layout_dirty = true;
             if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
         }
         handled = true;
     } else if (event.keysym == XKB_KEY_Delete) {
         if (m_cursor_pos < static_cast<int>(m_text.size())) {
             m_text.erase(m_cursor_pos, 1);
+            m_layout_dirty = true;
             if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
             handled = true;
         }
@@ -407,11 +463,13 @@ bool EditText::on_key(const KeyPressEvent& event) {
             m_text.erase(m_cursor_pos - 1, 1);
             m_cursor_pos--;
         }
+        m_layout_dirty = true;
         if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
         handled = true;
     } else if (!event.utf8_text.empty() && event.utf8_text[0] >= 32 && event.utf8_text[0] != 127 && !event.has_ctrl() && !event.has_alt()) {
         m_text.insert(m_cursor_pos, event.utf8_text);
         m_cursor_pos += static_cast<int>(event.utf8_text.size());
+        m_layout_dirty = true;
         if (m_on_text_changed) m_on_text_changed(std::static_pointer_cast<EditText>(shared_from_this()), m_text);
         handled = true;
     }
@@ -448,33 +506,19 @@ bool EditText::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
             if (rel_x <= 0 && rel_y <= 0) {
                 m_cursor_pos = 0;
             } else if (!m_text.empty()) {
-                cairo_surface_t* temp_surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
-                cairo_t* cr = cairo_create(temp_surf);
-                PangoLayout* layout = pango_cairo_create_layout(cr);
-                pango_layout_set_text(layout, m_text.c_str(), -1);
-                pango_layout_set_width(layout, avail_text_w * PANGO_SCALE);
-                if (m_multiline) {
-                    pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
-                }
-
-                auto config = Config::get();
-                std::string font_family = !m_font_family.empty() ? m_font_family :
-                    (m_multiline ? "Monospace" : (!config->metrics.font_family.empty() ? config->metrics.font_family : "Sans"));
-                int font_size = m_font_size > 0 ? m_font_size : (config->metrics.font_size > 0 ? config->metrics.font_size : 11);
-                std::string font_desc_str = font_family + " " + std::to_string(font_size);
-                PangoFontDescription* desc = pango_font_description_from_string(font_desc_str.c_str());
-                pango_layout_set_font_description(layout, desc);
-                pango_font_description_free(desc);
+                int text_w = 0, text_h = 0;
+                PangoLayout* layout = ensure_layout(nullptr, avail_text_w, text_w, text_h);
 
                 int trailing = 0;
                 int target_y = m_multiline ? std::max(0, rel_y) * PANGO_SCALE : 0;
-                pango_layout_xy_to_index(layout, std::max(0, rel_x) * PANGO_SCALE, target_y, &m_cursor_pos, &trailing);
-                if (trailing > 0) m_cursor_pos += trailing;
+                int byte_idx = 0;
+                pango_layout_xy_to_index(layout, std::max(0, rel_x) * PANGO_SCALE, target_y, &byte_idx, &trailing);
+                if (m_password_mode) {
+                    m_cursor_pos = (byte_idx / 3) + trailing;
+                } else {
+                    m_cursor_pos = byte_idx + trailing;
+                }
                 m_cursor_pos = std::clamp(m_cursor_pos, 0, static_cast<int>(m_text.size()));
-
-                g_object_unref(layout);
-                cairo_destroy(cr);
-                cairo_surface_destroy(temp_surf);
             }
             m_needs_scroll_to_cursor = true;
             if (m_window) m_window->schedule_redraw();
