@@ -239,6 +239,15 @@ bool NavigationView::on_scroll(double delta, uint32_t axis_source) {
     return false;
 }
 
+bool NavigationView::on_scroll_stop(uint32_t axis_source) {
+    if (!is_visible() || m_stack.empty()) return false;
+    auto& top = m_stack.back();
+    if (top.view && top.view->is_visible()) {
+        return top.view->on_scroll_stop(axis_source);
+    }
+    return false;
+}
+
 bool NavigationView::on_touch(const TouchEvent& event, const Rect& bounds) {
     if (!is_visible() || m_stack.empty()) return false;
     Rect content_rect = get_content_rect(bounds);

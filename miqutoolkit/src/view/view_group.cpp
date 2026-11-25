@@ -381,6 +381,20 @@ bool ViewGroup::on_scroll(double delta, uint32_t axis_source) {
     return false;
 }
 
+bool ViewGroup::on_scroll_stop(uint32_t axis_source) {
+    if (!is_visible()) return false;
+
+    bool handled = false;
+    for (auto& child : m_children) {
+        if (child && child->is_visible()) {
+            if (child->on_scroll_stop(axis_source)) {
+                handled = true;
+            }
+        }
+    }
+    return handled;
+}
+
 bool ViewGroup::on_touch(const TouchEvent& event, const Rect& bounds) {
     if (!is_visible()) return false;
     auto self = shared_from_this();

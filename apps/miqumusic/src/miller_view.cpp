@@ -484,6 +484,17 @@ bool MillerView::on_scroll(double delta, uint32_t axis_source) {
     return LinearLayout::on_scroll(delta, axis_source);
 }
 
+bool MillerView::on_scroll_stop(uint32_t axis_source) {
+    if (!is_visible() || !is_enabled()) return false;
+    bool handled = false;
+    if (m_category_list && m_category_list->is_visible() && m_category_list->on_scroll_stop(axis_source)) handled = true;
+    if (m_preview_scroll && m_preview_scroll->is_visible() && m_preview_scroll->on_scroll_stop(axis_source)) handled = true;
+    if (m_current_list && m_current_list->is_visible() && m_current_list->on_scroll_stop(axis_source)) handled = true;
+    if (m_parent_list && m_parent_list->is_visible() && m_parent_list->on_scroll_stop(axis_source)) handled = true;
+    if (LinearLayout::on_scroll_stop(axis_source)) handled = true;
+    return handled;
+}
+
 const std::vector<std::shared_ptr<MusicItem>>& MillerView::get_current_list() const {
     if (!m_search_query.empty()) {
         return m_search_results;

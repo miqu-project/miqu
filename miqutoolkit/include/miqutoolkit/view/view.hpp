@@ -74,6 +74,7 @@ public:
     }
     virtual bool captures_text_input() const { return false; }
     virtual bool on_scroll(double delta, uint32_t axis_source = 0) { (void)delta; (void)axis_source; return false; }
+    virtual bool on_scroll_stop(uint32_t axis_source = 0) { (void)axis_source; return false; }
     virtual bool on_touch(const TouchEvent& event, const Rect& bounds) {
         if (!is_visible() || !is_enabled()) return false;
         auto self = shared_from_this();

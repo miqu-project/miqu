@@ -337,6 +337,9 @@ void GridView::draw(cairo_t* cr, const Rect& bounds) {
     double content_h = std::max(0, total_rows * row_stride - m_space_y);
     double max_scroll = std::max(0.0, content_h - bounds.height);
 
+    if (m_kinetic.step(m_scroll_y, max_scroll)) {
+        request_redraw();
+    }
     m_scroll_y = std::clamp(m_scroll_y, 0.0, max_scroll);
 
     cairo_save(cr);
@@ -516,15 +519,36 @@ bool GridView::on_scroll(double delta, uint32_t axis_source) {
     int cols = compute_columns(m_last_width, cell_w);
     int total_rows = (static_cast<int>(get_item_count()) + cols - 1) / cols;
     int row_stride = m_cell_h + m_space_y;
-    double content_h = total_rows * row_stride - m_space_y;
+    double content_h = std::max(0, total_rows * row_stride - m_space_y);
     double max_scroll = std::max(0.0, content_h - m_last_height);
+    if (max_scroll <= 0.0) return false;
 
-    const double multiplier = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER) ? 1.0 : 30.0;
+    const double multiplier = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER) ? 4.5 : 30.0;
+    const double pixel_delta = delta * multiplier;
+    m_kinetic.record_scroll(pixel_delta, axis_source);
 
     double old_scroll = m_scroll_y;
-    m_scroll_y = std::clamp(m_scroll_y + delta * multiplier, 0.0, max_scroll);
+    m_scroll_y = std::clamp(m_scroll_y + pixel_delta, 0.0, max_scroll);
 
     if (m_scroll_y != old_scroll) {
+        request_redraw();
+        return true;
+    }
+    return false;
+}
+
+bool GridView::on_scroll_stop(uint32_t axis_source) {
+    int cell_w = 0;
+    int cols = compute_columns(m_last_width, cell_w);
+    int total_rows = (static_cast<int>(get_item_count()) + cols - 1) / cols;
+    int row_stride = m_cell_h + m_space_y;
+    double content_h = std::max(0, total_rows * row_stride - m_space_y);
+    double max_scroll = std::max(0.0, content_h - m_last_height);
+    if (!is_visible() || max_scroll <= 0.0) {
+        m_kinetic.cancel();
+        return false;
+    }
+    if (m_kinetic.start_fling(axis_source)) {
         request_redraw();
         return true;
     }

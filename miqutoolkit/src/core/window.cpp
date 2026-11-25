@@ -260,11 +260,26 @@ const struct wl_pointer_listener Window::s_pointer_listener = {
         auto* self = static_cast<Window*>(data);
         if (self) self->m_last_axis_source = axis_source;
     },
-    .axis_stop = [](void* data, struct wl_pointer*, uint32_t, uint32_t) {
+    .axis_stop = [](void* data, struct wl_pointer*, uint32_t, uint32_t axis) {
+        auto* self = static_cast<Window*>(data);
+        if (!self) return;
+        uint32_t source = self->m_last_axis_source;
         // Reset to 0 (unknown) after each scroll burst ends so the next burst
         // is not misclassified if axis_source fires late or is missing.
-        auto* self = static_cast<Window*>(data);
-        if (self) self->m_last_axis_source = 0;
+        self->m_last_axis_source = 0;
+        if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
+            if (self->m_popup_view) {
+                if (self->m_popup_view->on_scroll_stop(source)) {
+                    self->schedule_redraw();
+                }
+                return;
+            }
+            if (self->m_root_view) {
+                if (self->m_root_view->on_scroll_stop(source)) {
+                    self->schedule_redraw();
+                }
+            }
+        }
     },
     .axis_discrete = [](void*, struct wl_pointer*, uint32_t, int32_t) {},
     .axis_value120 = [](void*, struct wl_pointer*, uint32_t, int32_t) {},

@@ -100,6 +100,17 @@ bool ViewPager::on_scroll(double delta, uint32_t axis_source) {
     return false;
 }
 
+bool ViewPager::on_scroll_stop(uint32_t axis_source) {
+    if (!is_visible()) return false;
+    if (m_current_page >= 0 && m_current_page < static_cast<int>(m_pages.size())) {
+        auto& active_page = m_pages[m_current_page];
+        if (active_page && active_page->is_visible()) {
+            return active_page->on_scroll_stop(axis_source);
+        }
+    }
+    return false;
+}
+
 bool ViewPager::on_key(const KeyPressEvent& event) {
     if (!is_visible()) return false;
     if (m_current_page >= 0 && m_current_page < static_cast<int>(m_pages.size())) {

@@ -278,6 +278,14 @@ void ListView::draw(cairo_t* cr, const Rect& bounds) {
         m_scroll_to_selected = false;
     }
 
+    int row_stride_for_fling = m_item_h + m_spacing;
+    double content_h_for_fling = m_items.empty() ? 0.0 : (m_items.size() * row_stride_for_fling - m_spacing);
+    double max_scroll_for_fling = std::max(0.0, content_h_for_fling - m_last_height);
+    if (m_kinetic.step(m_scroll_y, max_scroll_for_fling)) {
+        request_redraw();
+    }
+    m_scroll_y = std::clamp(m_scroll_y, 0.0, max_scroll_for_fling);
+
     auto config = Config::get();
     if (!config) return;
 
@@ -443,17 +451,31 @@ bool ListView::on_mouse_button(int lx, int ly, MouseButton button, bool pressed,
 
 bool ListView::on_scroll(double delta, uint32_t axis_source) {
     int row_stride = m_item_h + m_spacing;
-    double content_h = m_items.size() * row_stride - m_spacing;
+    double content_h = m_items.empty() ? 0.0 : (m_items.size() * row_stride - m_spacing);
     double max_scroll = std::max(0.0, content_h - m_last_height);
+    if (max_scroll <= 0.0) return false;
 
     // WL_POINTER_AXIS_SOURCE_FINGER == 1: touchpad deltas are already in
     // surface pixels — use 1:1. Mouse wheel notches are ~10 px raw, so
     // multiply by 30 to scroll a comfortable distance per click.
-    const double multiplier = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER) ? 1.0 : 30.0;
+    const double multiplier = (axis_source == WL_POINTER_AXIS_SOURCE_FINGER) ? 4.5 : 30.0;
+    const double pixel_delta = delta * multiplier;
+    m_kinetic.record_scroll(pixel_delta, axis_source);
 
     double old_scroll = m_scroll_y;
-    m_scroll_y = std::clamp(m_scroll_y + delta * multiplier, 0.0, max_scroll);
+    m_scroll_y = std::clamp(m_scroll_y + pixel_delta, 0.0, max_scroll);
     return std::abs(m_scroll_y - old_scroll) > 0.01;
+}
+
+bool ListView::on_scroll_stop(uint32_t axis_source) {
+    int row_stride = m_item_h + m_spacing;
+    double content_h = m_items.empty() ? 0.0 : (m_items.size() * row_stride - m_spacing);
+    double max_scroll = std::max(0.0, content_h - m_last_height);
+    if (!is_visible() || max_scroll <= 0.0) {
+        m_kinetic.cancel();
+        return false;
+    }
+    return m_kinetic.start_fling(axis_source);
 }
 
 bool ListView::on_key(const KeyPressEvent& event) {

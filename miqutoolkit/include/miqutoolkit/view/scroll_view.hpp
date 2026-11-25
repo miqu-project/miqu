@@ -2,6 +2,7 @@
 
 #include "miqutoolkit/view/view_group.hpp"
 #include "miqutoolkit/view/view_builder.hpp"
+#include "miqutoolkit/view/kinetic_scroller.hpp"
 #include <memory>
 
 namespace miqu {
@@ -33,6 +34,7 @@ public:
     bool on_mouse_move(int lx, int ly, const Rect& bounds) override;
     bool on_mouse_button(int lx, int ly, MouseButton button, bool pressed, const Rect& bounds) override;
     bool on_scroll(double delta, uint32_t axis_source = 0) override;
+    bool on_scroll_stop(uint32_t axis_source = 0) override;
     bool on_touch(const TouchEvent& event, const Rect& bounds) override;
 
     std::shared_ptr<View> find_view_at(int lx, int ly, Rect* out_bounds = nullptr) override;
@@ -41,6 +43,7 @@ private:
     std::shared_ptr<View> m_content;
     double m_scroll_y = 0.0;
     double m_max_scroll = 0.0;
+    KineticScroller m_kinetic;
     bool m_show_scrollbar = true;
 
     bool m_is_hovered = false;
