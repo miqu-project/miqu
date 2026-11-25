@@ -206,6 +206,9 @@ private:
     std::vector<std::shared_ptr<SettingItem>> m_search_results;
     std::shared_ptr<PopupWindow> m_active_popup;
     std::shared_ptr<PopupWindow> m_active_pairing_popup;
+    uint64_t m_preview_load_gen = 0;
+    const SettingItem* m_last_wallpaper_item = nullptr;
+    bool m_wallpaper_ready = false;
 
     void init_bluetooth_agent();
     void show_numeric_comparison_dialog(const std::string& dev_name, const std::string& mac, uint32_t passkey, std::function<void(bool)> cb);

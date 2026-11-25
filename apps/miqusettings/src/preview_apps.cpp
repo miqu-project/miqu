@@ -25,7 +25,59 @@ void MillerView::render_empty_preview(const std::shared_ptr<Config>& config) {
 
 void MillerView::render_category_children_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     if (!item) return;
-    item->ensure_children();
+    if (item->children_provider) {
+        if (m_category_list) m_category_list->set_visibility(Visibility::Gone);
+        if (m_preview_scroll) m_preview_scroll->set_visibility(Visibility::Visible);
+        if (m_window) m_window->set_busy(true);
+
+        m_preview_layout->set_padding(Padding(14, 4, 14, 14));
+        m_preview_layout->set_divider_spacing(10);
+
+        auto loading_card = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->gravity(Gravity::Center)
+            ->padding(24, 32)
+            ->spacing(12)
+            ->backgroundColor(config->colors.surface)
+            ->stroke(1, config->colors.outline.with_alpha(0.3f))
+            ->cornerRadius(get_card_radius(config))
+            ->build();
+
+        auto spinner_bar = ProgressBarBuilder::create()
+            ->indeterminate(true)
+            ->trackHeight(4)
+            ->progressColor(config->colors.primary)
+            ->trackColor(config->colors.surface_variant)
+            ->build();
+        loading_card->add_view(spinner_bar, LayoutParams(220, static_cast<int>(LayoutDimension::WrapContent), Gravity::Center));
+
+        auto lbl = TextViewBuilder::create()
+            ->text("Loading " + item->title + "...")
+            ->caption(true)
+            ->textColor(config->colors.on_surface_variant)
+            ->textAlignment(TextAlignment::Center)
+            ->build();
+        loading_card->add_view(lbl, LayoutParams(static_cast<int>(LayoutDimension::WrapContent), static_cast<int>(LayoutDimension::WrapContent), Gravity::Center));
+        add_preview_card(loading_card);
+
+        auto provider = std::move(item->children_provider);
+        item->children_provider = nullptr;
+        uint64_t gen = m_preview_load_gen;
+        std::weak_ptr<View> weak_self = weak_from_this();
+        std::thread([this, weak_self, gen, item, provider = std::move(provider)]() mutable {
+            auto loaded = provider();
+            if (auto* eng = AppEngine::instance()) {
+                eng->post([this, weak_self, gen, item, loaded = std::move(loaded)]() mutable {
+                    if (weak_self.expired()) return;
+                    item->children = std::move(loaded);
+                    if (gen != m_preview_load_gen) return;
+                    if (m_window) m_window->set_busy(false);
+                    rebuild_preview_column();
+                });
+            }
+        }).detach();
+        return;
+    }
     if (m_category_list) {
         bool items_match = (m_displayed_category_items.size() == item->children.size());
         if (items_match) {

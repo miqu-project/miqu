@@ -4,6 +4,7 @@
 #include <miqutoolkit/view/popup_window.hpp>
 #include <miqutoolkit/view/edit_text.hpp>
 #include <miqutoolkit/view/frame_layout.hpp>
+#include <miqutoolkit/core/app_engine.hpp>
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -1162,43 +1163,105 @@ private:
 void MillerView::render_wallpaper_preview(const std::shared_ptr<SettingItem>& item, const std::shared_ptr<Config>& config) {
     if (!item || !item->wallpaper_cfg) return;
 
-    // Query connected monitors
-    std::vector<std::string> monitors = {"All Displays"};
-    auto detected = MonitorBackend::get_monitors();
-    for (const auto& mon : detected) {
-        if (!mon.name.empty()) {
-            monitors.push_back(mon.name);
-        }
-    }
-    item->wallpaper_cfg->available_monitors = monitors;
-    if (std::find(monitors.begin(), monitors.end(), item->wallpaper_cfg->target_monitor) == monitors.end()) {
-        item->wallpaper_cfg->target_monitor = "All Displays";
-    }
+    if (!m_wallpaper_ready) {
+        if (m_window) m_window->set_busy(true);
 
-    // Load active wallpaper from miqubg config if user doesn't have an unapplied browse selection
-    if (!item->wallpaper_cfg->has_pending_selection) {
-        std::string active_path, active_mode, active_color;
-        if (load_miqubg_wallpaper_config(active_path, active_mode, active_color, item->wallpaper_cfg->target_monitor)) {
-            if (!active_path.empty()) {
-                item->wallpaper_cfg->wallpaper_path = active_path;
-                item->wallpaper_cfg->current_wallpaper = fs::path(active_path).filename().string();
-            }
-            if (!active_mode.empty()) {
-                std::string cap = active_mode;
-                if (!cap.empty()) cap[0] = std::toupper(cap[0]);
-                if (cap == "Fill") cap = "Stretch";
-                else if (cap == "Contain") cap = "Fit";
-                item->wallpaper_cfg->fit_mode = cap;
-            }
-        } else if (item->wallpaper_cfg->wallpaper_path.empty() || !fs::exists(expand_wallpaper_path(item->wallpaper_cfg->wallpaper_path))) {
-            for (const char* wp : {"/usr/share/miqubg/wallpaper.png", "/usr/local/share/miqubg/wallpaper.png", "shell/miqubg/assets/wallpaper.png"}) {
-                if (fs::exists(wp)) {
-                    item->wallpaper_cfg->wallpaper_path = wp;
-                    item->wallpaper_cfg->current_wallpaper = "wallpaper.png";
-                    break;
+        auto loading_card = LinearLayoutBuilder::create()
+            ->orientation(Orientation::Vertical)
+            ->gravity(Gravity::Center)
+            ->padding(24, 32)
+            ->spacing(12)
+            ->backgroundColor(config->colors.surface)
+            ->stroke(1, config->colors.outline.with_alpha(0.3f))
+            ->cornerRadius(get_card_radius(config))
+            ->build();
+
+        auto spinner_bar = ProgressBarBuilder::create()
+            ->indeterminate(true)
+            ->trackHeight(4)
+            ->progressColor(config->colors.primary)
+            ->trackColor(config->colors.surface_variant)
+            ->build();
+        loading_card->add_view(spinner_bar, LayoutParams(220, static_cast<int>(LayoutDimension::WrapContent), Gravity::Center));
+
+        auto lbl = TextViewBuilder::create()
+            ->text("Loading wallpaper & displays...")
+            ->caption(true)
+            ->textColor(config->colors.on_surface_variant)
+            ->textAlignment(TextAlignment::Center)
+            ->build();
+        loading_card->add_view(lbl, LayoutParams(static_cast<int>(LayoutDimension::WrapContent), static_cast<int>(LayoutDimension::WrapContent), Gravity::Center));
+        add_preview_card(loading_card);
+
+        uint64_t gen = m_preview_load_gen;
+        std::weak_ptr<View> weak_self = weak_from_this();
+        std::string target_mon = item->wallpaper_cfg->target_monitor;
+        bool has_pending = item->wallpaper_cfg->has_pending_selection;
+        std::string existing_wp = item->wallpaper_cfg->wallpaper_path;
+
+        std::thread([this, weak_self, gen, item, target_mon, has_pending, existing_wp]() {
+            std::vector<std::string> monitors = {"All Displays"};
+            auto detected = MonitorBackend::get_monitors();
+            for (const auto& mon : detected) {
+                if (!mon.name.empty()) {
+                    monitors.push_back(mon.name);
                 }
             }
-        }
+            std::string resolved_target = target_mon;
+            if (std::find(monitors.begin(), monitors.end(), resolved_target) == monitors.end()) {
+                resolved_target = "All Displays";
+            }
+
+            bool loaded_cfg = false;
+            std::string active_path, active_mode, active_color;
+            std::string fallback_path;
+            if (!has_pending) {
+                loaded_cfg = load_miqubg_wallpaper_config(active_path, active_mode, active_color, resolved_target);
+                if (!loaded_cfg && (existing_wp.empty() || !fs::exists(expand_wallpaper_path(existing_wp)))) {
+                    for (const char* wp : {"/usr/share/miqubg/wallpaper.png", "/usr/local/share/miqubg/wallpaper.png", "shell/miqubg/assets/wallpaper.png"}) {
+                        if (fs::exists(wp)) {
+                            fallback_path = wp;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (auto* eng = AppEngine::instance()) {
+                eng->post([this, weak_self, gen, item, monitors = std::move(monitors), resolved_target,
+                           has_pending, loaded_cfg, active_path, active_mode, fallback_path]() mutable {
+                    if (weak_self.expired()) return;
+                    if (gen != m_preview_load_gen || !item->wallpaper_cfg) return;
+
+                    item->wallpaper_cfg->available_monitors = std::move(monitors);
+                    item->wallpaper_cfg->target_monitor = resolved_target;
+
+                    if (!has_pending) {
+                        if (loaded_cfg) {
+                            if (!active_path.empty()) {
+                                item->wallpaper_cfg->wallpaper_path = active_path;
+                                item->wallpaper_cfg->current_wallpaper = fs::path(active_path).filename().string();
+                            }
+                            if (!active_mode.empty()) {
+                                std::string cap = active_mode;
+                                if (!cap.empty()) cap[0] = std::toupper(cap[0]);
+                                if (cap == "Fill") cap = "Stretch";
+                                else if (cap == "Contain") cap = "Fit";
+                                item->wallpaper_cfg->fit_mode = cap;
+                            }
+                        } else if (!fallback_path.empty()) {
+                            item->wallpaper_cfg->wallpaper_path = fallback_path;
+                            item->wallpaper_cfg->current_wallpaper = "wallpaper.png";
+                        }
+                    }
+
+                    m_wallpaper_ready = true;
+                    if (m_window) m_window->set_busy(false);
+                    rebuild_preview_column();
+                });
+            }
+        }).detach();
+        return;
     }
 
     auto main_card = LinearLayoutBuilder::create()

@@ -1106,6 +1106,8 @@ void MillerView::deferred_rebuild_preview(int delay_ms) {
 }
 
 void MillerView::rebuild_preview_column() {
+    ++m_preview_load_gen;
+    if (m_window) m_window->set_busy(false);
     int focused_index = -1;
     if (m_window) {
         View* current_focus = m_window->get_focused_view();

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iostream>
 #include <cstdlib>
+#include <thread>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
 namespace fs = std::filesystem;
@@ -146,13 +147,58 @@ void MillerView::render_file_preview(const std::shared_ptr<FileItem>& item, cons
     bool has_text_preview = false;
     if (item->is_text_file) {
         if (!item->text_loaded) {
-            std::ifstream ifs(item->path);
-            if (ifs.is_open()) {
-                std::stringstream ss;
-                ss << ifs.rdbuf();
-                item->text_content = ss.str();
-            }
-            item->text_loaded = true;
+            if (m_window) m_window->set_busy(true);
+
+            auto loading_card = LinearLayoutBuilder::create()
+                ->orientation(Orientation::Vertical)
+                ->gravity(Gravity::Center)
+                ->padding(24, 32)
+                ->spacing(12)
+                ->backgroundColor(config->colors.surface)
+                ->stroke(1, config->colors.outline.with_alpha(0.3f))
+                ->cornerRadius(get_card_radius(config))
+                ->build();
+
+            auto spinner_bar = ProgressBarBuilder::create()
+                ->indeterminate(true)
+                ->trackHeight(4)
+                ->progressColor(config->colors.primary)
+                ->trackColor(config->colors.surface_variant)
+                ->build();
+            loading_card->add_view(spinner_bar, LayoutParams(220, WRAP_CONTENT, Gravity::Center));
+
+            auto lbl = TextViewBuilder::create()
+                ->text("Loading " + item->title + "...")
+                ->caption(true)
+                ->textColor(config->colors.on_surface_variant)
+                ->textAlignment(TextAlignment::Center)
+                ->build();
+            loading_card->add_view(lbl, LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity::Center));
+            add_preview_card(loading_card);
+
+            uint64_t gen = m_preview_load_gen;
+            std::weak_ptr<View> weak_self = weak_from_this();
+            std::string file_path = item->path;
+            std::thread([this, weak_self, gen, item, file_path]() {
+                std::string content;
+                std::ifstream ifs(file_path);
+                if (ifs.is_open()) {
+                    std::stringstream ss;
+                    ss << ifs.rdbuf();
+                    content = ss.str();
+                }
+                if (auto* eng = AppEngine::instance()) {
+                    eng->post([this, weak_self, gen, item, content = std::move(content)]() mutable {
+                        if (weak_self.expired()) return;
+                        if (gen != m_preview_load_gen) return;
+                        item->text_content = std::move(content);
+                        item->text_loaded = true;
+                        if (m_window) m_window->set_busy(false);
+                        rebuild_preview_column();
+                    });
+                }
+            }).detach();
+            return;
         }
 
         has_text_preview = true;

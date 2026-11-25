@@ -848,6 +848,8 @@ void MillerView::deferred_rebuild_preview(int delay_ms) {
     }
 }
 void MillerView::rebuild_preview_column() {
+    ++m_preview_load_gen;
+    if (m_window) m_window->set_busy(false);
     int focused_index = -1;
     if (m_window && m_preview_layout) {
         View* current_focus = m_window->get_focused_view();
@@ -870,6 +872,10 @@ void MillerView::rebuild_preview_column() {
 
     auto config = Config::get();
     auto item = get_current_selected_item();
+    if (item.get() != m_last_wallpaper_item) {
+        m_wallpaper_ready = false;
+        m_last_wallpaper_item = item.get();
+    }
 
     update_preview_ribbon();
 

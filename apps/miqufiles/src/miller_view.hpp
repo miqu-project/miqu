@@ -159,6 +159,7 @@ private:
     std::vector<std::shared_ptr<FileItem>> m_displayed_parent_items;
     std::vector<std::shared_ptr<FileItem>> m_displayed_current_items;
     std::vector<std::shared_ptr<FileItem>> m_displayed_category_items;
+    uint64_t m_preview_load_gen = 0;
 };
 
 } // namespace miqu
