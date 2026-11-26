@@ -138,11 +138,10 @@ void ExplorerView::setup_ui() {
         ->padding(10, 6)
         ->spacing(4)
         ->cornerRadius(inner_rad)
-        ->stroke(1, config->colors.primary.with_alpha(0.55f))
         ->backgroundColor(Color::transparent())
         ->build();
 
-    // Details column header (visible only in Details view mode)
+    // Details column header
     m_details_header = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
         ->padding(10, 4)
@@ -177,11 +176,12 @@ void ExplorerView::setup_ui() {
     };
 
     make_hdr_col(m_hdr_name_lbl, "Name", SortField::Name, TextAlignment::Left, MATCH_PARENT, 1.0f);
-    make_hdr_col(m_hdr_mod_lbl, "Modified", SortField::Modified, TextAlignment::Left, 145, 0.0f);
-    make_hdr_col(m_hdr_type_lbl, "Type", SortField::Type, TextAlignment::Left, 95, 0.0f);
-    make_hdr_col(m_hdr_size_lbl, "Size", SortField::Size, TextAlignment::Right, 75, 0.0f);
-    m_details_header->set_visibility(Visibility::Gone);
+    make_hdr_col(m_hdr_type_lbl, "Kind", SortField::Type, TextAlignment::Left, 110, 0.0f);
+    make_hdr_col(m_hdr_size_lbl, "Size", SortField::Size, TextAlignment::Right, 85, 0.0f);
+    make_hdr_col(m_hdr_mod_lbl, "Modified", SortField::Modified, TextAlignment::Right, 140, 0.0f);
+    m_details_header->set_visibility(Visibility::Visible);
     m_content_pillar->add_view(m_details_header, LayoutParams(MATCH_PARENT, 28));
+    update_details_header();
 
     auto on_selection_cb = [this](const std::unordered_set<int>&) {
         update_status_bar();
@@ -203,9 +203,9 @@ void ExplorerView::setup_ui() {
 
     // Grid View (Primary Explorer Canvas)
     m_grid_view = GridViewBuilder::create()
-        ->autoFit(126)
-        ->cellHeight(128)
-        ->spacing(12, 12)
+        ->autoFit(130)
+        ->cellHeight(116)
+        ->spacing(10, 10)
         ->bottomPadding(96)
         ->clearSelectionOnEmptyClick(true)
         ->selectionModel(m_selection_model)
@@ -215,11 +215,12 @@ void ExplorerView::setup_ui() {
         ->onItemClick(on_item_click_cb)
         ->onItemDoubleClick(on_item_dbl_cb)
         ->build();
+    m_grid_view->set_visibility(Visibility::Gone);
 
     // List / Details View
     m_list_view = ListViewBuilder::create()
-        ->itemHeight(36)
-        ->spacing(2)
+        ->itemHeight(44)
+        ->spacing(3)
         ->itemCornerRadius(inner_rad)
         ->scrollbar(true)
         ->bottomPadding(96)
@@ -230,7 +231,7 @@ void ExplorerView::setup_ui() {
         ->onItemClick(on_item_click_cb)
         ->onItemDoubleClick(on_item_dbl_cb)
         ->build();
-    m_list_view->set_visibility(Visibility::Gone);
+    m_list_view->set_visibility(Visibility::Visible);
 
     m_content_pillar->add_view(m_grid_view, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
     m_content_pillar->add_view(m_list_view, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
@@ -241,12 +242,19 @@ void ExplorerView::setup_ui() {
         ->caption(true)
         ->textColor(config->colors.on_surface_variant)
         ->build();
+    auto status_hint = TextViewBuilder::create()
+        ->text("Arrow keys to navigate \u2022 Enter to open")
+        ->caption(true)
+        ->textAlignment(TextAlignment::Right)
+        ->textColor(config->colors.on_surface_variant.with_alpha(0.65f))
+        ->build();
     m_status_bar = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
         ->padding(6, 2)
         ->gravity(Gravity::CenterVertical)
-        ->addView(m_status_label)
         ->build();
+    m_status_bar->add_view(m_status_label, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
+    m_status_bar->add_view(status_hint, LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
     m_content_pillar->add_view(m_status_bar, LayoutParams(MATCH_PARENT, 22));
 
     add_view(m_content_pillar, LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f));
@@ -362,17 +370,17 @@ std::shared_ptr<View> ExplorerView::create_list_row(const std::shared_ptr<FileIt
 std::shared_ptr<View> ExplorerView::create_details_row(const std::shared_ptr<FileItem>& item, const std::shared_ptr<Config>& config) {
     auto row = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
-        ->padding(10, 0)
-        ->spacing(8)
+        ->padding(12, 0)
+        ->spacing(10)
         ->gravity(Gravity::CenterVertical)
         ->build();
 
     auto icon = ImageViewBuilder::create()
         ->source(item->icon)
-        ->targetSize(18)
+        ->targetSize(22)
         ->fitMode(FitMode::Contain)
         ->build();
-    row->add_view(icon, LayoutParams(18, 18, Gravity::CenterVertical));
+    row->add_view(icon, LayoutParams(22, 22, Gravity::CenterVertical));
 
     auto name_lbl = TextViewBuilder::create()
         ->text(item->title)
@@ -383,15 +391,6 @@ std::shared_ptr<View> ExplorerView::create_details_row(const std::shared_ptr<Fil
         ->build();
     row->add_view(name_lbl, LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1.0f));
 
-    auto mod_lbl = TextViewBuilder::create()
-        ->text(item->mtime_formatted)
-        ->caption(true)
-        ->textColor(config->colors.on_surface_variant)
-        ->ellipsize(true)
-        ->maxLines(1)
-        ->build();
-    row->add_view(mod_lbl, LayoutParams(145, WRAP_CONTENT, Gravity::CenterVertical));
-
     std::string type_str = item->is_dir ? "Folder" : item->category_label;
     auto type_lbl = TextViewBuilder::create()
         ->text(type_str)
@@ -400,7 +399,7 @@ std::shared_ptr<View> ExplorerView::create_details_row(const std::shared_ptr<Fil
         ->ellipsize(true)
         ->maxLines(1)
         ->build();
-    row->add_view(type_lbl, LayoutParams(95, WRAP_CONTENT, Gravity::CenterVertical));
+    row->add_view(type_lbl, LayoutParams(110, WRAP_CONTENT, Gravity::CenterVertical));
 
     std::string size_str = item->is_dir ? item->subtitle : item->size_formatted;
     auto size_lbl = TextViewBuilder::create()
@@ -411,7 +410,17 @@ std::shared_ptr<View> ExplorerView::create_details_row(const std::shared_ptr<Fil
         ->ellipsize(true)
         ->maxLines(1)
         ->build();
-    row->add_view(size_lbl, LayoutParams(75, WRAP_CONTENT, Gravity::CenterVertical));
+    row->add_view(size_lbl, LayoutParams(85, WRAP_CONTENT, Gravity::CenterVertical));
+
+    auto mod_lbl = TextViewBuilder::create()
+        ->text(item->mtime_formatted)
+        ->caption(true)
+        ->textAlignment(TextAlignment::Right)
+        ->textColor(config->colors.on_surface_variant)
+        ->ellipsize(true)
+        ->maxLines(1)
+        ->build();
+    row->add_view(mod_lbl, LayoutParams(140, WRAP_CONTENT, Gravity::CenterVertical));
 
     return row;
 }
@@ -544,7 +553,7 @@ void ExplorerView::set_view_mode(ExplorerViewMode mode) {
     }
     if (m_list_view) {
         m_list_view->set_visibility(mode != ExplorerViewMode::Grid ? Visibility::Visible : Visibility::Gone);
-        m_list_view->set_item_height(mode == ExplorerViewMode::Details ? 34 : 36);
+        m_list_view->set_item_height(mode == ExplorerViewMode::Details ? 44 : 38);
     }
 
     update_details_header();
@@ -699,7 +708,7 @@ void ExplorerView::update_details_header() {
 
     set_hdr(m_hdr_name_lbl, "Name", SortField::Name);
     set_hdr(m_hdr_mod_lbl, "Modified", SortField::Modified);
-    set_hdr(m_hdr_type_lbl, "Type", SortField::Type);
+    set_hdr(m_hdr_type_lbl, "Kind", SortField::Type);
     set_hdr(m_hdr_size_lbl, "Size", SortField::Size);
 }
 

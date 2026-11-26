@@ -97,6 +97,12 @@ public:
     // Directory reload
     void reload_current_directory(const std::string& select_path = "");
 
+    // Static utilities
+    static std::string resolve_terminal_emulator();
+    static bool open_terminal_in(const std::filesystem::path& dir);
+    static bool run_in_terminal(const std::filesystem::path& working_dir, const std::string& shell_command);
+    static void copy_text_to_clipboard(const std::string& text, const std::string& mime_type = "text/plain");
+
 private:
     void setup_ui();
     void setup_places();
@@ -148,11 +154,6 @@ private:
     void action_add_to_desktop(const std::shared_ptr<FileItem>& item);
     void action_set_as_wallpaper(const std::shared_ptr<FileItem>& item);
 
-    static std::string resolve_terminal_emulator();
-    static bool open_terminal_in(const std::filesystem::path& dir);
-    static bool run_in_terminal(const std::filesystem::path& working_dir, const std::string& shell_command);
-    static void copy_text_to_clipboard(const std::string& text, const std::string& mime_type = "text/plain");
-
     // State
     std::shared_ptr<Window> m_window;
     std::function<void()> m_on_state_changed;
@@ -163,7 +164,7 @@ private:
 
     bool m_show_hidden = false;
     std::string m_search_query;
-    ExplorerViewMode m_view_mode = ExplorerViewMode::Grid;
+    ExplorerViewMode m_view_mode = ExplorerViewMode::Details;
     SortField m_sort_field = SortField::Name;
     bool m_sort_ascending = true;
     bool m_preview_visible = true;
