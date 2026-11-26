@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <thread>
 
 namespace fs = std::filesystem;
 
@@ -415,7 +416,50 @@ std::shared_ptr<View> ExplorerView::create_details_row(const std::shared_ptr<Fil
     return row;
 }
 
-void ExplorerView::navigate_to_dir(const fs::path& dir, bool push_history) {
+void ExplorerView::start_directory_load(const fs::path& dir, const std::string& select_path) {
+    uint64_t gen = ++m_dir_load_gen;
+    bool show_hidden = m_show_hidden;
+    auto alive = m_alive;
+
+    m_all_items.clear();
+    m_displayed_items.clear();
+    m_grid_tiles.clear();
+    if (m_selection_model) {
+        m_selection_model->clear_marks();
+        m_selection_model->set_cursor(-1);
+    }
+    if (m_grid_view) m_grid_view->scroll_to_top();
+    if (m_list_view) m_list_view->scroll_to_top();
+    rebuild_active_items();
+    if (m_status_label) m_status_label->set_text("Loading...");
+    rebuild_preview_pane();
+    sync_sidebar_selection();
+    notify_state_changed();
+
+    auto* eng = AppEngine::instance();
+    if (!eng) {
+        m_all_items = FilesModel::scan_directory(dir, show_hidden);
+        apply_sort_and_filter(select_path);
+        sync_sidebar_selection();
+        notify_state_changed();
+        return;
+    }
+
+    std::thread([this, alive, gen, dir, show_hidden, select_path]() {
+        auto items = FilesModel::scan_directory(dir, show_hidden);
+        if (auto* app = AppEngine::instance()) {
+            app->post([this, alive, gen, items = std::move(items), select_path]() mutable {
+                if (!alive || !alive->load() || gen != m_dir_load_gen) return;
+                m_all_items = std::move(items);
+                apply_sort_and_filter(select_path);
+                sync_sidebar_selection();
+                notify_state_changed();
+            });
+        }
+    }).detach();
+}
+
+void ExplorerView::navigate_to_dir(const fs::path& dir, bool push_history, const std::string& select_path) {
     std::error_code ec;
     fs::path target = fs::weakly_canonical(dir, ec);
     if (ec || target.empty()) target = dir;
@@ -427,17 +471,7 @@ void ExplorerView::navigate_to_dir(const fs::path& dir, bool push_history) {
     }
 
     m_current_dir = target;
-    m_all_items = FilesModel::scan_directory(m_current_dir, m_show_hidden);
-    m_displayed_items.clear();
-    if (m_selection_model) {
-        m_selection_model->clear_marks();
-        m_selection_model->set_cursor(-1);
-    }
-    if (m_grid_view) m_grid_view->scroll_to_top();
-    if (m_list_view) m_list_view->scroll_to_top();
-    apply_sort_and_filter();
-    sync_sidebar_selection();
-    notify_state_changed();
+    start_directory_load(m_current_dir, select_path);
 }
 
 bool ExplorerView::navigate_back() {
@@ -465,8 +499,7 @@ bool ExplorerView::navigate_forward() {
 bool ExplorerView::navigate_up() {
     if (!can_navigate_up()) return false;
     std::string child_path = m_current_dir.string();
-    navigate_to_dir(m_current_dir.parent_path(), true);
-    apply_sort_and_filter(child_path);
+    navigate_to_dir(m_current_dir.parent_path(), true, child_path);
     return true;
 }
 
@@ -883,6 +916,7 @@ bool ExplorerView::handle_key(const KeyPressEvent& event) {
         }
         if (event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter ||
             event.keysym == XKB_KEY_Right || event.keysym == XKB_KEY_l || event.keysym == XKB_KEY_L) {
+            if (event.is_repeat) return true;
             int sel = m_sidebar_list->get_selected_index();
             set_sidebar_focused(false);
             if (sel >= 0 && sel < static_cast<int>(m_places.size())) {
@@ -968,6 +1002,10 @@ bool ExplorerView::handle_key(const KeyPressEvent& event) {
             else action_trash_items(items);
             return true;
         }
+    }
+
+    if ((event.keysym == XKB_KEY_Return || event.keysym == XKB_KEY_KP_Enter) && event.is_repeat) {
+        return true;
     }
 
     // Active view keyboard navigation (Grid vs List/Details)

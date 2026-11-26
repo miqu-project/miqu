@@ -24,7 +24,6 @@ private:
     void update_nav_buttons_ui();
     void update_view_mode_buttons_ui();
     void update_hidden_btn_ui();
-    void update_preview_btn_ui();
     void toggle_show_hidden();
 
     std::shared_ptr<AppEngine> m_engine;
@@ -45,19 +44,12 @@ private:
     std::shared_ptr<LinearLayout> m_breadcrumb_container;
     std::shared_ptr<SearchView> m_search_view;
 
-    std::shared_ptr<CardView> m_grid_mode_btn;
-    std::shared_ptr<TextView> m_grid_mode_lbl;
-    std::shared_ptr<CardView> m_list_mode_btn;
-    std::shared_ptr<TextView> m_list_mode_lbl;
-    std::shared_ptr<CardView> m_details_mode_btn;
-    std::shared_ptr<TextView> m_details_mode_lbl;
+    std::shared_ptr<CardView> m_view_mode_btn;
+    std::shared_ptr<TextView> m_view_mode_lbl;
 
     std::shared_ptr<CardView> m_hidden_btn;
     std::shared_ptr<ImageView> m_hidden_icon;
     std::shared_ptr<TextView> m_hidden_label;
-
-    std::shared_ptr<CardView> m_preview_btn;
-    std::shared_ptr<TextView> m_preview_label;
 
     std::shared_ptr<ExplorerView> m_explorer_view;
 };

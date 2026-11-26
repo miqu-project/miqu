@@ -142,7 +142,7 @@ void FilesApp::setup_ui() {
         ->build();
     m_root_layout->add_view(m_toolbar, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
-    // 2. Explorer Ribbon: Nav (Back/Forward/Up) + Breadcrumbs + Search + View Modes + Hidden + Preview
+    // 2. Explorer Ribbon: Nav (Back/Forward/Up) + Breadcrumbs
     m_ribbon = LinearLayoutBuilder::create()
         ->orientation(Orientation::Horizontal)
         ->padding(14, 4)
@@ -152,7 +152,7 @@ void FilesApp::setup_ui() {
 
     auto make_pill_btn = [&](std::shared_ptr<CardView>& card_out, std::shared_ptr<TextView>& lbl_out,
                              const std::string& text, const std::string& tooltip, const std::string& shortcut,
-                             std::function<void()> on_click) {
+                             std::function<void()> on_click, bool to_toolbar = false) {
         lbl_out = TextViewBuilder::create()
             ->text(text)
             ->textSize(config->metrics.font_size)
@@ -179,7 +179,12 @@ void FilesApp::setup_ui() {
         card_out->set_on_click_listener(std::move(on_click));
 
         LayoutParams lp(WRAP_CONTENT, 26, Gravity::CenterVertical);
-        m_ribbon->add_view(card_out, lp);
+        if (to_toolbar) {
+            card_out->set_layout_params(lp);
+            m_toolbar->add_action_view(card_out);
+        } else {
+            m_ribbon->add_view(card_out, lp);
+        }
     };
 
     make_pill_btn(m_back_btn, m_back_label, "‹", "Back", "Alt+Left", [this]() {
@@ -207,7 +212,7 @@ void FilesApp::setup_ui() {
     bc_lp.gravity = Gravity::CenterVertical;
     m_ribbon->add_view(m_breadcrumb_container, bc_lp);
 
-    // Search
+    // Search (in top toolbar)
     m_search_view = SearchViewBuilder::create()
         ->hint("Search")
         ->focused(false)
@@ -228,20 +233,20 @@ void FilesApp::setup_ui() {
         )
         ->build();
     m_search_view->set_focused(false);
-    m_ribbon->add_view(m_search_view, LayoutParams(200, 26, Gravity::CenterVertical));
+    m_search_view->set_layout_params(LayoutParams(200, 26, Gravity::CenterVertical));
+    m_toolbar->add_action_view(m_search_view);
 
-    // View Mode Switcher: Grid | List | Details
-    make_pill_btn(m_grid_mode_btn, m_grid_mode_lbl, "Grid", "Grid View", "Ctrl+1", [this]() {
-        if (m_explorer_view) m_explorer_view->set_view_mode(ExplorerViewMode::Grid);
-    });
-    make_pill_btn(m_list_mode_btn, m_list_mode_lbl, "List", "List View", "Ctrl+2", [this]() {
-        if (m_explorer_view) m_explorer_view->set_view_mode(ExplorerViewMode::List);
-    });
-    make_pill_btn(m_details_mode_btn, m_details_mode_lbl, "Details", "Details View", "Ctrl+3", [this]() {
-        if (m_explorer_view) m_explorer_view->set_view_mode(ExplorerViewMode::Details);
-    });
+    // View Mode Cycle Button: Grid -> List -> Details (in top toolbar)
+    make_pill_btn(m_view_mode_btn, m_view_mode_lbl, "Grid", "Switch View Mode", "Ctrl+1 / 2 / 3", [this]() {
+        if (!m_explorer_view) return;
+        ExplorerViewMode cur = m_explorer_view->get_view_mode();
+        ExplorerViewMode next = ExplorerViewMode::Grid;
+        if (cur == ExplorerViewMode::Grid) next = ExplorerViewMode::List;
+        else if (cur == ExplorerViewMode::List) next = ExplorerViewMode::Details;
+        m_explorer_view->set_view_mode(next);
+    }, true);
 
-    // Hidden Toggle
+    // Hidden Toggle (in top toolbar)
     m_hidden_icon = ImageViewBuilder::create()
         ->source("show-hidden")
         ->targetSize(15)
@@ -275,12 +280,8 @@ void FilesApp::setup_ui() {
         ->build();
     m_hidden_btn->set_focusable(false);
     m_hidden_btn->set_on_click_listener([this]() { toggle_show_hidden(); });
-    m_ribbon->add_view(m_hidden_btn, LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
-
-    // Preview Pane Toggle
-    make_pill_btn(m_preview_btn, m_preview_label, "Preview", "Toggle Preview Pane", "Alt+P", [this]() {
-        if (m_explorer_view) m_explorer_view->toggle_preview();
-    });
+    m_hidden_btn->set_layout_params(LayoutParams(WRAP_CONTENT, 26, Gravity::CenterVertical));
+    m_toolbar->add_action_view(m_hidden_btn);
 
     m_root_layout->add_view(m_ribbon, LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
@@ -368,7 +369,6 @@ void FilesApp::update_header() {
     update_nav_buttons_ui();
     update_view_mode_buttons_ui();
     update_hidden_btn_ui();
-    update_preview_btn_ui();
 }
 
 void FilesApp::update_nav_buttons_ui() {
@@ -388,19 +388,16 @@ void FilesApp::update_nav_buttons_ui() {
 
 void FilesApp::update_view_mode_buttons_ui() {
     auto config = Config::get();
-    if (!config || !m_explorer_view) return;
+    if (!config || !m_explorer_view || !m_view_mode_btn || !m_view_mode_lbl) return;
+
     ExplorerViewMode mode = m_explorer_view->get_view_mode();
+    const char* label = "Grid";
+    if (mode == ExplorerViewMode::List) label = "List";
+    else if (mode == ExplorerViewMode::Details) label = "Details";
 
-    auto style_mode = [&](const std::shared_ptr<CardView>& btn, const std::shared_ptr<TextView>& lbl, bool active) {
-        if (!btn || !lbl) return;
-        btn->set_card_background_color(active ? config->colors.primary_container
-                                              : config->colors.surface_variant.with_alpha(0.35f));
-        lbl->set_text_color(active ? config->colors.primary : config->colors.on_surface_variant);
-    };
-
-    style_mode(m_grid_mode_btn, m_grid_mode_lbl, mode == ExplorerViewMode::Grid);
-    style_mode(m_list_mode_btn, m_list_mode_lbl, mode == ExplorerViewMode::List);
-    style_mode(m_details_mode_btn, m_details_mode_lbl, mode == ExplorerViewMode::Details);
+    m_view_mode_lbl->set_text(label);
+    m_view_mode_btn->set_card_background_color(config->colors.surface_variant.with_alpha(0.35f));
+    m_view_mode_lbl->set_text_color(config->colors.on_surface_variant);
 }
 
 void FilesApp::update_hidden_btn_ui() {
@@ -415,20 +412,6 @@ void FilesApp::update_hidden_btn_ui() {
     if (m_hidden_icon) m_hidden_icon->set_alpha(active ? 1.0f : 0.6f);
     if (m_hidden_label) {
         m_hidden_label->set_text_color(active ? config->colors.primary : config->colors.on_surface_variant);
-    }
-}
-
-void FilesApp::update_preview_btn_ui() {
-    auto config = Config::get();
-    if (!config || !m_explorer_view) return;
-    bool active = m_explorer_view->is_preview_visible();
-
-    if (m_preview_btn) {
-        m_preview_btn->set_card_background_color(active ? config->colors.primary_container
-                                                        : config->colors.surface_variant.with_alpha(0.35f));
-    }
-    if (m_preview_label) {
-        m_preview_label->set_text_color(active ? config->colors.primary : config->colors.on_surface_variant);
     }
 }
 

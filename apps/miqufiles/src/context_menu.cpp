@@ -249,13 +249,10 @@ void ExplorerView::reload_current_directory(const std::string& select_path) {
         if (cur) target_path = cur->path.string();
     }
 
-    m_all_items = FilesModel::scan_directory(m_current_dir, m_show_hidden);
     if (m_selection_model) {
         m_selection_model->clear_marks();
     }
-    apply_sort_and_filter(target_path);
-    sync_sidebar_selection();
-    notify_state_changed();
+    start_directory_load(m_current_dir, target_path);
 }
 
 void ExplorerView::show_item_context_menu(const std::shared_ptr<FileItem>& item, int lx, int ly) {

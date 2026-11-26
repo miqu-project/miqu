@@ -19,6 +19,8 @@ struct xdg_toplevel_listener;
 struct wl_cursor_theme;
 struct ext_session_lock_surface_v1;
 struct ext_session_lock_surface_v1_listener;
+struct zwp_pointer_gesture_pinch_v1;
+struct zwp_pointer_gesture_pinch_v1_listener;
 
 namespace miqu {
 
@@ -200,6 +202,8 @@ private:
     struct xdg_toplevel* m_xdg_toplevel = nullptr;
     static const struct ::ext_session_lock_surface_v1_listener s_lock_surface_listener;
     struct wl_pointer* m_pointer = nullptr;
+    struct zwp_pointer_gesture_pinch_v1* m_pinch_gesture = nullptr;
+    static const struct ::zwp_pointer_gesture_pinch_v1_listener s_pinch_listener;
     struct wl_keyboard* m_keyboard = nullptr;
     struct wl_touch* m_touch = nullptr;
     int32_t m_primary_touch_id = -1;
@@ -219,7 +223,8 @@ private:
     uint32_t m_modifiers = 0;
     uint32_t m_last_axis_source = 0; // WL_POINTER_AXIS_SOURCE_* (0 = unknown/wheel default)
     bool m_has_pending_axis = false;
-    double m_pending_axis_delta = 0.0;
+    double m_pending_axis_dx = 0.0;
+    double m_pending_axis_dy = 0.0;
     bool m_has_pending_axis_stop = false;
 
     std::unique_ptr<ShmPool> m_shm_pool;

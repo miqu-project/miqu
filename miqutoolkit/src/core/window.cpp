@@ -10,6 +10,7 @@
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "ext-session-lock-v1-client-protocol.h"
 #include "cursor-shape-v1-client-protocol.h"
+#include "pointer-gestures-unstable-v1-client-protocol.h"
 #include <wayland-cursor.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -112,7 +113,17 @@ void Window::update_seat_capabilities(uint32_t caps) {
     if ((caps & WL_SEAT_CAPABILITY_POINTER) && !m_pointer) {
         m_pointer = wl_seat_get_pointer(seat);
         wl_pointer_add_listener(m_pointer, &s_pointer_listener, this);
+        if (auto* pg = engine->get_pointer_gestures()) {
+            m_pinch_gesture = zwp_pointer_gestures_v1_get_pinch_gesture(pg, m_pointer);
+            if (m_pinch_gesture) {
+                zwp_pointer_gesture_pinch_v1_add_listener(m_pinch_gesture, &s_pinch_listener, this);
+            }
+        }
     } else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && m_pointer) {
+        if (m_pinch_gesture) {
+            zwp_pointer_gesture_pinch_v1_destroy(m_pinch_gesture);
+            m_pinch_gesture = nullptr;
+        }
         wl_pointer_destroy(m_pointer);
         m_pointer = nullptr;
     }
@@ -241,7 +252,10 @@ const struct wl_pointer_listener Window::s_pointer_listener = {
         auto* self = static_cast<Window*>(data);
         if (!self || !self->m_pointer_inside) return;
         if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
-            self->m_pending_axis_delta += wl_fixed_to_double(value);
+            self->m_pending_axis_dy += wl_fixed_to_double(value);
+            self->m_has_pending_axis = true;
+        } else if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
+            self->m_pending_axis_dx += wl_fixed_to_double(value);
             self->m_has_pending_axis = true;
         }
     },
@@ -253,17 +267,19 @@ const struct wl_pointer_listener Window::s_pointer_listener = {
         uint32_t source = self->m_last_axis_source;
 
         if (self->m_has_pending_axis) {
-            double delta = self->m_pending_axis_delta;
-            self->m_pending_axis_delta = 0.0;
+            double dx = self->m_pending_axis_dx;
+            double dy = self->m_pending_axis_dy;
+            self->m_pending_axis_dx = 0.0;
+            self->m_pending_axis_dy = 0.0;
             self->m_has_pending_axis = false;
 
             if (self->m_pointer_inside) {
                 if (self->m_popup_view) {
-                    if (self->m_popup_view->on_scroll(delta, source)) {
+                    if (self->m_popup_view->on_scroll_2d(dx, dy, source)) {
                         needs_redraw = true;
                     }
                 } else if (self->m_root_view) {
-                    if (self->m_root_view->on_scroll(delta, source)) {
+                    if (self->m_root_view->on_scroll_2d(dx, dy, source)) {
                         needs_redraw = true;
                     }
                 }
@@ -298,7 +314,7 @@ const struct wl_pointer_listener Window::s_pointer_listener = {
     .axis_stop = [](void* data, struct wl_pointer*, uint32_t, uint32_t axis) {
         auto* self = static_cast<Window*>(data);
         if (!self) return;
-        if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
+        if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL || axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
             self->m_has_pending_axis_stop = true;
         }
     },
@@ -308,6 +324,39 @@ const struct wl_pointer_listener Window::s_pointer_listener = {
 #ifdef WL_POINTER_WARP_SINCE_VERSION
     .warp = [](void*, struct wl_pointer*, wl_fixed_t, wl_fixed_t) {},
 #endif
+};
+
+const struct zwp_pointer_gesture_pinch_v1_listener Window::s_pinch_listener = {
+    .begin = [](void* data, struct zwp_pointer_gesture_pinch_v1*, uint32_t, uint32_t,
+                struct wl_surface* surface, uint32_t fingers) {
+        auto* self = static_cast<Window*>(data);
+        if (!self || !self->m_pointer_inside || surface != self->m_surface) return;
+        if (self->m_root_view &&
+            self->m_root_view->on_pinch_begin(static_cast<int>(self->m_last_x),
+                                              static_cast<int>(self->m_last_y), fingers)) {
+            self->schedule_redraw();
+        }
+    },
+    .update = [](void* data, struct zwp_pointer_gesture_pinch_v1*, uint32_t,
+                 wl_fixed_t dx, wl_fixed_t dy, wl_fixed_t scale, wl_fixed_t) {
+        auto* self = static_cast<Window*>(data);
+        if (!self || !self->m_pointer_inside) return;
+        if (self->m_root_view &&
+            self->m_root_view->on_pinch_update(static_cast<int>(self->m_last_x),
+                                               static_cast<int>(self->m_last_y),
+                                               wl_fixed_to_double(scale),
+                                               wl_fixed_to_double(dx),
+                                               wl_fixed_to_double(dy))) {
+            self->schedule_redraw();
+        }
+    },
+    .end = [](void* data, struct zwp_pointer_gesture_pinch_v1*, uint32_t, uint32_t, int32_t cancelled) {
+        auto* self = static_cast<Window*>(data);
+        if (!self) return;
+        if (self->m_root_view && self->m_root_view->on_pinch_end(cancelled != 0)) {
+            self->schedule_redraw();
+        }
+    },
 };
 
 const struct wl_keyboard_listener Window::s_keyboard_listener = {
@@ -957,6 +1006,10 @@ void Window::close() {
     if (engine) {
         engine->unregister_window(this);
     }
+    if (m_pinch_gesture) {
+        zwp_pointer_gesture_pinch_v1_destroy(m_pinch_gesture);
+        m_pinch_gesture = nullptr;
+    }
     if (m_pointer) {
         wl_pointer_destroy(m_pointer);
         m_pointer = nullptr;
@@ -1471,6 +1524,7 @@ void Window::handle_key_event(uint32_t keycode, bool pressed) {
     event.modifiers = m_modifiers;
 
     if (pressed) {
+        stop_key_repeat();
         dispatch_key_event(event);
 
         bool can_repeat = (m_repeat_rate > 0 && m_repeat_delay > 0);
@@ -1479,9 +1533,9 @@ void Window::handle_key_event(uint32_t keycode, bool pressed) {
         }
 
         if (can_repeat) {
-            stop_key_repeat();
             m_repeat_keycode = keycode;
             m_repeat_event = event;
+            m_repeat_event.is_repeat = true;
 
             int interval_ms = (m_repeat_rate > 0) ? std::max(10, 1000 / m_repeat_rate) : 40;
             auto* engine = AppEngine::instance();

@@ -21,6 +21,7 @@ pkg_check_modules(GDK_PIXBUF REQUIRED IMPORTED_TARGET gdk-pixbuf-2.0)
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 pkg_get_variable(WAYLAND_PROTOCOLS_DIR wayland-protocols pkgdatadir)
 set(XDG_SHELL_XML "${WAYLAND_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml")
+set(POINTER_GESTURES_XML "${WAYLAND_PROTOCOLS_DIR}/unstable/pointer-gestures/pointer-gestures-unstable-v1.xml")
 
 # Generate xdg-shell protocol
 add_custom_command(
@@ -32,6 +33,18 @@ add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-client-protocol.c
     COMMAND ${WAYLAND_SCANNER} private-code ${XDG_SHELL_XML} ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-client-protocol.c
     DEPENDS ${XDG_SHELL_XML}
+)
+
+# Generate pointer-gestures protocol
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pointer-gestures-unstable-v1-client-protocol.h
+    COMMAND ${WAYLAND_SCANNER} client-header ${POINTER_GESTURES_XML} ${CMAKE_CURRENT_BINARY_DIR}/pointer-gestures-unstable-v1-client-protocol.h
+    DEPENDS ${POINTER_GESTURES_XML}
+)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pointer-gestures-unstable-v1-client-protocol.c
+    COMMAND ${WAYLAND_SCANNER} private-code ${POINTER_GESTURES_XML} ${CMAKE_CURRENT_BINARY_DIR}/pointer-gestures-unstable-v1-client-protocol.c
+    DEPENDS ${POINTER_GESTURES_XML}
 )
 
 # Generate wlr-layer-shell protocol
@@ -171,6 +184,8 @@ add_library(miqutoolkit SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/ext-session-lock-v1-client-protocol.c
     ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-client-protocol.h
     ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-client-protocol.c
+    ${CMAKE_CURRENT_BINARY_DIR}/pointer-gestures-unstable-v1-client-protocol.h
+    ${CMAKE_CURRENT_BINARY_DIR}/pointer-gestures-unstable-v1-client-protocol.c
 )
 
 set_target_properties(miqutoolkit PROPERTIES

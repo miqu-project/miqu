@@ -381,6 +381,19 @@ bool ViewGroup::on_scroll(double delta, uint32_t axis_source) {
     return false;
 }
 
+bool ViewGroup::on_scroll_2d(double dx, double dy, uint32_t axis_source) {
+    if (!is_visible()) return false;
+
+    for (auto& child : m_children) {
+        if (child && child->is_visible()) {
+            if (child->on_scroll_2d(dx, dy, axis_source)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool ViewGroup::on_scroll_stop(uint32_t axis_source) {
     if (!is_visible()) return false;
 
@@ -388,6 +401,48 @@ bool ViewGroup::on_scroll_stop(uint32_t axis_source) {
     for (auto& child : m_children) {
         if (child && child->is_visible()) {
             if (child->on_scroll_stop(axis_source)) {
+                handled = true;
+            }
+        }
+    }
+    return handled;
+}
+
+bool ViewGroup::on_pinch_begin(int lx, int ly, uint32_t fingers) {
+    if (!is_visible()) return false;
+
+    for (auto it = m_children.rbegin(); it != m_children.rend(); ++it) {
+        auto& child = *it;
+        if (child && child->is_visible() && child->contains_point(lx, ly)) {
+            if (child->on_pinch_begin(lx, ly, fingers)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool ViewGroup::on_pinch_update(int lx, int ly, double scale, double dx, double dy) {
+    if (!is_visible()) return false;
+
+    for (auto it = m_children.rbegin(); it != m_children.rend(); ++it) {
+        auto& child = *it;
+        if (child && child->is_visible()) {
+            if (child->on_pinch_update(lx, ly, scale, dx, dy)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool ViewGroup::on_pinch_end(bool cancelled) {
+    if (!is_visible()) return false;
+
+    bool handled = false;
+    for (auto& child : m_children) {
+        if (child && child->is_visible()) {
+            if (child->on_pinch_end(cancelled)) {
                 handled = true;
             }
         }

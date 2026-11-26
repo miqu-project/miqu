@@ -100,6 +100,37 @@ public:
     void set_background_color(const Color& color) { m_bg_color = color; request_redraw(); }
     const Color& get_background_color() const { return m_bg_color; }
 
+    void set_zoom(double zoom) {
+        double clamped = std::clamp(zoom, 0.1, 20.0);
+        if (std::abs(m_zoom - clamped) > 1e-6) {
+            m_zoom = clamped;
+            request_redraw();
+        }
+    }
+    double get_zoom() const { return m_zoom; }
+
+    void set_pan(double px, double py) {
+        if (std::abs(m_pan_x - px) > 1e-6 || std::abs(m_pan_y - py) > 1e-6) {
+            m_pan_x = px;
+            m_pan_y = py;
+            request_redraw();
+        }
+    }
+    double get_pan_x() const { return m_pan_x; }
+    double get_pan_y() const { return m_pan_y; }
+
+    void reset_zoom() {
+        if (std::abs(m_zoom - 1.0) > 1e-6 || std::abs(m_pan_x) > 1e-6 || std::abs(m_pan_y) > 1e-6) {
+            m_zoom = 1.0;
+            m_pan_x = 0.0;
+            m_pan_y = 0.0;
+            request_redraw();
+        }
+    }
+
+    int get_source_width() const { return m_source_w; }
+    int get_source_height() const { return m_source_h; }
+
     void draw(cairo_t* cr, const Rect& bounds) override;
     Size measure_size() const override { return Size(m_target_size, m_target_size); }
 
@@ -121,6 +152,11 @@ private:
     float m_opacity = 1.0f;
     Color m_bg_color = Color::transparent();
     float m_dim_alpha = 0.0f;
+    double m_zoom = 1.0;
+    double m_pan_x = 0.0;
+    double m_pan_y = 0.0;
+    mutable int m_source_w = 0;
+    mutable int m_source_h = 0;
 
     cairo_surface_t* m_cached_surface = nullptr;
     int m_cached_w = 0;
@@ -130,6 +166,7 @@ private:
     ImageQuality m_cached_quality = ImageQuality::FullOriginal;
     int m_cached_target_size = 0;
     float m_cached_dim_alpha = 0.0f;
+    bool m_cached_full_res = false;
 };
 
 class ImageViewBuilder : public ViewBuilder<ImageViewBuilder, ImageView> {

@@ -8,6 +8,7 @@
 #include <string>
 #include <functional>
 #include <unordered_set>
+#include <atomic>
 
 namespace miqu {
 
@@ -40,13 +41,15 @@ struct FilesClipboard {
 class ExplorerView : public LinearLayout {
 public:
     explicit ExplorerView(const std::string& start_path = "", bool show_hidden = false);
-    ~ExplorerView() override = default;
+    ~ExplorerView() override {
+        if (m_alive) m_alive->store(false);
+    }
 
     void set_explorer_window(std::shared_ptr<Window> window) { m_window = std::move(window); }
     void set_on_state_changed(std::function<void()> cb) { m_on_state_changed = std::move(cb); }
 
     // Navigation & History
-    void navigate_to_dir(const std::filesystem::path& dir, bool push_history = true);
+    void navigate_to_dir(const std::filesystem::path& dir, bool push_history = true, const std::string& select_path = "");
     bool navigate_back();
     bool navigate_forward();
     bool navigate_up();
@@ -99,6 +102,7 @@ private:
     void setup_places();
     void sync_sidebar_selection();
     void setup_context_menus();
+    void start_directory_load(const std::filesystem::path& dir, const std::string& select_path = "");
     void apply_sort_and_filter(const std::string& select_path = "");
     void rebuild_active_items();
     void update_details_header();
@@ -202,6 +206,8 @@ private:
     FilesClipboard m_clipboard;
     uint64_t m_preview_load_gen = 0;
     uint64_t m_preview_debounce_timer = 0;
+    uint64_t m_dir_load_gen = 0;
+    std::shared_ptr<std::atomic<bool>> m_alive = std::make_shared<std::atomic<bool>>(true);
     uint64_t m_last_click_ms = 0;
 };
 

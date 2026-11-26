@@ -27,6 +27,7 @@
 #include "ext-idle-notify-v1-client-protocol.h"
 #include "ext-session-lock-v1-client-protocol.h"
 #include "cursor-shape-v1-client-protocol.h"
+#include "pointer-gestures-unstable-v1-client-protocol.h"
 
 namespace miqu {
 
@@ -147,6 +148,7 @@ AppEngine::~AppEngine() {
     ImageView::clear_cache();
     if (m_session_lock_manager) ext_session_lock_manager_v1_destroy(m_session_lock_manager);
     if (m_cursor_shape_manager) wp_cursor_shape_manager_v1_destroy(m_cursor_shape_manager);
+    if (m_pointer_gestures) zwp_pointer_gestures_v1_destroy(m_pointer_gestures);
     if (m_idle_notifier) ext_idle_notifier_v1_destroy(m_idle_notifier);
     if (m_ext_workspace_manager) ext_workspace_manager_v1_destroy(m_ext_workspace_manager);
     if (m_foreign_toplevel_manager) zwlr_foreign_toplevel_manager_v1_destroy(m_foreign_toplevel_manager);
@@ -249,6 +251,9 @@ void AppEngine::registry_global(void* data, struct wl_registry* registry, uint32
     } else if (std::strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0) {
         self->m_cursor_shape_manager = static_cast<struct wp_cursor_shape_manager_v1*>(
             wl_registry_bind(registry, name, &wp_cursor_shape_manager_v1_interface, 1));
+    } else if (std::strcmp(interface, zwp_pointer_gestures_v1_interface.name) == 0) {
+        self->m_pointer_gestures = static_cast<struct zwp_pointer_gestures_v1*>(
+            wl_registry_bind(registry, name, &zwp_pointer_gestures_v1_interface, std::min(version, 3u)));
     } else if (std::strcmp(interface, wl_output_interface.name) == 0) {
         OutputManager::get()->handle_global(registry, name, interface, version);
     }

@@ -48,6 +48,7 @@ struct KeyPressEvent {
     uint32_t raw_code = 0;
     uint32_t modifiers = 0;
     bool pressed = true;
+    bool is_repeat = false;
     std::string utf8_text;
 
     bool has_ctrl() const { return (modifiers & static_cast<uint32_t>(KeyboardModifier::Control)) != 0; }

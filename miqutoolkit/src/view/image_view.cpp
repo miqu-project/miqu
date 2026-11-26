@@ -616,7 +616,7 @@ static cairo_surface_t* apply_dim(cairo_surface_t* surf, float dim_alpha) {
     return surf;
 }
 
-static cairo_surface_t* load_surface(const std::string& path_or_name, int box_w, int box_h, FitMode fit_mode, int target_size, ImageQuality quality, float dim_alpha = 0.0f) {
+static cairo_surface_t* load_surface(const std::string& path_or_name, int box_w, int box_h, FitMode fit_mode, int target_size, ImageQuality quality, float dim_alpha = 0.0f, bool full_res = false) {
     if (path_or_name.empty() || box_w <= 0 || box_h <= 0) return nullptr;
 
     std::string resolved = ImageView::resolve_icon_path(path_or_name);
@@ -728,8 +728,11 @@ static cairo_surface_t* load_surface(const std::string& path_or_name, int box_w,
         preserve_aspect = TRUE;
     }
 
-    std::string cache_key = file_to_decode + "@" + std::to_string(req_w) + "x" + std::to_string(req_h) +
-                            (preserve_aspect ? "p" : "s");
+    bool decode_full = full_res && (quality == ImageQuality::FullOriginal);
+    std::string cache_key = decode_full
+        ? (file_to_decode + "@full")
+        : (file_to_decode + "@" + std::to_string(req_w) + "x" + std::to_string(req_h) +
+           (preserve_aspect ? "p" : "s"));
     if (dim_alpha > 0.001f) {
         cache_key += "d" + std::to_string(static_cast<int>(std::round(dim_alpha * 100)));
     }
@@ -754,7 +757,7 @@ static cairo_surface_t* load_surface(const std::string& path_or_name, int box_w,
             is_svg = true;
         }
     }
-    bool is_small_icon = (req_w <= 256 && req_h <= 256);
+    bool is_small_icon = !decode_full && (req_w <= 256 && req_h <= 256);
     bool should_disk_cache = (is_svg || is_small_icon) && (dim_alpha <= 0.001f);
 
     std::string disk_cache_file = should_disk_cache ? get_rendered_icon_file(cache_key) : "";
@@ -772,6 +775,8 @@ static cairo_surface_t* load_surface(const std::string& path_or_name, int box_w,
     GdkPixbuf* pixbuf = nullptr;
     if (use_disk_cache) {
         pixbuf = gdk_pixbuf_new_from_file(disk_cache_file.c_str(), &error);
+    } else if (decode_full) {
+        pixbuf = gdk_pixbuf_new_from_file(file_to_decode.c_str(), &error);
     } else if (quality == ImageQuality::FullOriginal) {
         // Full photos & wallpapers: decode synchronously from disk for instant frame 0 display
         pixbuf = gdk_pixbuf_new_from_file_at_scale(file_to_decode.c_str(), req_w, req_h, preserve_aspect, &error);
@@ -895,6 +900,7 @@ void ImageView::invalidate_surface_cache() {
     m_cached_quality = ImageQuality::FullOriginal;
     m_cached_target_size = 0;
     m_cached_dim_alpha = 0.0f;
+    m_cached_full_res = false;
 }
 
 void ImageView::draw(cairo_t* cr, const Rect& bounds) {
@@ -940,15 +946,17 @@ void ImageView::draw(cairo_t* cr, const Rect& bounds) {
         cairo_restore(cr);
     }
 
+    bool want_full_res = (m_zoom > 1.001 && m_quality == ImageQuality::FullOriginal && m_fit_mode == FitMode::Contain);
     cairo_surface_t* surf = nullptr;
     if (m_cached_surface && m_cached_source == m_source &&
-        m_cached_w == draw_w && m_cached_h == draw_h &&
+        m_cached_full_res == want_full_res &&
+        (want_full_res || (m_cached_w == draw_w && m_cached_h == draw_h)) &&
         m_cached_fit == m_fit_mode && m_cached_quality == m_quality &&
         m_cached_target_size == m_target_size &&
         std::abs(m_cached_dim_alpha - m_dim_alpha) < 0.001f) {
         surf = m_cached_surface;
     } else {
-        cairo_surface_t* loaded = load_surface(m_source, draw_w, draw_h, m_fit_mode, m_target_size, m_quality, m_dim_alpha);
+        cairo_surface_t* loaded = load_surface(m_source, draw_w, draw_h, m_fit_mode, m_target_size, m_quality, m_dim_alpha, want_full_res);
         if (loaded) {
             invalidate_surface_cache();
             m_cached_surface = cairo_surface_reference(loaded);
@@ -959,6 +967,7 @@ void ImageView::draw(cairo_t* cr, const Rect& bounds) {
             m_cached_quality = m_quality;
             m_cached_target_size = m_target_size;
             m_cached_dim_alpha = m_dim_alpha;
+            m_cached_full_res = want_full_res;
             surf = m_cached_surface;
         } else if (m_cached_surface && m_cached_source == m_source) {
             // Retain previous surface during in-flight resize or asynchronous reload
@@ -1041,8 +1050,13 @@ void ImageView::draw(cairo_t* cr, const Rect& bounds) {
     } else {
         int surf_w = cairo_image_surface_get_width(surf);
         int surf_h = cairo_image_surface_get_height(surf);
+        m_source_w = surf_w;
+        m_source_h = surf_h;
 
-        if (surf_w == draw_w && surf_h == draw_h) {
+        bool is_identity_view = (std::abs(m_zoom - 1.0) < 1e-6 &&
+                                  std::abs(m_pan_x) < 1e-6 &&
+                                  std::abs(m_pan_y) < 1e-6);
+        if (surf_w == draw_w && surf_h == draw_h && is_identity_view) {
             double img_x = draw_x + (draw_w - surf_w) / 2.0;
             double img_y = draw_y + (draw_h - surf_h) / 2.0;
 
@@ -1067,10 +1081,12 @@ void ImageView::draw(cairo_t* cr, const Rect& bounds) {
                 scale_x = 1.0;
                 scale_y = 1.0;
             }
+            scale_x *= m_zoom;
+            scale_y *= m_zoom;
             double scaled_w = surf_w * scale_x;
             double scaled_h = surf_h * scale_y;
-            double img_x = draw_x + (draw_w - scaled_w) / 2.0;
-            double img_y = draw_y + (draw_h - scaled_h) / 2.0;
+            double img_x = draw_x + (draw_w - scaled_w) / 2.0 + m_pan_x;
+            double img_y = draw_y + (draw_h - scaled_h) / 2.0 + m_pan_y;
 
             cairo_save(cr);
             cairo_translate(cr, img_x, img_y);
